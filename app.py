@@ -10,7 +10,6 @@ from db import engine
 from storage_utils import load_metadata
 from cheroot.wsgi import Server
 from extensions import cache
-from flask_compress import Compress
 # ---------- Logger ----------
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -49,7 +48,6 @@ def login_required(f):
 def create_app():
     app = Flask(__name__)
     cache.init_app(app)
-    Compress(app)
     # Config
     app.config["UPLOAD_FOLDER"] = "uploads"
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
@@ -138,4 +136,4 @@ app = create_app()
 if __name__ == "__main__":
     # Khởi động các tác vụ nền nếu cần
     start_scheduler() 
-    app.run(host="0.0.0.0", port=5002, debug=True)
+    app.run(host="0.0.0.0", port=5005, debug=True)
