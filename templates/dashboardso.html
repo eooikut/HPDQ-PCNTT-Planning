@@ -1,0 +1,2771 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Lọc Kho{% endblock %}
+
+{% block head %}
+{{ super() }}
+{% endblock %}
+{% block content %}
+
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-body">
+
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0 fw-bold text-primary"><i class="fas fa-chart-line me-2"></i>Phân tích Năng lực & Cung cầu</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="text-muted small fw-bold mb-0">Cung vs Cầu (Tấn)</h6>
+                                        </div>
+
+                                        <div class="bg-light p-2 rounded border mb-2">
+                                            <div class="row g-1">
+                                                <div class="col-4">
+                                                    <select id="trend-factory" class="form-select form-select-sm" style="font-size: 0.8rem;">
+                                                        <option value="all">Tất cả NM</option>
+                                                        <option value="HRC1">HRC1</option>
+                                                        <option value="HRC2">HRC2</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-3">
+                                                    <select id="trend-mac-thep" class="form-select form-select-sm" style="font-size: 0.8rem;">
+                                                        <option value="all">Tất cả Mác</option>
+                                                        </select>
+                                                </div>
+                                                <div class="col-4">
+                                                    <select id="trend-width" class="form-select form-select-sm" style="font-size: 0.8rem;">
+                                                        <option value="all">Tất cả Khổ</option>
+                                                        <option value="900-1000">900-1000</option>
+                                                        <option value="1000-1100">1000-1100</option>
+                                                        <option value="1100-1200">1100-1200</option>
+                                                        <option value="1200-1300">1200-1300</option>
+                                                        <option value="1300-1400">1300-1400</option>
+                                                        <option value="1400-1500">1400-1500</option>
+                                                        <option value="1500-1650">1500-1650</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-4">
+                                                    <select id="trend-thickness" class="form-select form-select-sm" style="font-size: 0.8rem;">
+                                                        <option value="all">Tất cả Dày</option>
+                                                        <option value="1.2-1.3">1.20 - 1.30</option>
+                                                        <option value="1.3-1.4">1.30 - 1.40</option>
+                                                        <option value="1.4-1.5">1.40 - 1.50</option>
+                                                        <option value="1.5-1.65">1.50 - 1.65</option>
+                                                        <option value="1.65-1.8">1.65 - 1.80</option>
+                                                        <option value="1.8-2.0">1.80 - 2.00</option>
+                                                        <option value="2.0-2.2">2.00 - 2.20</option>
+                                                        <option value="2.2-2.4">2.20 - 2.40</option>
+                                                        <option value="2.4-2.75">2.40 - 2.75</option>
+                                                        <option value="2.75-2.9">2.75 -2.90</option>
+                                                        <option value="2.9-10.0">> 2.9</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-3">
+                                                    <select id="trend-month" class="form-select form-select-sm" style="font-size: 0.8rem; border-color: #6f42c1; color: #6f42c1; font-weight: bold;">
+                                                        <option value="all">-- Tất cả Tháng --</option>
+                                                        </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div id="chart-monthly-trend" style="width: 100%; height: 340px;"></div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="text-center text-muted small fw-bold mb-0">Cơ cấu Khổ rộng</h6>
+                                        </div>
+                                        <div id="chart-cpk-width" style="width: 100%; height: 380px;"></div>
+                                    </div>
+
+                                    <div class="col-lg-4 mb-3">
+                                        <h6 class="text-center text-muted small fw-bold">Cơ cấu  Chiều dày</h6>
+                                        <div id="chart-cpk-thickness" style="width: 100%; height: 380px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+    <div class="row mb-4">
+    
+    <div class="col-lg-8">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 border-bottom pb-2">
+                    <h6 id="top5-title" class="text-muted fw-bold mb-0 me-3">
+                        Top Mác thép hiện tại
+                    </h6>
+                    <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+                        <div class="input-group input-group-sm" style="width: 250px;">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="fas fa-search text-muted"></i>
+                            </span>
+                            <input type="text" id="filter-mac-thep" class="form-control border-start-0 ps-0" placeholder="Tìm Mác thép..." autocomplete="off">
+                        </div>
+                        <button id="reset-tree-view" class="btn btn-sm btn-secondary shadow-sm fw-bold px-3">
+                            <i class="fas fa-sync-alt me-1"></i> Reset
+                        </button>
+                    </div>
+                </div>
+                <div id="top-5-chart-container" style="width: 100%; height: 450px;"> <div class="d-flex h-100 justify-content-center align-items-center text-muted">
+                        Đang tải...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="row h-100">
+            <div class="col-12 mb-3">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body p-2">
+                        <h6 class="text-muted small fw-bold text-center mb-2">Trạng thái Cuộn</h6>
+                        <div id="status-pie-chart-container" style="width: 100%; height: 220px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body p-2">
+                        <h6 class="text-muted small fw-bold text-center mb-2">Trạng thái SO</h6>
+                        <div id="so-pie-chart-container" style="width: 100%; height: 220px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+                <div class="row mt-4">
+                    <div class="col-lg-8">
+                        <h6 class="text-muted">Biểu đồ phân rã chi tiết</h6>
+                        <div id="echarts-tree-container" style="width: 100%; height: 600px; border: 1px solid #dee2e6; border-radius: 5px;">
+                            <div class="d-flex h-100 justify-content-center align-items-center text-muted">
+                                Đang tải dữ liệu...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <h6 class="text-muted">Chi tiết Sales Order (Kết quả lọc)</h6>
+                        <div class="table-responsive" style="height: 600px; border: 1px solid #dee2e6; border-radius: 5px;">
+                            <table class="table table-sm table-hover table-bordered">
+                                <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                                    <tr>
+                                        <th style="width: 5%;">STT</th>
+                                        <th>Sales Order</th>
+                                        <th>Material </th>
+                                        <th>Định lượng</th>
+                                        <th>Tỷ lệ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="so-details-tbody">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted p-4">Vui lòng chọn bộ lọc.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+<div class="col-lg-12">
+    <h6 class="text-muted">Chi tiết các cuộn (Kết quả lọc)</h6>
+    <div class="table-responsive" style="height: 400px; border: 1px solid #dee2e6; border-radius: 5px;">
+        <table class="table table-sm table-hover table-striped table-bordered">
+            <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+                                    <tr>
+                                        <th style="width: 5%;">STT</th>
+                                        <th>ID Cuộn Bó</th>
+                                        <th>Material</th>
+                                        <th>Nhóm</th>
+                                        <th>Nhà máy</th>
+                                        <th>Khối lượng (kg)</th>
+                                        <th>Vị trí</th>
+                                        <th>Trạng thái</th>
+                                        <th>SO Mapping</th>
+                                    </tr>
+                                </thead>
+            <tbody id="coil-details-tbody">
+                </tbody>
+        </table>
+    </div>
+
+    <div id="coil-pagination" class="d-flex justify-content-between align-items-center mt-2 p-2 bg-light border rounded">
+        <span class="text-muted small" id="page-info">Đang hiển thị 0-0 trên tổng 0</span>
+        <div>
+                    <button class="btn btn-sm btn-outline-secondary" id="btn-prev">
+            <i class="fas fa-chevron-left"></i> Trước
+        </button>
+        <button class="btn btn-sm btn-outline-secondary ms-1" id="btn-next">
+            Sau <i class="fas fa-chevron-right"></i>
+        </button>
+        </div>
+    </div>
+</div>
+               
+
+            </div> </div> </div>
+</div>
+<style>
+/* CSS cho ECharts Tree (Giữ nguyên) */
+#echarts-tree-container {
+    background: linear-gradient(90deg, #f8f9fa 0%, #ffffff 100%);
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.05);
+}
+body, .btn, .form-control, .table {
+    /* Sử dụng font-stack (dải font) hiện đại, ưu tiên các font có sẵn trên hệ thống.
+      Điều này đảm bảo tính nhất quán "1 kiểu chữ" như bạn muốn.
+    */
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* 2. Giảm cỡ chữ cơ bản cho dashboard (giúp giao diện gọn gàng hơn) */
+body {
+    font-size: 0.9rem; /* Cỡ chữ cơ bản (khoảng 14.4px) */
+}
+
+/* 3. "Nâng cấp" các tiêu đề khu vực
+   (Đây là phần quan trọng nhất cho UI của bạn) 
+   Bạn đang dùng <h6 class="text-muted fw-bold">. 
+   Chúng ta sẽ định nghĩa lại cho nó to và rõ ràng hơn.
+*/
+.card-body h6.text-muted {
+    font-size: 1.15rem;   /* Tương đương <h5>, lớn và rõ ràng */
+    font-weight: 600;     /* Đậm vừa (semibold) */
+    color: #495057 !important; /* Đậm hơn 'text-muted' */
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee; /* Tạo đường gạch chân mờ */
+}
+
+/* 4. Tinh chỉnh font chữ trong Bảng */
+.table {
+    font-size: 0.875rem; /* 14px */
+}
+
+.table thead th {
+    font-size: 0.8rem;   /* 12.8px */
+    font-weight: 600;
+    text-transform: uppercase; /* Viết hoa tiêu đề cột */
+    color: #212529;
+    vertical-align: middle;
+    background-color: #212529;
+    color: #f8f9fa;            /* Màu chữ trắng (Bootstrap light) */
+    border-color: #454d55;
+}
+
+.table tbody td {
+    vertical-align: middle;
+}
+
+/* 5. Đồng bộ cỡ chữ của Form */
+.form-control, .btn {
+    font-size: 0.9rem; /* Đồng bộ với cỡ chữ body */
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script>
+    const THICKNESS_STD_MAP = {
+    1.5: [0.14, 0.15, 0.16], 1.8: [0.16, 0.17, 0.18], 2.0: [0.17, 0.19, 0.20],
+    2.3: [0.17, 0.19, 0.20], 3.0: [0.19, 0.21, 0.22], 4.0: [0.24, 0.26, 0.28],
+    5.0: [0.26, 0.28, 0.29], 8.0: [0.32, 0.33, 0.34], 12.0: [0.35, 0.36, 0.37]
+};
+function getSpecsWidth(nominal) {
+    let tolerance = 20;
+    if (nominal >= 1250) tolerance = 30;
+    return { 
+        lsl: nominal, 
+        usl: nominal + tolerance,
+        tol: tolerance
+    };
+}
+
+// Hàm parse khoảng chọn từ Dropdown (Ví dụ "1200-1300" -> [1200, 1300])
+function parseRange(rangeStr) {
+    const parts = rangeStr.split('-');
+    return {
+        min: parseFloat(parts[0]), // Dùng parseFloat để lấy 1.8
+        max: parseFloat(parts[1])  // Dùng parseFloat để lấy 2.0
+    };
+}
+function getSpecsThickness(currentCoils, nominal) {
+    // Logic Dynamic cũ cho chiều dày (GIỮ NGUYÊN)
+    const available = Object.keys(THICKNESS_STD_MAP).map(Number);
+    const closest = available.reduce((prev, curr) => Math.abs(curr - nominal) < Math.abs(prev - nominal) ? curr : prev);
+    
+    const totalW = currentCoils.reduce((sum, item) => sum + (item['kho_rong_num'] || 0), 0);
+    const avgW = currentCoils.length ? totalW / currentCoils.length : 0;
+    
+    const tols = THICKNESS_STD_MAP[closest];
+    let tol = tols[2]; 
+    if (avgW < 1250) tol = tols[0];
+    else if (avgW < 1500) tol = tols[1];
+
+    return { lsl: Number((closest - tol).toFixed(3)), usl: Number((closest + tol).toFixed(3)), nom: closest };
+}
+
+function calculateStats(dataArray) {
+    if (!dataArray || dataArray.length < 2) return null;
+    const n = dataArray.length;
+    const mean = dataArray.reduce((a, b) => a + b, 0) / n;
+    const variance = dataArray.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (n - 1);
+    return { mean, stdDev: Math.sqrt(variance) };
+}
+
+// HÀM MỚI: Có thêm tham số minVal, maxVal (giá trị thực tế của dữ liệu)
+function generateGaussian(mean, stdDev, lsl, usl, minVal, maxVal) {
+    if (stdDev === 0) return [];
+
+    // 1. Xác định điểm bắt đầu và kết thúc vẽ
+    // MẶC ĐỊNH: Kẹp cứng trong khoảng LSL và USL (Theo yêu cầu của bạn)
+    let startDraw = lsl;
+    let endDraw = usl;
+
+    // 2. Kiểm tra ngoại lệ:
+    // Chỉ mở rộng ra ngoài LSL/USL NẾU VÀ CHỈ NẾU có dữ liệu thực tế (minVal/maxVal) nằm ngoài đó.
+    // (Nếu bạn đã lọc kỹ dữ liệu đầu vào > 1200 thì dòng này sẽ không bao giờ kích hoạt, đảm bảo không bị lem)
+    if (minVal !== undefined && minVal < startDraw) startDraw = minVal;
+    if (maxVal !== undefined && maxVal > endDraw) endDraw = maxVal;
+
+    // 3. Tạo padding cực nhỏ (chỉ để nét vẽ không bị đè lên vạch đỏ)
+    // Lưu ý: Không dùng padding lớn, tránh bị hiểu nhầm là lem
+    const step = (endDraw - startDraw) / 100; 
+    
+    const lineData = [];
+
+    // Vòng lặp tính toán tọa độ (x, y)
+    for (let x = startDraw; x <= endDraw + (step/2); x += step) {
+        // Công thức phân phối chuẩn
+        const y = (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / stdDev, 2));
+        
+        // Chỉ thêm điểm nếu x thực sự nằm trong vùng vẽ (fix lỗi làm tròn số thực)
+        // Logic này đảm bảo đồ thị bị "cắt cụt" tại vạch đỏ thay vì vẽ thoai thoải ra ngoài
+        lineData.push([Number(x.toFixed(2)), Number(y.toFixed(6))]);
+    }
+
+    // Chốt chặn cuối cùng: Đảm bảo điểm cuối cùng luôn là endDraw để khép kín
+    // (Tránh trường hợp vòng lặp dừng sớm do làm tròn số)
+    if (lineData.length > 0 && lineData[lineData.length-1][0] < endDraw) {
+         const x = endDraw;
+         const y = (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / stdDev, 2));
+         lineData.push([Number(x.toFixed(2)), Number(y.toFixed(6))]);
+    }
+
+    return lineData;
+}
+
+// ============================================================
+// 2. CÁC HÀM VẼ ECHARTS
+// ============================================================
+function initMonthlyChart(data) {
+    const chartDom = document.getElementById('chart-monthly-trend');
+    if(!chartDom) return;
+    const myChart = echarts.init(chartDom);
+    const option = {
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['Sản xuất (Tồn)', 'Đặt hàng (SO)'], bottom: 0 },
+        grid: { left: '3%', right: '4%', bottom: '10%', top: '10%', containLabel: true },
+        xAxis: { type: 'category', data: data.months },
+        yAxis: { type: 'value', name: 'Tấn' },
+        series: [
+            { name: 'Sản xuất (Tồn)', type: 'bar', data: data.supply, itemStyle: { color: '#28a745' } },
+            { name: 'Đặt hàng (SO)', type: 'line', data: data.demand, itemStyle: { color: '#dc3545' }, lineStyle: { width: 3 } }
+        ]
+    };
+    myChart.setOption(option);
+}
+// --- PHẦN LOGIC ĐIỀU KHIỂN (CONTROLLER) ---
+
+    // 1. Xử lý khi đổi NHÀ MÁY hoặc MÁC THÉP (Thay đổi cấp cao nhất -> Vẽ lại TẤT CẢ)
+    
+// Hàm tính Mean và StdDev có trọng số (Dùng cho SO vì mỗi SO có khối lượng khác nhau)
+function calculateWeightedStats(dataArray, valueKey, weightKey) {
+    let totalWeight = 0;
+    let weightedSum = 0;
+
+    // 1. Tính Weighted Mean
+    dataArray.forEach(item => {
+        const val = parseFloat(item[valueKey]);
+        const weight = parseFloat(item[weightKey] || 0);
+        if (!isNaN(val) && !isNaN(weight) && weight > 0) {
+            weightedSum += val * weight;
+            totalWeight += weight;
+        }
+    });
+
+    if (totalWeight === 0) return { mean: 0, stdDev: 0 };
+    const mean = weightedSum / totalWeight;
+
+    // 2. Tính Weighted Variance -> StdDev
+    let weightedVarianceSum = 0;
+    dataArray.forEach(item => {
+        const val = parseFloat(item[valueKey]);
+        const weight = parseFloat(item[weightKey] || 0);
+        if (!isNaN(val) && !isNaN(weight) && weight > 0) {
+            weightedVarianceSum += weight * Math.pow(val - mean, 2);
+        }
+    });
+
+    // Bảo vệ: Nếu chỉ có 1 SO hoặc variance quá nhỏ, gán stdDev nhỏ tượng trưng để vẽ được hình chuông nhọn
+    let stdDev = Math.sqrt(weightedVarianceSum / totalWeight);
+    if (stdDev < 0.01) stdDev = 0.5; // Giả lập độ lệch nhỏ nếu dữ liệu quá tập trung
+
+    return { mean, stdDev };
+}
+// --- CẬP NHẬT HÀM VẼ CPK: ẨN LABEL, HIỆN TOOLTIP CHI TIẾT ---
+function initCPKChart(domId, cpkData, unit) {
+    const chartDom = document.getElementById(domId);
+    if (!chartDom || !cpkData) return;
+    if (echarts.getInstanceByDom(chartDom)) echarts.getInstanceByDom(chartDom).dispose();
+    const myChart = echarts.init(chartDom);
+
+    // --- [BƯỚC 1: XÁC ĐỊNH TÊN GỌI ĐỘNG] ---
+    // Mặc định là SO
+    let soDisplayName = 'Nhu cầu (SO)'; 
+    
+    // Nếu tiêu đề tháng có chữ "Dự kiến" -> Đổi tên
+    if (cpkData.monthly_title && cpkData.monthly_title.toString().includes('Dự kiến')) {
+        soDisplayName = 'Nhu cầu (Dự kiến)';
+    }
+    // ----------------------------------------
+
+    // --- 2. CẤU HÌNH MARK LINE ---
+    const markLineData = [
+        { xAxis: cpkData.lsl, name: 'LSL', lineStyle: { color: '#dc3545', width: 2 }, label: { show: false } },
+        { xAxis: cpkData.usl, name: 'USL', lineStyle: { color: '#dc3545', width: 2 }, label: { show: false } },
+        { xAxis: cpkData.mean, name: 'Mean Kho', lineStyle: { color: '#0d6efd', type: 'dashed', width: 2 }, label: { show: false } }
+    ];
+
+    if (cpkData.monthly_mean) {
+        markLineData.push({
+            xAxis: cpkData.monthly_mean, 
+            name: 'Mean Tháng',
+            lineStyle: { color: '#6f42c1', type: 'dashed', width: 2 }, 
+            label: { show: false }
+        });
+    }
+
+    if (cpkData.so_mean) {
+        markLineData.push({
+            xAxis: cpkData.so_mean, 
+            name: 'Mean SO', 
+            lineStyle: { color: '#ff9800', type: 'dotted', width: 2 },
+            label: { show: false } 
+        });
+    }
+
+    // --- 3. TÍNH TOÁN TRỤC X ---
+    let plotMin = cpkData.lsl;
+    let plotMax = cpkData.usl;
+    const allX = [
+        ...cpkData.line_data.map(p => p[0]), 
+        ...(cpkData.so_line_data || []).map(p => p[0]),
+        ...(cpkData.monthly_line_data || []).map(p => p[0])
+    ];
+    
+    if (allX.length > 0) {
+        const realMin = Math.min(...allX);
+        const realMax = Math.max(...allX);
+        if (realMin < plotMin) plotMin = realMin;
+        if (realMax > plotMax) plotMax = realMax;
+    }
+
+    // --- 4. CẤU HÌNH LEGEND ---
+    const legendData = ['Năng lực sản xuất', soDisplayName]; 
+    
+    if (cpkData.monthly_line_data && cpkData.monthly_line_data.length > 0) {
+        legendData.push(cpkData.monthly_title || 'Tháng chọn');
+    }
+
+    const option = {
+        title: { 
+            text: cpkData.title || '', 
+            left: 'center', top: '2%',
+            textStyle: { fontSize: 13, fontWeight: 'bold' }
+        },
+        tooltip: {
+            trigger: 'axis',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            borderColor: '#ccc',
+            borderWidth: 1,
+            textStyle: { color: '#333', fontSize: 12 },
+            formatter: function (params) {
+                if (!params || params.length === 0) return '';
+
+                let html = `<div style="margin-bottom: 8px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 4px;">
+                                Kích thước: ${params[0].axisValue} ${unit}
+                            </div>`;
+
+                const seenSeries = new Set(); 
+                params.forEach(p => {
+                    if (seenSeries.has(p.seriesName)) return; 
+                    seenSeries.add(p.seriesName);
+
+                    const color = p.color;
+                    const valueDisplay = typeof p.value[1] === 'number' ? p.value[1].toFixed(2) : p.value[1];
+
+                    html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:5px;"></span>${p.seriesName}</span>
+                                <span style="font-weight:bold; margin-left: 15px;">${valueDisplay}</span>
+                             </div>`;
+                });
+
+                // Static Info
+                html += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ccc; font-size: 11px; color: #666;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span>Quy chuẩn:</span>
+                                <span style="color:#dc3545; font-weight:bold;">${cpkData.lsl}-${cpkData.usl}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-top:2px;">
+                                <span>Mean Kho:</span>
+                                <span style="color:#0d6efd; font-weight:bold;">${cpkData.mean}</span>
+                            </div>`;
+                
+                if (cpkData.so_mean) {
+                    // --- [SỬA CHÍNH Ở ĐÂY: Dùng tên biến soDisplayName] ---
+                    html += `<div style="display:flex; justify-content:space-between; margin-top:2px;">
+                                <span>Mean ${soDisplayName}:</span> 
+                                <span style="color:#ff9800; font-weight:bold;">${cpkData.so_mean}</span>
+                             </div>`;
+                }
+                
+                if (cpkData.monthly_mean) {
+                    html += `<div style="display:flex; justify-content:space-between; margin-top:2px;">
+                                <span>Mean ${cpkData.monthly_title}:</span>
+                                <span style="color:#6f42c1; font-weight:bold;">${cpkData.monthly_mean}</span>
+                             </div>`;
+                }
+                
+                // Độ lệch (Cũng sửa tên hiển thị cho khớp)
+                if(cpkData.so_mean) {
+                     const diff = (cpkData.mean - cpkData.so_mean).toFixed(2);
+                     const color = diff > 0 ? 'red' : (diff < 0 ? 'blue' : 'green');
+                     let shortName = soDisplayName.includes('Dự kiến') ? 'Dự kiến' : 'SO';
+                     
+                     html += `<div style="display:flex; justify-content:space-between; margin-top:4px; font-style:italic;">
+                                <span>Độ lệch (Kho - ${shortName}):</span>
+                                <span style="color:${color};">${diff > 0 ? '+' : ''}${diff}</span>
+                             </div>`;
+                }
+
+                html += `</div>`;
+                return html;
+            }
+        },
+        legend: { 
+            data: legendData, 
+            bottom: 0,
+            itemGap: 20 
+        },
+        grid: { 
+            left: '2%', right: '4%', bottom: '10%', top: '15%', containLabel: true 
+        },
+        xAxis: {
+            type: 'value', scale: true, name: unit, nameGap: 5,
+            min: plotMin, max: plotMax,
+            axisLabel: { fontSize: 11 }
+        },
+        yAxis: { type: 'value', show: false }, 
+        series: [
+            {
+                name: 'Năng lực sản xuất', type: 'line', smooth: true,
+                data: cpkData.line_data, symbol: 'none',
+                lineStyle: { width: 2.5, color: '#20c997' },
+                areaStyle: { opacity: 0.25, color: '#20c997' },
+                markLine: { symbol: 'none', data: markLineData, animation: false, silent: true }
+            },
+            {
+                name: soDisplayName, // Dùng tên động
+                type: 'line', smooth: true,
+                data: cpkData.so_line_data || [],
+                symbol: 'none',
+                lineStyle: { width: 2.5, color: '#ff9800', type: 'solid' },
+                areaStyle: { opacity: 0.1, color: '#ff9800' }
+            },
+            {
+                name: cpkData.monthly_title || 'Tháng chọn',
+                type: 'line', smooth: true,
+                data: cpkData.monthly_line_data || [],
+                symbol: 'none',
+                lineStyle: { width: 2.5, color: '#6f42c1', type: 'dashed' }, 
+                areaStyle: { opacity: 0.1, color: '#6f42c1' },
+            }
+        ]
+    };
+    myChart.setOption(option);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // ... (Code JS từ 'Biến toàn cục' đến 'async function initializeData()' giữ nguyên) ...
+    // [PHẦN CODE JS GIỮ NGUYÊN]
+    const elFactory = document.getElementById('trend-factory');
+    const elMacThep = document.getElementById('trend-mac-thep');
+    const elWidth = document.getElementById('trend-width');
+    const elThick = document.getElementById('trend-thickness');
+    
+    const btnPrevEl = document.getElementById('btn-prev');
+    const btnNextEl = document.getElementById('btn-next');
+    const widthRangeSelect = document.getElementById('width-range-select');
+
+    let allFuturePlans = [];
+    if (btnPrevEl) {
+        btnPrevEl.addEventListener('click', function() {
+            changePage(-1);
+        });
+    }
+
+    if (btnNextEl) {
+        btnNextEl.addEventListener('click', function() {
+            changePage(1);
+        });
+    }
+    const elMonth = document.getElementById('trend-month');
+    function handleMasterChange() {
+        const factoryVal = elFactory.value;
+        const macThepVal = elMacThep.value;
+        const widthVal = elWidth.value;
+        const thickVal = elThick.value;
+        const monthVal = elMonth ? elMonth.value : 'all'; // Lấy giá trị tháng hiện tại
+        
+        // Cập nhật Dropdown Tháng (Logic thông minh: chỉ cập nhật khi NM hoặc Mác thay đổi)
+        // Tuy nhiên để an toàn, cứ cập nhật lại list tháng phù hợp với bộ lọc hiện tại
+        let tempCoils = allCoils; 
+        if (factoryVal !== 'all') tempCoils = tempCoils.filter(c => getFactoryType(c['NhaMay']) === factoryVal);
+        if (macThepVal !== 'all') tempCoils = tempCoils.filter(c => c['Mác thép'] === macThepVal);
+        updateMonthDropdown(tempCoils); 
+
+        // Vẽ lại Trend
+        updateMonthlyTrendSpecific();
+        
+        // Vẽ lại 2 biểu đồ CPK (QUAN TRỌNG: TRUYỀN THAM SỐ monthVal VÀO CUỐI)
+        renderWidthChartOnly(currentFilteredCoils, currentFilteredSOs, widthVal, factoryVal, macThepVal, monthVal);
+        renderThicknessChartOnly(currentFilteredCoils, currentFilteredSOs, thickVal, factoryVal, macThepVal, monthVal);
+    }
+
+    // 2. Hàm xử lý khi chọn THÁNG
+    function handleMonthChange() {
+        const factoryVal = elFactory.value;
+        const macThepVal = elMacThep.value;
+        const widthVal = elWidth.value;
+        const thickVal = elThick.value;
+        const monthVal = this.value; // Giá trị tháng vừa chọn
+
+        // Chỉ vẽ lại CPK, không cần update Trend hay list tháng
+        renderWidthChartOnly(currentFilteredCoils, currentFilteredSOs, widthVal, factoryVal, macThepVal, monthVal);
+        renderThicknessChartOnly(currentFilteredCoils, currentFilteredSOs, thickVal, factoryVal, macThepVal, monthVal);
+    }
+
+    // 3. Hàm xử lý khi chọn CHIỀU DÀY
+    function handleThicknessChange() {
+        const factoryVal = elFactory.value;
+        const macThepVal = elMacThep.value;
+        const thickVal = this.value;
+        const monthVal = elMonth ? elMonth.value : 'all';
+
+        updateMonthlyTrendSpecific(); // Cập nhật Trend (vì Trend có lọc theo dày)
+        
+        // Chỉ vẽ lại CPK Dày, giữ nguyên CPK Khổ
+        renderThicknessChartOnly(currentFilteredCoils, currentFilteredSOs, thickVal, factoryVal, macThepVal, monthVal);
+    }
+
+    // 4. Hàm xử lý khi chọn KHỔ RỘNG
+    function handleWidthChange() {
+        const factoryVal = elFactory.value;
+        const macThepVal = elMacThep.value;
+        const widthVal = this.value;
+        const monthVal = elMonth ? elMonth.value : 'all';
+
+        updateMonthlyTrendSpecific(); // Cập nhật Trend
+        
+        // Chỉ vẽ lại CPK Khổ
+        renderWidthChartOnly(currentFilteredCoils, currentFilteredSOs, widthVal, factoryVal, macThepVal, monthVal);
+    }
+    // Hàm lấy Key tháng từ ngày (YYYY-MM)
+function getMonthKeyFromDate(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Hàm cập nhật Dropdown Tháng dựa trên dữ liệu đã lọc
+function updateMonthDropdown(filteredCoils) {
+    const monthSelect = document.getElementById('trend-month');
+    const currentVal = monthSelect.value; 
+
+    const monthsSet = new Set();
+
+    // 1. Lấy tháng từ Lịch sử (Coils)
+    filteredCoils.forEach(c => {
+        const m = getMonthKeyFromDate(c['Ngày sản xuất']);
+        if (m) monthsSet.add(m);
+    });
+
+    // 2. [MỚI] Lấy tháng từ Kế hoạch (Future Plans)
+    // Biến allFuturePlans là biến toàn cục đã khai báo ở đầu file
+    if (typeof allFuturePlans !== 'undefined') {
+        allFuturePlans.forEach(p => {
+            // Xử lý format tháng của kế hoạch (thường là T.12 hoặc 2025-12)
+            let m = p['month_key'] || p['month']; 
+            if (m && typeof m === 'string') {
+                if (m.includes('T.')) {
+                    let part = m.replace('T.', '').trim();
+                    if(part.length === 1) part = '0' + part;
+                    m = `2025-${part}`; // Giả định năm 2025, bạn có thể sửa logic lấy năm động
+                }
+                monthsSet.add(m);
+            }
+        });
+    }
+
+    // 3. Sắp xếp giảm dần (Mới nhất lên đầu)
+    const sortedMonths = Array.from(monthsSet).sort().reverse();
+
+    // 4. Vẽ Dropdown
+    monthSelect.innerHTML = '<option value="all">Chọn Tháng</option>';
+    
+    sortedMonths.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        
+        // Hiển thị đẹp: T12/2025
+        const parts = m.split('-'); 
+        if(parts.length === 2) {
+            opt.textContent = `T${parts[1]}/${parts[0]}`;
+        } else {
+            opt.textContent = m;
+        }
+        monthSelect.appendChild(opt);
+    });
+
+    if (sortedMonths.includes(currentVal)) {
+        monthSelect.value = currentVal;
+    }
+}
+    // --- GÁN SỰ KIỆN (ĐÃ TÁCH BIỆT) ---
+    if (elFactory) elFactory.addEventListener('change', handleMasterChange);
+    if (elMacThep) elMacThep.addEventListener('change', handleMasterChange);
+    if (elMonth) elMonth.addEventListener('change', handleMonthChange);
+    if (elWidth) {
+        // Xóa sự kiện cũ nếu có để tránh trùng lặp (an toàn)
+        elWidth.removeEventListener('change', syncChartsFromTrendFilters); 
+        elWidth.addEventListener('change', handleWidthChange);
+    }
+
+    if (elThick) {
+        // Code cũ của bạn chỉ gọi updateMonthlyTrendSpecific, giờ ta đổi sang hàm mới
+        elThick.removeEventListener('change', updateMonthlyTrendSpecific);
+        elThick.addEventListener('change', handleThicknessChange);
+    }
+    // Tìm đoạn code xử lý widthRangeSelect
+    if (widthRangeSelect) {
+        widthRangeSelect.addEventListener('change', function() {
+            // Lấy nhà máy hiện tại đang chọn ở trên để giữ tính nhất quán
+            const currentFactory = document.getElementById('trend-factory').value;
+            
+            // Vẽ lại, ưu tiên khoảng vừa chọn tại đây (this.value)
+            renderWidthChartOnly(currentFilteredCoils, currentFilteredSOs, this.value, currentFactory);
+        });
+    }
+    // --- THÊM VÀO KHU VỰC KHAI BÁO BIẾN TOÀN CỤC ---
+    let currentPage = 1;        // Trang hiện tại
+    const rowsPerPage = 20;     // Số dòng mỗi trang (Chỉnh số này tùy ý: 10, 20, 50)
+    let currentTableData = [];  // Lưu trữ dữ liệu đang được hiển thị trong bảng để cắt trang
+    // if(elFactory) elFactory.addEventListener('change', syncChartsFromTrendFilters);
+    // if(elWidth) elWidth.addEventListener('change', syncChartsFromTrendFilters);
+
+    // Riêng dropdown thickness chỉ ảnh hưởng Trend và CPK Dày (nếu bạn muốn làm tương tự cho độ dày)
+    // if(elThick) elThick.addEventListener('change', updateMonthlyTrendSpecific);
+    let allCoils = [];
+    let inventoryCoils = [];
+    let allSOs = [];
+    let echartsFullData = {};
+    let allSoDetails = [];
+    let allSoDetailsCategorized = [];
+    let globalStatusFilter = null;
+    let isZoomedIn = false;
+    let top5Nodes = [];      
+    let top5Names = [];      
+    let myChart = null;      
+    let top5Chart = null;
+    let statusPieChart = null;
+    let soPieChart = null; 
+    let suitableWidthSet = new Set();
+    let suitableThicknessSet = new Set();
+    
+
+    const chartContainer = document.getElementById('echarts-tree-container');
+    const coilTbody = document.getElementById('coil-details-tbody');
+    const soTbody = document.getElementById('so-details-tbody');
+    const top5ChartContainer = document.getElementById('top-5-chart-container');
+    const soPieChartContainer = document.getElementById('so-pie-chart-container'); 
+    const filterMacThepEl = document.getElementById('filter-mac-thep'); 
+    const resetBtn = document.getElementById('reset-tree-view'); 
+    const statusPieChartContainer = document.getElementById('status-pie-chart-container'); 
+    
+    let currentFilteredCoils = [];
+    let currentFilteredSOs = [];
+
+    const apiUrl = "{{ url_for('dashboard_so_bp.get_warehouse_data') }}";
+    
+    myChart = echarts.init(chartContainer);
+    top5Chart = echarts.init(top5ChartContainer);
+    initStatusPieChart(); 
+    initSoPieChart(); 
+    function getFactoryType(name) {
+    // Vì SQL đã trả về đúng "HRC1" hoặc "HRC2" rồi, ta lấy luôn
+    return name || 'HRC1'; 
+}
+const CAPACITY_CONST = {
+    'HRC1': 187040,
+    'HRC2': 280000
+};
+function renderThicknessChartOnly(coils, sos, forceRangeStr = 'all', forceFactory = 'all', forceMacThep = 'all', forceMonth = 'all') {
+    // 1. LỌC DỮ LIỆU CƠ BẢN
+    let filteredCoils = coils;
+    let filteredSOs = sos;
+
+    if (forceFactory && forceFactory !== 'all') {
+        filteredCoils = filteredCoils.filter(c => getFactoryType(c['NhaMay'] || c['Factory']) === forceFactory);
+    }
+    if (forceMacThep && forceMacThep !== 'all') {
+        filteredCoils = filteredCoils.filter(c => (c['Mác thép'] || c['mac_thep']) === forceMacThep);
+        filteredSOs = filteredSOs.filter(s => (s['Mác thép'] || s['mac_thep']) === forceMacThep);
+    }
+
+    let t_LSL, t_USL, rangeTitle;
+    
+    // Lấy danh sách độ dày toàn bộ
+    const allThicks = filteredCoils.map(c => parseFloat(c['chieu_day'])).filter(t => !isNaN(t));
+    if (allThicks.length === 0) {
+         clearChart('chart-cpk-thickness', `Không có dữ liệu chiều dày phù hợp`);
+         return;
+    }
+
+    let validThicks = [];
+    let targetStandard = 0;
+
+    // 2. XÁC ĐỊNH LSL/USL VÀ GIÁ TRỊ CHUẨN
+    if (forceRangeStr && forceRangeStr !== 'all') {
+        const range = parseRange(forceRangeStr);
+        t_LSL = range.min; t_USL = range.max;
+        rangeTitle = `${forceRangeStr} mm`;
+
+        validThicks = allThicks.filter(t => t >= t_LSL && t < t_USL);
+        
+        if(validThicks.length > 0) {
+            const counts = {};
+            validThicks.forEach(x => { const k = x.toFixed(2); counts[k] = (counts[k] || 0) + 1; });
+            targetStandard = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+        } else {
+            targetStandard = (t_LSL + t_USL) / 2;
+        }
+
+    } else {
+        // Logic chọn "Tất cả" -> Tìm Mode
+        const counts = {}; allThicks.forEach(x => { const key = x.toFixed(1); counts[key] = (counts[key] || 0) + 1; });
+        const dominantStr = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+        const dominantVal = parseFloat(dominantStr);
+        
+        const stdKeys = Object.keys(THICKNESS_STD_MAP).map(Number);
+        const closestStd = stdKeys.reduce((prev, curr) => Math.abs(curr - dominantVal) < Math.abs(prev - dominantVal) ? curr : prev);
+        const stdTols = THICKNESS_STD_MAP[closestStd];
+        const tolerance = stdTols ? stdTols[2] : 0.2;
+
+        t_LSL = Number((closestStd - tolerance).toFixed(3));
+        t_USL = Number((closestStd + tolerance).toFixed(3));
+        targetStandard = closestStd;
+        rangeTitle = `Chuẩn phổ biến`;
+        validThicks = allThicks.filter(t => t >= t_LSL && t <= t_USL);
+    }
+    
+    // 3. TÍNH TOÁN VÀ VẼ
+    if (validThicks.length > 1) {
+        // A. Thống kê Kho (Đường Xanh - Luôn cố định)
+        const stats = calculateStats(validThicks);
+        
+        // B. Xử lý TƯƠNG LAI vs QUÁ KHỨ
+        let soStats = null;
+        let soVals = [];
+        let monthlyLineData = [];
+        let monthlyMean = null;
+        let monthlyTitle = '';
+        let isFutureMonth = false;
+        let futureThicks = [];
+        let monthVals = []; // Dùng để tính min/max scale
+
+        // Kiểm tra xem tháng được chọn có phải là Tương lai không
+        if (forceMonth && forceMonth !== 'all' && typeof allFuturePlans !== 'undefined') {
+             const relevantPlans = allFuturePlans.filter(p => {
+                 let m = p['month_key'] || p['month'];
+                 if (m && m.includes('T.')) {
+                     let part = m.replace('T.', '').trim();
+                     if(part.length === 1) part = '0' + part;
+                     m = `2025-${part}`;
+                 }
+                 let matchMonth = (m === forceMonth);
+                 let matchFactory = (forceFactory === 'all') || (getFactoryType(p['Factory']) === forceFactory);
+                 let matchMac = (forceMacThep === 'all') || (p['mac_thep'] === forceMacThep);
+                 return matchMonth && matchFactory && matchMac;
+             });
+
+             if (relevantPlans.length > 0) {
+                 isFutureMonth = true;
+                 // Lấy dữ liệu độ dày từ kế hoạch
+                 futureThicks = relevantPlans.map(p => parseFloat(p['chieu_day'] || 0)).filter(t => t >= t_LSL && t < t_USL);
+             }
+        }
+
+        if (isFutureMonth) {
+            // --- TRƯỜNG HỢP TƯƠNG LAI ---
+            // Đường Cam (SO) = Dữ liệu Dự kiến
+            if (futureThicks.length > 0) {
+                soStats = calculateStats(futureThicks);
+                soVals = futureThicks;
+                monthlyTitle = `Dự kiến ${forceMonth}`;
+            } else {
+                soStats = { mean: 0, stdDev: 0 };
+            }
+            // Đường Tím (SX Tháng) = Ẩn (Vì chưa sản xuất)
+            monthlyMean = null;
+            monthlyLineData = [];
+
+        } else {
+            // --- TRƯỜNG HỢP QUÁ KHỨ (HOẶC KHÔNG CHỌN THÁNG) ---
+            // Đường Cam (SO) = SO Lịch sử
+            const validSOs = filteredSOs.filter(s => {
+                const t = parseFloat(s['chieu_day']);
+                return t >= t_LSL && t <= t_USL;
+            });
+            soStats = calculateWeightedStats(validSOs, 'chieu_day', 'Quantity (KG)');
+            soVals = validSOs.map(s => parseFloat(s['chieu_day']));
+
+            // Đường Tím (SX Tháng) = Thực tế sản xuất tháng đó
+            if (forceMonth && forceMonth !== 'all') {
+                const monthCoils = filteredCoils.filter(c => getMonthKeyFromDate(c['Ngày sản xuất']) === forceMonth);
+                const monthThicks = monthCoils.map(c => parseFloat(c['chieu_day'])).filter(t => t >= t_LSL && t < t_USL);
+                
+                if (monthThicks.length > 1) {
+                    const mStats = calculateStats(monthThicks);
+                    monthlyMean = mStats.mean;
+                    monthVals = monthThicks; // Lưu để tính scale
+                    monthlyTitle = `Sản xuất ${forceMonth}`;
+                }
+            }
+        }
+
+        // --- [QUAN TRỌNG: ĐỒNG BỘ LƯỚI VẼ (SYNC GRID)] ---
+        // Tìm Min/Max của TẤT CẢ dữ liệu để ép vào cùng 1 khung hình
+        const minInv = Math.min(...validThicks);
+        const maxInv = Math.max(...validThicks);
+        
+        const minSO = soVals.length ? Math.min(...soVals) : t_LSL;
+        const maxSO = soVals.length ? Math.max(...soVals) : t_USL;
+        
+        const minMonth = monthVals.length ? Math.min(...monthVals) : t_LSL;
+        const maxMonth = monthVals.length ? Math.max(...monthVals) : t_USL;
+
+        const drawMin = Math.min(minInv, minSO, minMonth, t_LSL);
+        const drawMax = Math.max(maxInv, maxSO, maxMonth, t_USL);
+
+        // Vẽ các đường cong
+        const lineData = generateGaussian(stats.mean, stats.stdDev, t_LSL, t_USL, drawMin, drawMax);
+        const soLineData = generateGaussian(soStats.mean, soStats.stdDev, t_LSL, t_USL, drawMin, drawMax);
+        
+        // Vẽ đường tháng nếu có dữ liệu (chỉ xảy ra ở quá khứ)
+        if (!isFutureMonth && monthlyMean !== null && monthVals.length > 0) {
+             // Tính lại mStats từ monthVals
+             const mStats = calculateStats(monthVals);
+             monthlyLineData = generateGaussian(mStats.mean, mStats.stdDev, t_LSL, t_USL, drawMin, drawMax);
+        }
+
+        const factoryTitle = (forceFactory && forceFactory !== 'all') ? `[${forceFactory}]` : '[Toàn NM]';
+        const displayTitle = `${factoryTitle} ${rangeTitle}  [Chuẩn: ${Number(targetStandard)}mm]`;
+
+        initCPKChart('chart-cpk-thickness', {
+            lsl: t_LSL, usl: t_USL,
+            mean: Number(stats.mean.toFixed(3)),
+            
+            // Mean SO (Nếu tương lai thì là Mean Dự kiến)
+            so_mean: soStats.mean ? Number(soStats.mean.toFixed(3)) : null,
+            
+            // Mean Tháng (Chỉ có ở quá khứ)
+            monthly_mean: monthlyMean ? Number(monthlyMean.toFixed(3)) : null,
+            monthly_line_data: monthlyLineData,
+            monthly_title: monthlyTitle,
+
+            so_line_data: soLineData,
+            line_data: lineData,
+            title: displayTitle
+        }, 'mm');
+    } else {
+        clearChart('chart-cpk-thickness', `Dữ liệu quá phân tán hoặc không đủ.`);
+    }
+}
+// Hàm tự động điền Mác thép vào Dropdown
+// Hàm tạo danh sách Mác thép sắp xếp theo số lượng cuộn giảm dần
+function populateMacThepFilter(coils, futurePlans) {
+    const select = document.getElementById('trend-mac-thep');
+    if (!select) return;
+
+    // 1. Đếm số lượng cuộn cho từng mác thép
+    const counts = {};
+    
+    // Đếm trong tồn kho (coils)
+    coils.forEach(c => {
+        // Dữ liệu tồn kho thường dùng key 'Mác thép'
+        const m = c['Mác thép']; 
+        if (m) {
+            counts[m] = (counts[m] || 0) + 1;
+        }
+    });
+
+    // Đếm thêm trong kế hoạch tương lai (nếu muốn hiển thị cả những mác sắp về)
+    if (futurePlans) {
+        futurePlans.forEach(p => {
+            // Dữ liệu kế hoạch thường dùng key 'mac_thep' (theo code backend của bạn)
+            const m = p['mac_thep']; 
+            if (m) {
+                counts[m] = (counts[m] || 0) + 1;
+            }
+        });
+    }
+
+    // 2. Sắp xếp danh sách Mác theo số lượng giảm dần (counts[b] - counts[a])
+    const sortedMac = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+
+    // 3. Render HTML vào Dropdown
+    // Luôn giữ option "Tất cả" ở đầu tiên
+    select.innerHTML = '<option value="all">Tất cả Mác</option>';
+    
+    sortedMac.forEach(mac => {
+        const opt = document.createElement('option');
+        opt.value = mac;
+        // Hiển thị: Tên Mác + (Số lượng) -> Ví dụ: SPHC (300)
+        opt.textContent = `${mac} (${counts[mac].toLocaleString('vi-VN')})`; 
+        select.appendChild(opt);
+    });
+}
+// Biến lưu tổng trọng lượng kế hoạch (dùng làm mẫu số)
+let totalPlanWeightsByMonth = {};
+
+// Hàm tính tổng trọng lượng kế hoạch (Gọi hàm này 1 lần sau khi nhận dữ liệu từ API)
+function calculateTotalFutureWeights(plans) {
+    totalPlanWeightsByMonth = {}; // Reset
+    plans.forEach(p => {
+        const w = parseFloat(p['weight'] || p['Khối lượng'] || 0);
+        const factory = p['Factory'] || p['NhaMay'];
+
+        // Xử lý month key chuẩn xác y hệt hàm vẽ để khớp key
+        let m = p['month_key'] || p['month'];
+        if (m && typeof m === 'string' && m.includes('T.')) {
+                let part = m.replace('T.', '').trim();
+                if(part.length === 1) part = '0' + part;
+                m = `2025-${part}`;
+        }
+
+        // Tạo key kết hợp Nhà máy + Tháng (VD: HRC2_2025-12)
+        if (factory && m) {
+            const key = `${factory}_${m}`;
+            if (!totalPlanWeightsByMonth[key]) totalPlanWeightsByMonth[key] = 0;
+            totalPlanWeightsByMonth[key] += w;
+        }
+    });
+    console.log("Tổng kế hoạch theo tháng (Kg):", totalPlanWeightsByMonth);
+}// 2. Hàm kiểm tra khoảng (Khổ/Dày)
+function isInRange(value, rangeStr) {
+    if (rangeStr === 'all' || !rangeStr) return true;
+    if (!value) return false;
+    const parts = rangeStr.split('-');
+    const min = parseFloat(parts[0]);
+    const max = parseFloat(parts[1]);
+    return value >= min && value < max;
+}
+
+function updateMonthlyTrendSpecific() {
+    // Lấy giá trị các bộ lọc
+    const factoryVal = document.getElementById('trend-factory').value;
+    const widthVal = document.getElementById('trend-width').value;
+    const thickVal = document.getElementById('trend-thickness').value;
+    
+    // --- MỚI: Lấy giá trị Mác thép ---
+    const elMac = document.getElementById('trend-mac-thep');
+    const macThepVal = elMac ? elMac.value : 'all';
+
+    const getWeight = (item) => parseFloat(item['weight'] || item['Khối lượng'] || 0);
+
+    const getMonthKey = (dateInput) => {
+        if (!dateInput) return null;
+        if (typeof dateInput === 'string') {
+            if (dateInput.match(/^\d{4}-\d{2}/)) return dateInput.substring(0, 7);
+        }
+        const d = new Date(dateInput);
+        if (!isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return null;
+    };
+
+    const generateMonthRange = (minStr, maxStr) => {
+        if (!minStr || !maxStr) return [];
+        const start = new Date(minStr + "-01");
+        const end = new Date(maxStr + "-01");
+        const list = [];
+        let loops = 0;
+        while (start <= end && loops < 60) {
+            const m = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+            list.push(m);
+            start.setMonth(start.getMonth() + 1);
+            loops++;
+        }
+        return list;
+    };
+
+    // --- LOGIC LỌC DỮ LIỆU ---
+    const filterItem = (item) => {
+        // 1. Lọc Nhà máy
+        const itemFactory = getFactoryType(item['NhaMay'] || item['Factory'] || item['Plant']);
+        if (factoryVal !== 'all' && itemFactory !== factoryVal) return false;
+        
+        // 2. Lọc Khổ
+        const w = parseFloat(item['kho_rong_num'] || item['kho_rong'] || 0);
+        if (!isInRange(w, widthVal)) return false;
+        
+        // 3. Lọc Dày
+        const t = parseFloat(item['chieu_day'] || 0);
+        if (!isInRange(t, thickVal)) return false;
+
+        // 4. --- MỚI: Lọc Mác Thép ---
+        if (macThepVal !== 'all') {
+            // Dữ liệu backend: Coils dùng 'Mác thép', Future dùng 'mac_thep'
+            const itemMac = item['Mác thép'] || item['mac_thep'];
+            if (itemMac !== macThepVal) return false;
+        }
+
+        return true;
+    };
+
+    // --- TỔNG HỢP DỮ LIỆU (Giữ nguyên logic cũ) ---
+    const allMonthsSet = new Set();
+    const monthlyData = {};
+
+    const addToMonth = (dateRaw, type, value) => {
+        const m = getMonthKey(dateRaw);
+        if (!m) return;
+        allMonthsSet.add(m);
+        if (!monthlyData[m]) monthlyData[m] = { prod: 0, stock: 0, so: 0, future_demand: 0, future_cap: 0 };
+        monthlyData[m][type] += value;
+    };
+
+    if (typeof allCoils !== 'undefined') allCoils.forEach(c => { if (filterItem(c)) addToMonth(c['Ngày sản xuất'], 'prod', getWeight(c)); });
+    if (typeof inventoryCoils !== 'undefined') inventoryCoils.forEach(c => { if (filterItem(c)) addToMonth(c['Ngày sản xuất'], 'stock', getWeight(c)); });
+    if (typeof allSOs !== 'undefined') allSOs.forEach(s => { if (filterItem(s)) addToMonth(s['Document Date'] || s['Month'], 'so', s['Quantity (KG)'] || s['quantity'] || 0); });
+
+    if (typeof allFuturePlans !== 'undefined') {
+        allFuturePlans.forEach(p => {
+            let m = p['month_key'] || p['month'];
+            if (m && m.includes('T.')) {
+                 let part = m.replace('T.', '').trim();
+                 if(part.length === 1) part = '0' + part;
+                 m = `2025-${part}`;
+            }
+            if (filterItem(p)) {
+                 allMonthsSet.add(m);
+                 if (!monthlyData[m]) monthlyData[m] = { prod: 0, stock: 0, so: 0, future_demand: 0, future_cap: 0 };
+                 const w = getWeight(p);
+                 monthlyData[m]['future_demand'] += w;
+                 const factory = p['Factory'];
+                 const keyTotal = `${factory}_${m}`;
+                 const totalW_Month = totalPlanWeightsByMonth[keyTotal] || 0;
+                 if (totalW_Month > 0 && CAPACITY_CONST[factory]) {
+                      const allocatedCap = (w / totalW_Month) * CAPACITY_CONST[factory];
+                      monthlyData[m]['future_cap'] += (allocatedCap * 1000);
+                 }
+            }
+        });
+    }
+
+    // --- CHUẨN BỊ DỮ LIỆU VẼ (Giữ nguyên) ---
+    const existingMonths = Array.from(allMonthsSet).sort();
+    if (existingMonths.length === 0) {
+        const chartDom = document.getElementById('chart-monthly-trend');
+        if(chartDom) {
+            const myChart = echarts.getInstanceByDom(chartDom) || echarts.init(chartDom);
+            myChart.clear();
+            myChart.setOption({ title: { text: 'Không có dữ liệu phù hợp', left: 'center', top: 'center', textStyle: {color: '#999'} }});
+        }
+        return;
+    }
+
+    const fullTimeline = generateMonthRange(existingMonths[0], existingMonths[existingMonths.length - 1]);
+    let lastRealSOIndex = -1;
+    for (let i = fullTimeline.length - 1; i >= 0; i--) {
+        const m = fullTimeline[i];
+        const d = monthlyData[m] || { so: 0, future_demand: 0 };
+        if (d.so > 0 && d.future_demand === 0) {
+            lastRealSOIndex = i;
+            break;
+        }
+    }
+    if (lastRealSOIndex === -1) lastRealSOIndex = fullTimeline.length - 1;
+
+    const seriesProd = [], seriesStock = [], seriesSO = [], seriesFutureDemand = [], seriesFutureCap = [];
+
+    fullTimeline.forEach((m, index) => {
+        const d = monthlyData[m] || { prod: 0, stock: 0, so: 0, future_demand: 0, future_cap: 0 };
+        const vProd = d.prod / 1000, vStock = d.stock / 1000, vSO = d.so / 1000, vFutureDem = d.future_demand / 1000, vFutureCap = d.future_cap / 1000;
+
+        if (index < lastRealSOIndex) {
+            seriesProd.push(vProd); seriesStock.push(vStock); seriesSO.push(vSO);
+            seriesFutureDemand.push(null); seriesFutureCap.push(null);
+        } else if (index === lastRealSOIndex) {
+            seriesProd.push(vProd); seriesStock.push(vStock); seriesSO.push(vSO);
+            seriesFutureDemand.push(vSO); seriesFutureCap.push(vProd);
+        } else {
+            seriesProd.push(null); seriesStock.push(null); seriesSO.push(null);
+            seriesFutureDemand.push(vFutureDem); seriesFutureCap.push(vFutureCap);
+        }
+    });
+
+    // --- VẼ ECHARTS (Giữ nguyên cấu hình cũ) ---
+    const chartDom = document.getElementById('chart-monthly-trend');
+    if (!chartDom) return;
+    let myChart = echarts.getInstanceByDom(chartDom);
+    if (!myChart) myChart = echarts.init(chartDom);
+
+    const option = {
+        tooltip: { 
+            trigger: 'axis',
+            formatter: function(params) {
+                let html = `<b>Tháng ${params[0].axisValue}</b><br/>`;
+                params.forEach(p => {
+                    if (p.value !== null && p.value !== undefined) {
+                        // Sửa 'Năng lực sx (Dự kiến)' thành 'Năng lực dự kiến'
+					if (p.dataIndex === lastRealSOIndex && (p.seriesName === 'Nhu cầu dự kiến' || p.seriesName === 'Năng lực dự kiến')) return;
+                        html += `${p.marker} ${p.seriesName}: <b>${Math.round(p.value).toLocaleString('vi-VN')}</b> tấn<br/>`;
+                    }
+                });
+                return html;
+            }
+        },
+        legend: { data: ['Sản xuất thực tế', 'Đang Tồn kho', 'Đặt hàng thực tế', 'Nhu cầu dự kiến', 'Năng lực dự kiến'], bottom: 0, type: 'scroll' },
+        grid: { left: '3%', right: '4%', top: '10%', bottom: '15%', containLabel: true },
+        xAxis: { type: 'category', data: fullTimeline, boundaryGap: false, axisLabel: { rotate: 45, interval: 0, fontSize: 10 } },
+        yAxis: { type: 'value', name: 'Tấn' },
+        series: [
+            { name: 'Sản xuất thực tế', type: 'line', data: seriesProd, itemStyle: { color: '#28a745' }, symbol: 'circle', smooth: true },
+            { name: 'Đang Tồn kho', type: 'line', data: seriesStock, itemStyle: { color: '#ffc107' }, symbol: 'circle', smooth: true },
+            { name: 'Đặt hàng thực tế', type: 'line', data: seriesSO, itemStyle: { color: '#dc3545' }, lineStyle: { width: 3 }, symbol: 'circle', smooth: true },
+            { name: 'Nhu cầu dự kiến', type: 'line', data: seriesFutureDemand, itemStyle: { color: '#dc3545' }, lineStyle: { width: 3, type: 'dashed' }, symbol: 'emptyCircle', connectNulls: true },
+            { name: 'Năng lực dự kiến', type: 'line', data: seriesFutureCap, itemStyle: { color: '#28a745' }, lineStyle: { width: 3, type: 'dashed' }, symbol: 'diamond', connectNulls: true }
+        ]
+    };
+    myChart.setOption(option, true);
+}
+    const NHOM_PRIORITY = ['C', 'C1', 'C2','D','D1','D2', 'ZH', 'ZX', 'ZR']; 
+    // --- HÀM CẬP NHẬT BIỂU ĐỒ PHÂN TÍCH (FINAL - ĐÃ FIX LỖI MẤT BIỂU ĐỒ THÁNG) ---
+    // --- HÀM MỚI: CHỈ CẬP NHẬT BIỂU ĐỒ NĂNG LỰC (CPK) ---
+function updateCapabilityCharts(coils, sos) {
+    // 1. Vẽ lại Chart Khổ rộng (đã cập nhật ở trên)
+    const factoryVal = document.getElementById('trend-factory').value;
+    const widthVal = document.getElementById('trend-width').value;
+    const macThepVal = document.getElementById('trend-mac-thep') ? document.getElementById('trend-mac-thep').value : 'all';
+    
+    if (typeof renderWidthChartOnly === 'function') {
+        renderWidthChartOnly(coils, sos, widthVal, factoryVal, macThepVal);
+    }
+
+    // 2. XỬ LÝ BIỂU ĐỒ CHIỀU DÀY
+    const thickEl = document.getElementById('trend-thickness');
+    const thickVal = thickEl ? thickEl.value : 'all';
+    
+    let t_LSL, t_USL, rangeTitle;
+    let validThicks = [];
+    let validSOs = [];
+
+    // Lọc Factory và Mác thép cho dữ liệu dày
+    let filteredCoils = coils;
+    if (factoryVal !== 'all') filteredCoils = filteredCoils.filter(c => getFactoryType(c['NhaMay']) === factoryVal);
+    if (macThepVal !== 'all') filteredCoils = filteredCoils.filter(c => c['Mác thép'] === macThepVal);
+
+    // Xác định USL/LSL dựa trên Dropdown
+    if (thickVal && thickVal !== 'all') {
+        const range = parseRange(thickVal);
+        t_LSL = range.min;
+        t_USL = range.max;
+        rangeTitle = `${thickVal} mm`;
+
+        // Lọc dữ liệu trong khoảng
+        validThicks = filteredCoils
+            .map(c => parseFloat(c['chieu_day']))
+            .filter(t => !isNaN(t) && t >= t_LSL && t < t_USL);
+        
+        validSOs = sos.filter(s => {
+            const t = parseFloat(s['chieu_day']);
+            return t >= t_LSL && t < t_USL;
+        });
+
+    } else {
+        // Mặc định nếu chọn "Tất cả" -> Vẽ cho 2.00mm (như logic cũ của bạn)
+        t_LSL = 1.83; 
+        t_USL = 2.17;
+        rangeTitle = "Dày chuẩn 2.00mm";
+        validThicks = filteredCoils
+            .map(c => parseFloat(c['chieu_day']))
+            .filter(t => !isNaN(t) && t >= t_LSL && t <= t_USL);
+        
+         validSOs = sos.filter(s => {
+            const t = parseFloat(s['chieu_day']);
+            return t >= t_LSL && t <= t_USL;
+        });
+    }
+
+    // --- TÍNH TOÁN VÀ VẼ ---
+    if (validThicks.length > 1) {
+        const stats = calculateStats(validThicks);
+        const minVal = Math.min(...validThicks);
+        const maxVal = Math.max(...validThicks);
+
+        // Tính SO
+        const soStats = calculateWeightedStats(validSOs, 'chieu_day', 'Quantity (KG)');
+        const soVals = validSOs.map(s => parseFloat(s['chieu_day']));
+        const minSO = soVals.length ? Math.min(...soVals) : t_LSL;
+        const maxSO = soVals.length ? Math.max(...soVals) : t_USL;
+
+        // Tạo dữ liệu vẽ (Dùng hàm generateGaussian mới)
+        const lineData = generateGaussian(stats.mean, stats.stdDev, t_LSL, t_USL, minVal, maxVal);
+        const soLineData = generateGaussian(soStats.mean, soStats.stdDev, t_LSL, t_USL, minSO, maxSO);
+
+        initCPKChart('chart-cpk-thickness', {
+            lsl: t_LSL,
+            usl: t_USL,
+            mean: Number(stats.mean.toFixed(3)),
+            so_mean: soStats.mean ? Number(soStats.mean.toFixed(3)) : null,
+            so_line_data: soLineData,
+            line_data: lineData,
+            title: rangeTitle
+        }, 'mm');
+    } else { 
+        clearChart('chart-cpk-thickness', `Không có dữ liệu trong khoảng ${thickVal}`);
+    }
+}
+
+// Hàm phụ trợ để xóa chart
+function clearChart(domId, msg) {
+    const chartDom = document.getElementById(domId);
+    if(chartDom) {
+        const myChart = echarts.getInstanceByDom(chartDom);
+        if(myChart) myChart.clear();
+        chartDom.innerHTML = `<div class="d-flex h-100 align-items-center justify-content-center text-muted small">${msg}</div>`;
+    }
+}
+    // Hàm vẽ CPK Khổ rộng (Đã nâng cấp để nhận tham số lọc)
+function renderWidthChartOnly(coils, sos, forceRangeStr = null, forceFactory = 'all', forceMacThep = 'all', forceMonth = 'all') {
+    // 1. Lấy giá trị bộ lọc
+    const trendWidthEl = document.getElementById('trend-width');
+    let rangeStr = forceRangeStr;
+    if (!rangeStr || rangeStr === 'all') rangeStr = trendWidthEl ? trendWidthEl.value : 'all';
+    const localSelect = document.getElementById('width-range-select');
+    if (localSelect && rangeStr !== 'all') localSelect.value = rangeStr;
+
+    // 2. Lọc dữ liệu thô (Kho & SO)
+    let filteredCoils = coils;
+    let filteredSOs = sos;
+    if (forceFactory && forceFactory !== 'all') {
+        filteredCoils = filteredCoils.filter(c => getFactoryType(c['NhaMay'] || c['Factory']) === forceFactory);
+    }
+    if (forceMacThep && forceMacThep !== 'all') {
+        filteredCoils = filteredCoils.filter(c => (c['Mác thép'] || c['mac_thep']) === forceMacThep);
+        filteredSOs = filteredSOs.filter(s => (s['Mác thép'] || s['mac_thep']) === forceMacThep);
+    }
+
+    // 3. Xử lý LSL, USL và Giá trị chuẩn
+    let lsl, usl;
+    let widthInScope = [];
+    let targetStandard = 0;
+
+    // Lấy toàn bộ dữ liệu khổ rộng để phân tích
+    const allWidths = filteredCoils.map(c => c['kho_rong_num']).filter(w => w !== null);
+
+    if (allWidths.length === 0) {
+        clearChart('chart-cpk-width', `Không đủ dữ liệu.`);
+        return;
+    }
+
+    if (rangeStr && rangeStr !== 'all') {
+        // TRƯỜNG HỢP 1: Có chọn khoảng cụ thể
+        const range = parseRange(rangeStr);
+        lsl = range.min;
+        usl = range.max;
+        
+        widthInScope = allWidths.filter(w => w >= lsl && w < usl);
+        
+        // Tìm Mode làm chuẩn
+        if (widthInScope.length > 0) {
+            const counts = {}; widthInScope.forEach(x => counts[x] = (counts[x] || 0) + 1);
+            targetStandard = Number(Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b));
+        } else {
+            targetStandard = (lsl + usl) / 2;
+        }
+
+    } else {
+        // TRƯỜNG HỢP 2: Chọn "Tất cả" -> Auto-Scale
+        const minReal = Math.min(...allWidths);
+        const maxReal = Math.max(...allWidths);
+
+        // Tìm Mode
+        const counts = {}; allWidths.forEach(x => counts[x] = (counts[x] || 0) + 1);
+        const dominantW = Number(Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b));
+        targetStandard = dominantW;
+
+        // Mở rộng LSL/USL theo thực tế
+        lsl = Math.floor(minReal / 10) * 10; 
+        usl = Math.ceil(maxReal / 10) * 10;  
+        
+        if (usl - lsl < 10) { lsl = dominantW - 20; usl = dominantW + 20; }
+
+        widthInScope = allWidths.filter(w => w >= lsl && w <= usl);
+    }
+
+    // 4. TÍNH TOÁN VÀ VẼ
+    if (widthInScope.length > 1) {
+        // A. Thống kê Kho (Đường Xanh - Cố định)
+        const stats = calculateStats(widthInScope);
+        
+        // B. Xử lý TƯƠNG LAI vs QUÁ KHỨ
+        let soStats = null;
+        let soVals = [];
+        let monthlyLineData = [];
+        let monthlyMean = null;
+        let monthlyTitle = '';
+        let isFutureMonth = false;
+        let futureWidths = [];
+        let monthVals = []; // Dùng để tính scale chung
+
+        // Kiểm tra tháng Tương lai
+        if (forceMonth && forceMonth !== 'all' && typeof allFuturePlans !== 'undefined') {
+             const relevantPlans = allFuturePlans.filter(p => {
+                 let m = p['month_key'] || p['month'];
+                 if (m && m.includes('T.')) {
+                     let part = m.replace('T.', '').trim();
+                     if(part.length === 1) part = '0' + part;
+                     m = `2025-${part}`;
+                 }
+                 let matchMonth = (m === forceMonth);
+                 let matchFactory = (forceFactory === 'all') || (getFactoryType(p['Factory']) === forceFactory);
+                 let matchMac = (forceMacThep === 'all') || (p['mac_thep'] === forceMacThep);
+                 return matchMonth && matchFactory && matchMac;
+             });
+
+             if (relevantPlans.length > 0) {
+                 isFutureMonth = true;
+                 // Lấy dữ liệu khổ từ kế hoạch
+                 futureWidths = relevantPlans.map(p => parseFloat(p['kho_rong'] || 0)).filter(w => w >= lsl && w <= usl);
+             }
+        }
+
+        if (isFutureMonth) {
+            // --- TƯƠNG LAI ---
+            // Đường Cam = Dự kiến
+            if (futureWidths.length > 0) {
+                soStats = calculateStats(futureWidths);
+                soVals = futureWidths;
+                monthlyTitle = `Dự kiến ${forceMonth}`;
+            } else {
+                soStats = { mean: 0, stdDev: 0 };
+            }
+            // Đường Tím = Ẩn
+            monthlyMean = null;
+            monthlyLineData = [];
+
+        } else {
+            // --- QUÁ KHỨ ---
+            // Đường Cam = SO Lịch sử
+            const validSOs = filteredSOs.filter(s => s['kho_rong_num'] >= lsl && s['kho_rong_num'] <= usl);
+            soStats = calculateWeightedStats(validSOs, 'kho_rong_num', 'Quantity (KG)');
+            soVals = validSOs.map(s => s['kho_rong_num']);
+
+            // Đường Tím = SX Thực tế tháng đó
+            if (forceMonth && forceMonth !== 'all') {
+                const monthCoils = filteredCoils.filter(c => getMonthKeyFromDate(c['Ngày sản xuất']) === forceMonth);
+                const monthWidths = monthCoils.map(c => c['kho_rong_num']).filter(w => w >= lsl && w <= usl);
+                if (monthWidths.length > 1) {
+                    const mStats = calculateStats(monthWidths);
+                    monthlyMean = mStats.mean;
+                    monthVals = monthWidths; // Lưu để tính scale
+                    monthlyTitle = `Sản xuất ${forceMonth}`;
+                }
+            }
+        }
+
+        // --- C. ĐỒNG BỘ LƯỚI VẼ (SYNC GRID) ---
+        const minInv = Math.min(...widthInScope);
+        const maxInv = Math.max(...widthInScope);
+        const minSO = soVals.length ? Math.min(...soVals) : lsl;
+        const maxSO = soVals.length ? Math.max(...soVals) : usl;
+        const minMonth = monthVals.length ? Math.min(...monthVals) : lsl;
+        const maxMonth = monthVals.length ? Math.max(...monthVals) : usl;
+
+        // Phạm vi vẽ bao trùm tất cả
+        const drawMin = Math.min(minInv, minSO, minMonth, lsl);
+        const drawMax = Math.max(maxInv, maxSO, maxMonth, usl);
+
+        // Vẽ các đường cong
+        const lineData = generateGaussian(stats.mean, stats.stdDev, lsl, usl, drawMin, drawMax);
+        const soLineData = generateGaussian(soStats.mean, soStats.stdDev, lsl, usl, drawMin, drawMax);
+        
+        // Vẽ đường tháng nếu có (Quá khứ)
+        if (!isFutureMonth && monthlyMean !== null && monthVals.length > 0) {
+             const mStats = calculateStats(monthVals);
+             monthlyLineData = generateGaussian(mStats.mean, mStats.stdDev, lsl, usl, drawMin, drawMax);
+        }
+
+        const titlePrefix = (forceFactory && forceFactory !== 'all') ? `[${forceFactory}] ` : '[Toàn NM] ';
+        const rangeTitle = (rangeStr !== 'all') ? `${rangeStr}mm` : `~${stats.mean.toFixed(0)}mm`;
+        const displayTitle = `${titlePrefix}Khổ ${rangeTitle}  [Chuẩn: ${Number(targetStandard)}mm]`;
+
+        initCPKChart('chart-cpk-width', {
+            lsl: lsl, usl: usl,
+            mean: Number(stats.mean.toFixed(2)),
+            
+            so_mean: soStats.mean ? Number(soStats.mean.toFixed(2)) : null,
+            
+            monthly_mean: monthlyMean ? Number(monthlyMean.toFixed(2)) : null,
+            monthly_line_data: monthlyLineData,
+            monthly_title: monthlyTitle,
+
+            so_line_data: soLineData,
+            line_data: lineData,
+            title: displayTitle
+        }, 'mm');
+    } else {
+        clearChart('chart-cpk-width', `Không đủ dữ liệu.`);
+    }
+}
+function syncChartsFromTrendFilters() {
+    // 1. Lấy giá trị từ các bộ lọc
+    const factoryVal = document.getElementById('trend-factory').value;
+    const macThepVal = document.getElementById('trend-mac-thep') ? document.getElementById('trend-mac-thep').value : 'all';
+    const widthVal = document.getElementById('trend-width').value;
+    const thickVal = document.getElementById('trend-thickness').value;
+
+    // 2. Cập nhật biểu đồ Trend (Giữ nguyên - bị ảnh hưởng bởi TẤT CẢ bộ lọc)
+    updateMonthlyTrendSpecific();
+
+    // 3. Vẽ lại biểu đồ Khổ rộng (Chỉ bị ảnh hưởng bởi Factory + Mác + Khổ)
+    // Lưu ý: Dữ liệu truyền vào là currentFilteredCoils/SOs (đã lọc theo search cây)
+    renderWidthChartOnly(currentFilteredCoils, currentFilteredSOs, widthVal, factoryVal, macThepVal);
+
+    // 4. Vẽ lại biểu đồ Chiều dày (Chỉ bị ảnh hưởng bởi Factory + Mác + Dày)
+    renderThicknessChartOnly(currentFilteredCoils, currentFilteredSOs, thickVal, factoryVal, macThepVal);
+}
+    function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
+    }
+
+    function rebuildChildren(originalBranchNodes, filteredCoils) {
+        if (!originalBranchNodes || originalBranchNodes.length === 0) {
+            return [];
+        }
+        const newBranchNodes = JSON.parse(JSON.stringify(originalBranchNodes));
+        
+        newBranchNodes.forEach(branchNode => { 
+            let branchTotal = 0;
+            const type = (branchNode.filterParams.type || 
+                         (branchNode.id.includes('_width_') ? 'width' : 'thickness'));
+            const filterKey = (type === 'width') ? 'kho_rong_group' : 'chieu_day_group';
+            branchNode.children.forEach(groupNode => { 
+                let groupTotal = 0;
+                const groupValue = groupNode.filterParams.value; 
+                groupNode.children.forEach(nhomNode => { 
+                    const nhomValue = nhomNode.filterParams.nhom; 
+                    
+                    const newCount = filteredCoils.filter(c => 
+                        c[filterKey] === groupValue && c['Nhóm'] === nhomValue
+                    ).length;
+                    
+                    nhomNode.value = newCount; 
+                    groupTotal += newCount;
+                });
+                groupNode.value = groupTotal; 
+                groupNode.children = groupNode.children.filter(n => n.value > 0);
+            });
+            branchNode.value = branchNode.children.reduce((sum, n) => sum + n.value, 0);
+            branchNode.children = branchNode.children.filter(n => n.value > 0);
+        });
+        return newBranchNodes.filter(n => n.value > 0);
+    }
+
+function calculateTop5(coils) { // (Nếu bạn đang đặt tên là calculateTop8 thì giữ nguyên tên đó)
+    const counts = {};
+    const weights = {}; 
+    
+    // 1. Tính toán số lượng và khối lượng
+    for (const coil of coils) {
+        const macThep = coil['Mác thép'] || 'N/A';
+        const khoiLuong = parseFloat(coil['Khối lượng'] || 0);
+
+        counts[macThep] = (counts[macThep] || 0) + 1;
+        weights[macThep] = (weights[macThep] || 0) + khoiLuong;
+    }
+
+    // 2. Sắp xếp
+    const sorted = Object.entries(counts).sort(([, a], [, b]) => b - a);
+
+    // 3. Lấy Top 8 (hoặc 5 tùy bạn chỉnh)
+    const topList = sorted.slice(0, 8).map(([name, value]) => ({ 
+        name, 
+        value,
+        totalWeight: weights[name] / 1000 
+    }));
+
+    // 4. Xử lý phần "Các loại khác"
+    const others = sorted.slice(8);
+    if (others.length > 0) {
+        const othersCount = others.reduce((sum, [, val]) => sum + val, 0);
+        let othersWeight = 0;
+        
+        // Tính tổng khối lượng cho thanh "Các loại khác"
+        others.forEach(([name]) => {
+            othersWeight += (weights[name] || 0);
+        });
+
+        topList.push({
+            name: `Các loại khác (${others.length} mác)`,
+            value: othersCount,
+            totalWeight: othersWeight / 1000,
+            isOther: true,
+            
+            // --- [SỬA TẠI ĐÂY: THÊM SỐ TẤN VÀO DANH SÁCH CHI TIẾT] ---
+            detailList: others.map(([n, v]) => {
+                // Lấy khối lượng riêng của từng mác thép con
+                const w = weights[n] || 0;
+                // Đổi sang Tấn và format đẹp
+                const ton = Math.round(w / 1000).toLocaleString('vi-VN');
+                
+                // Kết quả: "Q355B: 61 (1.230 Tấn)"
+                return `${n}: <b>${v}</b> <span style="color:#666; font-size:0.9em">(${ton} Tấn)</span>`;
+            }).join('<br/>')
+            // ---------------------------------------------------------
+        });
+    }
+
+    return topList;
+}
+
+   // Hàm cập nhật giao diện trung tâm (Đã tách logic Cpk ra khỏi bộ lọc trạng thái)
+function applyFiltersAndRedraw(source = 'unknown') {
+    // 1. Lấy từ khóa tìm kiếm
+    const query = filterMacThepEl.value.trim().toLowerCase();
+
+    // --- BƯỚC 1: LỌC CẤP 1 (THEO MÁC THÉP) ---
+    // Đây là tập dữ liệu "Sạch" về mặt kỹ thuật (chỉ quan tâm Mác thép, không quan tâm logistic)
+    let coilsByGrade = inventoryCoils; // Bắt đầu từ toàn bộ tồn kho
+    let sosByGrade = allSoDetailsCategorized;
+
+    if (query) {
+        const matchingNodes = getMatchingNodes(echartsFullData.children, query);
+        const validMacThepSet = new Set(matchingNodes.map(node => node.name));
+        
+        coilsByGrade = inventoryCoils.filter(c => validMacThepSet.has(c['Mác thép']));
+        sosByGrade = allSoDetailsCategorized.filter(s => validMacThepSet.has(s['Mác thép']));
+    }
+    currentFilteredCoils = coilsByGrade; 
+    currentFilteredSOs = sosByGrade;
+    // --- BƯỚC 2: LỌC CẤP 2 (THEO TRẠNG THÁI KHO - Logistic) ---
+    // Đây là tập dữ liệu "Vận hành" (Dùng cho Cây, Top 5, Pie)
+    let coilsFinal = coilsByGrade;
+
+    if (globalStatusFilter) {
+        coilsFinal = coilsByGrade.filter(c => c['TrangThai'] === globalStatusFilter);
+    }
+    const treeNodes = buildTreeData(coilsFinal); 
+    
+    let rootName = "Toàn bộ kho";
+    if (query) rootName = `Lọc: "${query}"`;
+    if (globalStatusFilter) rootName += ` + ${globalStatusFilter}`;
+
+    const rootNode = { 
+        id: '$root', 
+        name: rootName, 
+        value: coilsFinal.length, 
+        children: treeNodes 
+    };
+
+    if (treeNodes.length === 0) {
+         initEChartsTree([]);
+         if (chartContainer) chartContainer.innerHTML = `<div class="d-flex h-100 justify-content-center align-items-center text-muted">Không tìm thấy dữ liệu phù hợp.</div>`;
+    } else {
+         initEChartsTree([rootNode]);
+    }
+
+    // 4. Ẩn bảng chi tiết
+    resetTables();
+
+    // 5. Cập nhật Pie Chart Cuộn
+    // Pie Chart cần hiện tỷ lệ của CẤP 1 (để người dùng thấy các trạng thái khác mà chọn)
+    updateStatusPieChart(coilsByGrade, query || "Toàn bộ kho"); 
+
+    // 6. Cập nhật Pie Chart SO
+    // SO không có trạng thái kho, nên dùng CẤP 1 là hợp lý nhất
+    updateSoPieChart(sosByGrade, query || "Toàn bộ kho");
+    const top5Data = calculateTop5(coilsFinal);
+    
+    // --- [ĐOẠN CODE MỚI: CẬP NHẬT TỔNG SỐ CUỘN VÀO TIÊU ĐỀ] ---
+    const titleEl = document.getElementById('top5-title');
+    if (titleEl) {
+        // Tính tổng số lượng
+        const totalCount = coilsFinal.length.toLocaleString('vi-VN');
+        
+        // Cập nhật nội dung HTML
+        // Thêm thẻ span để tô màu xanh hoặc làm đậm con số tổng cho nổi bật
+        titleEl.innerHTML = `Top Mác thép hiện tại <span class="ms-2 text-primary badge bg-light border border-primary text-primary" style="font-size: 0.9em;">Tổng: ${totalCount} cuộn</span>`;
+    }
+    // 7. Cập nhật Top 5
+    // Top 5 nên phản ánh kết quả cuối cùng (CẤP 2) để biết chính xác số lượng đang tìm
+    initTop5Chart(top5Data);
+}
+
+    // Hàm bổ trợ: Tìm các node lá (Mác thép) khớp từ khóa
+function getMatchingNodes(nodes, query) {
+        if (!nodes) return [];
+        return nodes.filter(node => node.name.toLowerCase().includes(query));
+    }
+
+    // Hàm bổ trợ: Xây dựng lại cấu trúc cây từ danh sách cuộn đã lọc
+    // (Thay thế logic rebuildChildren cũ phức tạp)
+// Hàm bổ trợ: Xây dựng lại cấu trúc cây từ danh sách cuộn đã lọc
+    function buildTreeData(coils) {
+        // 1. Khởi tạo object chứa dữ liệu gom nhóm
+        const grouped = {};
+
+        coils.forEach(c => {
+            const m = c['Mác thép'];
+            const w = c['kho_rong_group'];
+            const t = c['chieu_day_group']; // Lấy nhóm chiều dày
+            const n = c['Nhóm'];
+
+            // Tạo node gốc cho Mác thép nếu chưa có
+            if (!grouped[m]) {
+                grouped[m] = { total: 0, widths: {}, thicknesses: {} };
+            }
+            grouped[m].total++;
+
+            // A. GOM NHÓM THEO KHỔ RỘNG
+            if (!grouped[m].widths[w]) grouped[m].widths[w] = { total: 0, nhoms: {} };
+            grouped[m].widths[w].total++;
+            if (!grouped[m].widths[w].nhoms[n]) grouped[m].widths[w].nhoms[n] = 0;
+            grouped[m].widths[w].nhoms[n]++;
+
+            // B. GOM NHÓM THEO CHIỀU DÀY (Đã bổ sung phần này)
+            if (!grouped[m].thicknesses[t]) grouped[m].thicknesses[t] = { total: 0, nhoms: {} };
+            grouped[m].thicknesses[t].total++;
+            if (!grouped[m].thicknesses[t].nhoms[n]) grouped[m].thicknesses[t].nhoms[n] = 0;
+            grouped[m].thicknesses[t].nhoms[n]++;
+        });
+
+        // 2. Chuyển đổi sang cấu trúc Node của ECharts
+        return Object.keys(grouped).map(mac => {
+            
+            // Xử lý nhánh con: KHỔ RỘNG
+            const widthChildren = Object.keys(grouped[mac].widths).sort().map(width => ({
+                name: width,
+                value: grouped[mac].widths[width].total,
+                id: `$${mac}_w_${width}`,
+                filterParams: { mac_thep: mac, type: 'width', value: width },
+                children: Object.keys(grouped[mac].widths[width].nhoms)
+                    .sort((a, b) => getNhomSortScore(a) - getNhomSortScore(b))
+                    .map(nhom => ({
+                        name: nhom,
+                        value: grouped[mac].widths[width].nhoms[nhom],
+                        id: `$${mac}_w_${width}_n_${nhom}`,
+                        filterParams: { mac_thep: mac, type: 'width', value: width, nhom: nhom }
+                    }))
+            }));
+
+            // Xử lý nhánh con: CHIỀU DÀY
+            const thicknessChildren = Object.keys(grouped[mac].thicknesses)
+                // Sắp xếp chiều dày từ bé đến lớn (dùng parseFloat vì tên là string "1.2-1.5")
+                .sort((a, b) => parseFloat(a) - parseFloat(b))
+                .map(thick => ({
+                    name: thick + " mm",
+                    value: grouped[mac].thicknesses[thick].total,
+                    id: `$${mac}_t_${thick}`,
+                    filterParams: { mac_thep: mac, type: 'thickness', value: thick },
+                    children: Object.keys(grouped[mac].thicknesses[thick].nhoms)
+                        .sort((a, b) => getNhomSortScore(a) - getNhomSortScore(b))
+                        .map(nhom => ({
+                            name: nhom,
+                            value: grouped[mac].thicknesses[thick].nhoms[nhom],
+                            id: `$${mac}_t_${thick}_n_${nhom}`,
+                            filterParams: { mac_thep: mac, type: 'thickness', value: thick, nhom: nhom }
+                        }))
+                }));
+
+            // Trả về Node Mác thép chứa 2 nhánh con lớn
+            return {
+                name: mac,
+                value: grouped[mac].total,
+                id: `$${mac}`,
+                filterParams: { mac_thep: mac },
+                children: [
+                    {
+                        name: "Theo Khổ Rộng",
+                        id: `$${mac}_width_root`,
+                        children: widthChildren,
+                        value: grouped[mac].total
+                    },
+                    {
+                        name: "Theo Chiều Dày",
+                        id: `$${mac}_thickness_root`,
+                        children: thicknessChildren,
+                        value: grouped[mac].total
+                    }
+                ]
+            };
+        }).sort((a, b) => b.value - a.value);
+    }
+function getNhomSortScore(nhom) {
+        const index = NHOM_PRIORITY.indexOf(nhom);
+        if (index === -1) return Infinity; 
+        return index; 
+    }
+
+function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
+    }
+async function initializeData() {
+        try {
+            const response = await fetch(apiUrl);
+            if (!response.ok) throw new Error(`HTTP ${response.status} tại ${apiUrl}`);
+            
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+
+            // 1. Lưu dữ liệu
+            allCoils = data.coils || [];
+            inventoryCoils = allCoils.filter(c => c['TrangThai'] !== 'Đã bán');
+            allSOs = data.sales_orders || [];
+            allSoDetails = data.so_details || [];
+            allSoDetailsCategorized = categorizeSOData(allSoDetails); // <-- (MỚI) Tính toán trạng thái SO
+            top5Names = data.top_5_names || [];
+            const top5Data = data.top_5_data || [];
+
+            // 2. Tạo Set tra cứu
+            for (const so of allSOs) {
+                const macThep = so['Mác thép'], nhomString = so['Nhóm']; 
+                const widthGroup = so['kho_rong_group'], thicknessGroup = so['chieu_day_group'];
+                if (!macThep || !nhomString) continue;
+                const nhomArray = nhomString.split(',').map(n => n.trim());
+                for (const singleNhom of nhomArray) {
+                    if (singleNhom) { 
+                        if (widthGroup && widthGroup !== 'Không xác định' && widthGroup !== 'Ngoài khoảng')
+                            suitableWidthSet.add(`${macThep}_${widthGroup}_${singleNhom}`);
+                        if (thicknessGroup && thicknessGroup !== 'Không xác định' && thicknessGroup !== 'Ngoài khoảng')
+                            suitableThicknessSet.add(`${macThep}_${thicknessGroup}_${singleNhom}`);
+                    }
+                }
+            }
+
+            // 3. Chuyển đổi ECharts (Đã sắp xếp)
+            echartsFullData = transformDataForECharts(data.tree);
+
+            // 4. Khởi tạo biểu đồ Top 5
+            initTop5Chart(calculateTop5(inventoryCoils));
+            
+            // 6. Lấy 5 node ECharts hàng đầu (đã được sắp xếp)
+            top5Nodes = echartsFullData.children.slice(0, 5);
+            top5Names = top5Nodes.map(node => node.name);
+
+            // 7. Gắn sự kiện
+            attachListeners();
+            
+            // 8. Render cây với TOÀN BỘ MÁC THÉP
+            updateStatusPieChart(inventoryCoils, "Toàn bộ kho");
+            
+            // SỬA: Gọi update cho biểu đồ SO với dữ liệu đã phân loại
+            updateSoPieChart(allSoDetailsCategorized, "Toàn bộ kho");
+            allFuturePlans = data.future_plans || [];
+            calculateTotalFutureWeights(allFuturePlans);
+            populateMacThepFilter(allCoils, allFuturePlans);
+            updateMonthDropdown(allCoils);
+            const elMacThep = document.getElementById('trend-mac-thep');
+            if (elMacThep) {
+                elMacThep.addEventListener('change', function() {
+                    // Khi đổi mác thép, cập nhật biểu đồ Trend
+                    updateMonthlyTrendSpecific();
+                    
+                    // Nếu bạn muốn bộ lọc này ảnh hưởng cả biểu đồ CPK bên dưới luôn (optional)
+                    syncChartsFromTrendFilters(); 
+                });
+            }
+            updateMonthlyTrendSpecific(); // Vẽ Trend
+            updateCapabilityCharts(inventoryCoils, allSOs);
+            // 9. Gọi hàm vẽ tổng thể lần đầu
+            applyFiltersAndRedraw('initial_load');
+  
+    //         if (data.cpk_width) {
+    // // Không cần truyền 1200, 1300 nữa vì Backend đã tính chính xác
+    //             initCPKChart('chart-cpk-width', data.cpk_width, 'mm'); 
+    //         }
+    //         if (data.cpk_thickness) {
+    //             initCPKChart('chart-cpk-thickness', data.cpk_thickness, 'mm');
+    //         }
+        } catch (error) {
+            console.error('Lỗi khi tải dữ liệu:', error);
+            chartContainer.innerHTML = `<div class="alert alert-danger m-3">${error.message}</div>`;
+            top5ChartContainer.innerHTML = `<div class="alert alert-danger m-3" style="height: 100%;">${error.message}</div>`;
+            statusPieChartContainer.innerHTML = `<div class="alert alert-danger m-3" style="height: 100%;">${error.message}</div>`;
+            soPieChartContainer.innerHTML = `<div class="alert alert-danger m-3" style="height: 100%;">${error.message}</div>`;
+        }
+    }
+
+    /**
+     * Vẽ biểu đồ Bar Chart cho Top 5
+     */
+function initTop5Chart(data) {
+    if (top5Chart) top5Chart.dispose();
+    
+    if (data.length === 0) {
+         top5ChartContainer.innerHTML = `<div class="d-flex h-100 justify-content-center align-items-center text-muted p-2">Không có dữ liệu.</div>`;
+        return;
+    }
+
+    top5Chart = echarts.init(top5ChartContainer);
+    
+    const option = {
+        // Cấu hình Tooltip để khi rê vào "Các loại khác" sẽ thấy danh sách
+        tooltip: { 
+            trigger: 'item', // Đổi thành item để bắt riêng lẻ từng thanh
+            formatter: function(params) {
+                // Nếu là thanh "Các loại khác", hiện danh sách chi tiết
+                if (params.data.isOther) {
+                    // Chỉ hiện 10 dòng đầu nếu quá dài
+                    return `<b>${params.name}</b>: ${params.value.toLocaleString('vi-VN')} cuộn<br/><hr style="margin:5px 0"/>${params.data.detailList}`;
+                }
+                // Các thanh bình thường
+                return `${params.marker} <b>${params.name}</b>: ${params.value.toLocaleString('vi-VN')} cuộn`;
+            }
+        },
+        grid: { 
+            left: '1%',    // Sát lề trái
+            right: '10%',  // Chừa chỗ cho số liệu bên phải
+            top: '10px',   // Sát mép trên
+            bottom: '0%',  // Sát mép dưới (QUAN TRỌNG)
+            containLabel: true 
+        },
+        xAxis: { 
+            type: 'value', 
+            boundaryGap: [0, 0.01],
+            axisLabel: { show: false }, 
+            splitLine: { show: false }
+        },
+        yAxis: {
+            type: 'category',
+            data: data.map(item => item.name).reverse(),
+            // Tăng độ rộng trục Y để chứa tên dài nếu cần
+            axisLabel: { fontSize: 11, interval: 0, fontWeight: 'bold', width: 110, overflow: 'truncate' }
+        },
+        series: [{
+            name: 'Số cuộn', 
+            type: 'bar',
+            // 1. CẬP NHẬT DỮ LIỆU ĐẦU VÀO (Thêm totalWeight)
+            data: data.map(item => ({
+                value: item.value,
+                totalWeight: item.totalWeight, // <--- Truyền thêm cái này
+                isOther: item.isOther,
+                detailList: item.detailList,
+                itemStyle: { 
+                    color: item.isOther ? '#adb5bd' : '#0d6efd', 
+                    borderRadius: [0, 4, 4, 0] 
+                }
+            })).reverse(),
+            
+            barWidth: '65%',       
+            barCategoryGap: '15%', 
+            
+            label: {
+                show: true,
+                position: 'right', // Hiển thị bên phải thanh
+                valueAnimation: true,
+                color: '#333',
+                fontWeight: 'bold',
+                fontSize: 13,
+                fontFamily: 'Arial, sans-serif',
+                
+                // 2. FORMATTER MỚI: Hiển thị cả Cuộn và Tấn
+                formatter: function(params) {
+                    const cuon = params.value.toLocaleString('vi-VN');
+                    // Làm tròn số Tấn (không lấy số lẻ thập phân cho gọn)
+                    const tan = Math.round(params.data.totalWeight).toLocaleString('vi-VN');
+                    
+                    return `${cuon} cuộn (${tan} Tấn)`;
+                }
+            }
+        }],
+        animationDuration: 450
+    };
+    
+    top5Chart.setOption(option);
+
+    // Giữ nguyên sự kiện Click (nhưng chặn click vào Other nếu muốn)
+    top5Chart.on('click', function(params) {
+        if (params.data.isOther) return; // Không lọc khi click vào "Các loại khác"
+        
+        if (params.name) {
+            filterMacThepEl.value = params.name;
+            globalStatusFilter = null;
+            if (statusPieChart) statusPieChart.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+            applyFiltersAndRedraw('top5_click');
+        }
+    });
+}
+
+    // ... (Code JS từ 'attachListeners()' đến 'transformDataForECharts()' giữ nguyên) ...
+    // [PHẦN CODE JS GIỮ NGUYÊN]
+function attachListeners() {
+        filterMacThepEl.addEventListener('input', debounce(function(e) {
+            applyFiltersAndRedraw('search_input');
+        }, 300));
+        resetBtn.addEventListener('click', handleResetView);
+    }
+
+function handleResetView() {
+        filterMacThepEl.value = ""; 
+        globalStatusFilter = null;  
+
+        if (statusPieChart && !statusPieChart.isDisposed()) {
+            statusPieChart.dispatchAction({
+                type: 'downplay',
+                seriesIndex: 0
+            });
+        }
+        // Sửa: không cần gọi updateStatusPieChart ở đây,
+        // vì applyFiltersAndRedraw sẽ tự động cập nhật tất cả
+        
+        applyFiltersAndRedraw('reset_button');
+    }
+    
+function resetTables() {
+        if(coilTbody) coilTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-4">Vui lòng chọn Mác thép.</td></tr>';
+        if(soTbody) soTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted p-4">Vui lòng chọn Mác thép.</td></tr>';
+    }
+    
+function transformDataForECharts(tree) {
+        let macThepNodes = [];
+        const macTheps = Object.keys(tree); 
+        for (const macThep of macTheps) {
+            const branches = tree[macThep];
+            const macThepTotal = branches._total_coils || 0;
+            const macThepSO = branches._total_so || 0; 
+            const macThepParams = { mac_thep: macThep };
+            let branchNodes = [];
+            let widthParentNode = { 
+                id: `$${macThep}_width_root`, name: "Theo Khổ Rộng", 
+                value: macThepTotal, so_count: macThepSO,
+                filterParams: macThepParams, children: [] 
+            };
+            const khoRongs = Object.keys(branches.by_width).filter(k => k.startsWith('_') === false).sort();
+            for (const khoRong of khoRongs) {
+                const khoRongData = branches.by_width[khoRong];
+                const khoRongTotal = khoRongData._total_coils || 0;
+                let nhomNodes = [];
+                const nhoms = Object.keys(khoRongData).filter(k => k.startsWith('_') === false);
+                nhoms.sort((a, b) => getNhomSortScore(a) - getNhomSortScore(b));
+                for (const nhom of nhoms) {
+                    const key_width = `${macThep}_${khoRong}_${nhom}`;
+                    const nodeStyle = suitableWidthSet.has(key_width) ? { backgroundColor: '#d1e7dd', borderColor: '#198754' } : {};
+                    nhomNodes.push({
+                        id: `$${macThep}_khorong_${khoRong}_${nhom}`, name: nhom,
+                        value: khoRongData[nhom].coil_count || 0,
+                        so_count: khoRongData[nhom].so_count || 0, 
+                        filterParams: { mac_thep: macThep, type: 'width', value: khoRong, nhom: nhom },
+                        label: nodeStyle
+                    });
+                }
+                widthParentNode.children.push({
+                    id: `$${macThep}_width_${khoRong}`, name: khoRong,
+                    value: khoRongTotal, so_count: khoRongData._total_so || 0, 
+                    children: nhomNodes,
+                    filterParams: { mac_thep: macThep, type: 'width', value: khoRong }
+                });
+            }
+            if(widthParentNode.children.length > 0) branchNodes.push(widthParentNode);
+            let thicknessParentNode = { 
+                id: `$${macThep}_thickness_root`, name: "Theo Chiều Dày", 
+                value: macThepTotal, so_count: macThepSO,
+                filterParams: macThepParams, children: [] 
+            };
+            const chieuDays = Object.keys(branches.by_thickness).filter(k => k.startsWith('_') === false).sort((a,b) => parseFloat(a) - parseFloat(b));
+            for (const chieuDay of chieuDays) {
+                const chieuDayData = branches.by_thickness[chieuDay];
+                const chieuDayTotal = chieuDayData._total_coils || 0;
+                let nhomNodes = [];
+                const nhoms = Object.keys(chieuDayData).filter(k => k.startsWith('_') === false);
+                nhoms.sort((a, b) => getNhomSortScore(a) - getNhomSortScore(b));
+                for (const nhom of nhoms) {
+                    const key_thickness = `${macThep}_${chieuDay}_${nhom}`;
+                    const nodeStyle = suitableThicknessSet.has(key_thickness) ? { backgroundColor: '#d1e7dd', borderColor: '#198754' } : {};
+                    nhomNodes.push({
+                        id: `$${macThep}_thickness_${chieuDay}_${nhom}`, name: nhom,
+                        value: chieuDayData[nhom].coil_count || 0,
+                        so_count: chieuDayData[nhom].so_count || 0, 
+                        filterParams: { mac_thep: macThep, type: 'thickness', value: chieuDay, nhom: nhom },
+                        label: nodeStyle
+                    });
+                }
+                thicknessParentNode.children.push({
+                    id: `$${macThep}_thickness_${chieuDay}`, name: chieuDay + " mm",
+                    value: chieuDayTotal, so_count: chieuDayData._total_so || 0, 
+                    children: nhomNodes,
+                    filterParams: { mac_thep: macThep, type: 'thickness', value: chieuDay }
+                });
+            }
+            if(thicknessParentNode.children.length > 0) branchNodes.push(thicknessParentNode);
+            
+            macThepNodes.push({
+                id: `$${macThep}`, name: macThep,
+                value: macThepTotal,
+                so_count: macThepSO, 
+                children: branchNodes, filterParams: macThepParams
+            });
+        }
+        macThepNodes.sort((a, b) => b.value - a.value);
+        return {
+            id: '$root', name: "Toàn bộ kho",
+            value: macThepNodes.reduce((sum, node) => sum + node.value, 0),
+            so_count: macThepNodes.reduce((sum, node) => sum + (node.so_count || 0), 0),
+            filterParams: {}, 
+            children: macThepNodes
+        };
+    }
+
+    /**
+     * SỬA: DÙNG PHIÊN BẢN 'isLeaf' ĐÚNG
+     */
+function initEChartsTree(dataNodes) {
+    isZoomedIn = (dataNodes.length === 1 && dataNodes[0].id && !dataNodes[0].id.startsWith('$'));
+    
+    // --- [ĐOẠN CODE MỚI: TỰ ĐỘNG TÍNH CHIỀU CAO DỰA TRÊN SỐ LƯỢNG NODE] ---
+    // 1. Đếm số lượng node con ở cấp 1 (để biết cần bao nhiêu dòng)
+    let childCount = 0;
+    if (dataNodes && dataNodes.length > 0 && dataNodes[0].children) {
+        childCount = dataNodes[0].children.length;
+    }
+
+    // 2. Cấu hình khoảng cách bạn muốn
+    const pixelsPerNode = 40; // Khoảng cách giữa các node (Tăng số này nếu muốn xa hơn nữa)
+    const minHeight = 600;    // Chiều cao tối thiểu mặc định
+
+    // 3. Tính chiều cao thực tế cần thiết
+    // Nếu có 50 node -> Cao = 50 * 40 = 2000px
+    const autoHeight = Math.max(minHeight, childCount * pixelsPerNode);
+
+    // 4. Áp dụng chiều cao mới cho thẻ div chứa biểu đồ
+    chartContainer.style.height = `${autoHeight}px`;
+    // ----------------------------------------------------------------------
+
+    // Sau khi set height xong mới khởi tạo ECharts
+    if (myChart) myChart.dispose();
+    myChart = echarts.init(chartContainer);
+
+    let currentHighlightedPathIds = []; 
+    
+    // Giữ hàm helper này
+    function isVirtualRoot(id) {
+        if (!id) return false;
+        return id === '$search_root' || id === '$status_root' || id === '$all_items_root';
+    }
+
+    const option = {
+        tooltip: {
+            trigger: 'item', triggerOn: 'mousemove',
+            backgroundColor: '#fff', borderColor: '#ccc',
+            textStyle: { color: '#333' },
+            formatter: function (params) {
+                let html = `<b>${params.data.name}</b><br>${params.data.value.toLocaleString('vi-VN')} cuộn`;
+                if (params.data.so_count && params.data.so_count > 0)
+                    html += `<br>${params.data.so_count} SO`;
+                return html;
+            }
+        },
+        series: [{
+            type: 'tree', 
+            data: dataNodes,
+            
+            // --- CẤU HÌNH VỊ TRÍ VẼ ---
+            // Để top/bottom rộng ra một chút để node đầu/cuối không bị sát mép
+            top: '50px',   
+            bottom: '50px',
+            left: '10%',
+            right: '20%',
+            
+            orient: 'LR', 
+            symbol: 'emptyCircle', // Đổi sang hình tròn rỗng cho thoáng
+            symbolSize: 7,         // Kích thước chấm tròn
+            
+            roam: false, // Tắt roam (zoom/pan) để tránh người dùng cuộn lung tung khi trang đã dài
+            expandAndCollapse: true,
+            initialTreeDepth: 1, 
+            
+            // Làm đường nối cong mềm mại hơn
+            edgeShape: 'curve', 
+            lineStyle: { color: '#d0d0d0', width: 1, curveness: 0.5 },
+            
+            label: {
+                verticalAlign: 'middle',
+                backgroundColor: '#fff', borderColor: '#dee2e6',
+                borderWidth: 1, borderRadius: 4,
+                padding: [4, 8], // Tăng padding cho đẹp
+                color: '#333', fontSize: 12,
+                
+                position: function (params) {
+                    const isLeaf = !params.data.children || params.data.children.length === 0;
+                    return isLeaf ? 'right' : 'left';
+                },
+                align: function (params) {
+                    const isLeaf = !params.data.children || params.data.children.length === 0;
+                    return isLeaf ? 'left' : 'right';
+                },
+                formatter: function (params) {
+                    let str = `{name|${params.data.name}}\n{val|${params.data.value.toLocaleString('vi-VN')} cuộn}`;
+                    return str;
+                },
+                // Định dạng Rich Text để làm đẹp chữ
+                rich: {
+                    name: { fontWeight: 'bold', fontSize: 13, padding: [0, 0, 2, 0] },
+                    val: { color: '#666', fontSize: 11 }
+                }
+            },
+            
+            emphasis: {
+                focus: 'ancestor',
+                label: {
+                    backgroundColor: '#fff3cd', 
+                    borderColor: '#ffc107'
+                },
+                lineStyle: { color: '#ffc107', width: 2 }
+            },
+            
+            animationDuration: 450,
+            animationDurationUpdate: 700
+        }]
+    };
+
+    myChart.setOption(option);
+
+    // --- GIỮ NGUYÊN CÁC SỰ KIỆN CLICK CŨ CỦA BẠN ---
+    myChart.on('click', function (params) {
+        // ... (Code xử lý click giữ nguyên như cũ) ...
+        params.event.stop();
+        if (!params.data || !params.data.id) return; 
+        if (isVirtualRoot(params.data.id)) return;
+
+        let baseCoils = inventoryCoils;
+        let baseSOs = allSoDetailsCategorized;
+        if (globalStatusFilter) {
+            baseCoils = allCoils.filter(c => c['TrangThai'] === globalStatusFilter);
+            const allowedMacThep = new Set(baseCoils.map(c => c['Mác thép']));
+            baseSOs = allSoDetailsCategorized.filter(so => allowedMacThep.has(so['Mác thép']));
+        }
+        const isMacThepNode = params.data.filterParams && 
+                              params.data.filterParams.mac_thep && 
+                              !params.data.filterParams.type;
+        
+        const isMultiNodeView = dataNodes.length > 1 || (dataNodes.length === 1 && isVirtualRoot(dataNodes[0].id));
+
+        if (isMacThepNode && isMultiNodeView) {
+            initEChartsTree([params.data]); 
+            const filters = params.data.filterParams || {};
+            const currentMacThep = filters.mac_thep;
+            filterAndRenderTables(filters, baseCoils, baseSOs);
+            const coilsToShow = baseCoils.filter(c => c['Mác thép'] === currentMacThep);
+            updateStatusPieChart(coilsToShow, params.data.name);
+            const soMatchingFilter = baseSOs.filter(s => s['Mác thép'] === currentMacThep);
+            const soKeysFromCoils = new Set();
+            coilsToShow.forEach(c => {
+                const matDesc = c['Material Description'];
+                if (!matDesc) return;
+                const soMap = c['SO Mapping'];
+                if (soMap && soMap !== '0' && soMap !== 0) {
+                    soKeysFromCoils.add(`${soMap}_${matDesc}`);
+                }
+                const soDuKien = c['SO Mapping dự kiến'];
+                if (soDuKien && soDuKien !== '0' && soDuKien !== 0) {
+                    soKeysFromCoils.add(`${soDuKien}_${matDesc}`);
+                }
+            });
+            const combinedSoMap = new Map();
+            soMatchingFilter.forEach(so => {
+                const key = `${so['SO Mapping']}_${so['Material Description']}`;
+                combinedSoMap.set(key, so);
+            });
+            soKeysFromCoils.forEach(key => {
+                if (!combinedSoMap.has(key)) {
+                    const matchingSO = baseSOs.find(so => `${so['SO Mapping']}_${so['Material Description']}` === key);
+                    if (matchingSO) combinedSoMap.set(key, matchingSO);
+                }
+            });
+            const soToShow = Array.from(combinedSoMap.values());
+            updateSoPieChart(soToShow, params.data.name);
+            return;
+        }
+        
+        const pathInfo = params.treePathInfo || [];
+        if (currentHighlightedPathIds.length > 0) {
+            currentHighlightedPathIds.forEach(id => myChart.dispatchAction({ type: 'downplay', seriesIndex: 0, id: id }));
+            currentHighlightedPathIds = []; 
+        }
+        pathInfo.forEach(p => {
+            if (p.data && p.data.id) {
+                myChart.dispatchAction({ type: 'highlight', seriesIndex: 0, id: p.data.id });
+                currentHighlightedPathIds.push(p.data.id); 
+            }
+        });
+
+        const filters = params.data.filterParams || {};
+        filterAndRenderTables(filters, baseCoils, baseSOs);
+        const currentMacThep = filters.mac_thep;
+        if (currentMacThep) {
+            let coilsToShow = baseCoils.filter(c => c['Mác thép'] === currentMacThep);
+            if (filters.type === 'width' && filters.value)
+                coilsToShow = coilsToShow.filter(c => c['kho_rong_group'] === filters.value);
+            if (filters.type === 'thickness' && filters.value)
+                coilsToShow = coilsToShow.filter(c => c['chieu_day_group'] === filters.value);
+            if (filters.nhom)
+                coilsToShow = coilsToShow.filter(c => c['Nhóm'] === filters.nhom);
+            updateStatusPieChart(coilsToShow, `${params.data.name}`);
+            let soMatchingFilter = baseSOs.filter(s => s['Mác thép'] === currentMacThep);
+            if (filters.type === 'width' && filters.value)
+                soMatchingFilter = soMatchingFilter.filter(s => s['kho_rong_group'] === filters.value);
+            if (filters.type === 'thickness' && filters.value)
+                soMatchingFilter = soMatchingFilter.filter(s => s['chieu_day_group'] === filters.value);
+            if (filters.nhom)
+                soMatchingFilter = soMatchingFilter.filter(s => s['Nhóm'] === filters.nhom);
+            const soKeysFromCoils = new Set();
+            coilsToShow.forEach(c => {
+                const matDesc = c['Material Description'];
+                if (!matDesc) return;
+                const soMap = c['SO Mapping'];
+                if (soMap && soMap !== '0' && soMap !== 0) {
+                    soKeysFromCoils.add(`${soMap}_${matDesc}`);
+                }
+                const soDuKien = c['SO Mapping dự kiến'];
+                if (soDuKien && soDuKien !== '0' && soDuKien !== 0) {
+                    soKeysFromCoils.add(`${soDuKien}_${matDesc}`);
+                }
+            });
+            const combinedSoMap = new Map();
+            soMatchingFilter.forEach(so => {
+                const key = `${so['SO Mapping']}_${so['Material Description']}`;
+                combinedSoMap.set(key, so);
+            });
+            soKeysFromCoils.forEach(key => {
+                if (!combinedSoMap.has(key)) {
+                    const matchingSO = baseSOs.find(so => `${so['SO Mapping']}_${so['Material Description']}` === key);
+                    if (matchingSO) combinedSoMap.set(key, matchingSO);
+                }
+            });
+            const soToShow = Array.from(combinedSoMap.values());
+            updateSoPieChart(soToShow, `${params.data.name}`);
+        }
+    });
+
+    myChart.getZr().on('click', function (event) {
+        if (!event.target) {
+            if (currentHighlightedPathIds.length > 0) {
+                currentHighlightedPathIds.forEach(id => myChart.dispatchAction({ type: 'downplay', seriesIndex: 0, id: id }));
+                currentHighlightedPathIds = [];
+            }
+            let baseCoils = inventoryCoils;
+            let baseSOs = allSoDetailsCategorized;
+             if (globalStatusFilter) {
+                 baseCoils = allCoils.filter(c => c['TrangThai'] === globalStatusFilter);
+                 const allowedMacThep = new Set(baseCoils.map(c => c['Mác thép']));
+                 baseSOs = allSoDetailsCategorized.filter(so => allowedMacThep.has(so['Mác thép']));
+            }
+            filterAndRenderTables({}, baseCoils, baseSOs); 
+        }
+    });
+}
+function filterAndRenderTables(filters, baseCoils = allCoils, baseSOs = allSoDetailsCategorized) {
+        
+        let coilsToShow = [];
+        if (!filters || !filters.mac_thep) {
+            resetTables();
+            return;
+        }
+        else {
+            // 1. LỌC DANH SÁCH CUỘN (Giữ nguyên)
+            coilsToShow = baseCoils.filter(c => c['Mác thép'] === filters.mac_thep);
+            if (filters.type === 'width' && filters.value)
+                coilsToShow = coilsToShow.filter(c => c['kho_rong_group'] === filters.value);
+            if (filters.type === 'thickness' && filters.value)
+                coilsToShow = coilsToShow.filter(c => c['chieu_day_group'] === filters.value);
+            if (filters.nhom)
+                coilsToShow = coilsToShow.filter(c => c['Nhóm'] === filters.nhom);
+        }
+
+        coilsToShow.sort((a, b) => getNhomSortScore(a['Nhóm']) - getNhomSortScore(b['Nhóm']));
+        
+        // 2. LẤY DANH SÁCH SO (A): KHỚP VỚI BỘ LỌC CÂY
+        let soMatchingFilter = [];
+        if (filters && filters.mac_thep) { 
+            soMatchingFilter = baseSOs.filter(s => s['Mác thép'] === filters.mac_thep);
+            if (filters.type === 'width' && filters.value)
+                soMatchingFilter = soMatchingFilter.filter(s => s['kho_rong_group'] === filters.value);
+            if (filters.type === 'thickness' && filters.value)
+                soMatchingFilter = soMatchingFilter.filter(s => s['chieu_day_group'] === filters.value);
+            if (filters.nhom)
+                soMatchingFilter = soMatchingFilter.filter(s => s['Nhóm'] === filters.nhom);
+        }
+        
+        // (B) Lấy Key từ Cuộn
+        const soKeysFromCoils = new Set();
+        for (const coil of coilsToShow) {
+            const matDesc = coil['Material Description'];
+            if (!matDesc) continue;
+
+            const soMap = coil['SO Mapping'];
+            if (soMap && soMap !== 0 && soMap !== '0') 
+                soKeysFromCoils.add(`${soMap}_${matDesc}`);
+            
+            const soDuKien = coil['SO Mapping dự kiến'];
+            if (soDuKien && soDuKien !== 0 && soDuKien !== '0') 
+                soKeysFromCoils.add(`${soDuKien}_${matDesc}`);
+        }
+        
+        // (C) Gộp
+        const combinedSoMap = new Map();
+        
+        // Thêm (A)
+        soMatchingFilter.forEach(so => {
+            const key = `${so['SO Mapping']}_${so['Material Description']}`; 
+            combinedSoMap.set(key, so);
+        });
+        
+        // Thêm (B)
+        soKeysFromCoils.forEach(key => {
+            if (!combinedSoMap.has(key)) {
+                // Tìm trong baseSOs (danh sách SO đang xét)
+                const matchingSO = baseSOs.find(so => `${so['SO Mapping']}_${so['Material Description']}` === key);
+                if (matchingSO) combinedSoMap.set(key, matchingSO);
+            }
+        });
+        currentPage = 1;
+        // Render
+        renderCoilTable(coilsToShow);
+        renderSOTable(Array.from(combinedSoMap.values()));
+    }
+function changePage(direction) {
+        currentPage += direction;
+        renderCoilTable(currentTableData);
+    }
+function renderCoilTable(coils) {
+    // 1. Cập nhật dữ liệu toàn cục cho bảng
+    currentTableData = coils || [];
+
+    const tbody = document.getElementById('coil-details-tbody');
+    const pageInfo = document.getElementById('page-info');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+
+    if (!tbody) return;
+
+    // Trường hợp không có dữ liệu
+    if (currentTableData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-4">Không tìm thấy cuộn nào phù hợp.</td></tr>';
+        pageInfo.innerText = '0 kết quả';
+        btnPrev.disabled = true;
+        btnNext.disabled = true;
+        return;
+    }
+
+    // 2. Tính toán chỉ số cắt mảng (Pagination Logic)
+    const totalPages = Math.ceil(currentTableData.length / rowsPerPage);
+    
+    // Đảm bảo currentPage hợp lệ
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = Math.min(startIndex + rowsPerPage, currentTableData.length);
+    
+    // Cắt mảng dữ liệu chỉ lấy phần cần hiển thị
+    const coilsOnPage = currentTableData.slice(startIndex, endIndex);
+
+    // 3. Render HTML (Chỉ render 20 dòng)
+    let html = '';
+    coilsOnPage.forEach((coil, index) => { 
+        // Tính số thứ tự thực tế (cộng dồn các trang trước)
+        const realSTT = startIndex + index + 1;
+
+        const { 'Mác thép': coilMacThep, 'Nhóm': coilNhom, kho_rong_group: coilWidthGroup, chieu_day_group: coilThicknessGroup } = coil;
+        
+        // Logic tô màu (giữ nguyên)
+        const key_width = `${coilMacThep}_${coilWidthGroup}_${coilNhom}`;
+        const key_thickness = `${coilMacThep}_${coilThicknessGroup}_${coilNhom}`;
+        const isSuitable = suitableWidthSet.has(key_width) || suitableThicknessSet.has(key_thickness);
+        const trClass = isSuitable ? 'table-success' : ''; 
+
+        html += `<tr class="${trClass}">
+            <td>${realSTT}</td> 
+            <td>${coil['ID Cuộn Bó'] || ''}</td>
+            <td>${coil['Material Description'] || ''}</td>
+            <td>${coil['Nhóm'] || ''}</td>
+            <td>${coil['NhaMay'] || ''}</td>
+            <td>${(coil['Khối lượng'] || 0).toLocaleString('vi-VN')}</td>
+            <td>${coil['Vị trí'] || ''}</td>
+            <td>${coil['TrangThai'] || ''}</td>
+            <td>${coil['SO Mapping'] || (coil['SO Mapping dự kiến'] ? `${coil['SO Mapping dự kiến']} (DK)` : '0')}</td>
+        </tr>`;
+    });
+    
+    tbody.innerHTML = html;
+
+    // 4. Cập nhật thông tin trang và nút bấm
+    pageInfo.innerText = `Hiển thị ${startIndex + 1}-${endIndex} trên tổng ${currentTableData.length} cuộn`;
+    
+    btnPrev.disabled = (currentPage === 1);
+    btnNext.disabled = (currentPage === totalPages);
+}
+
+function renderSOTable(soDetails) { 
+        if (!soTbody) return;
+        if (soDetails.length === 0) {
+            soTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted p-4">Không tìm thấy SO nào phù hợp.</td></tr>';
+            return;
+        }
+        let html = '';
+        soDetails.forEach((soData, index) => { 
+            const khoiLuongGiao = (soData['Shipped Quantity (KG)'] || 0) + (soData['SL Mapping kho'] || 0);
+            const khoiLuongYeuCau = soData['Quantity (KG)'] || 0;
+            const formattedGiao = Math.round(khoiLuongGiao / 1000).toLocaleString('vi-VN');
+            const formattedYeuCau = (khoiLuongYeuCau > 0) 
+                ? Math.round(khoiLuongYeuCau / 1000).toLocaleString('vi-VN') 
+                : 'N/A';
+            
+            html += `<tr>
+                <td>${index + 1}</td> <td>${soData['SO Mapping']}</td>
+                <td>${soData['Material Description'] || ''}</td> 
+                <td>${formattedGiao} / ${formattedYeuCau}</td>
+                <td>${(soData['Process'] || 0).toFixed(1)}%</td>
+            </tr>`;
+        });
+        soTbody.innerHTML = html;
+    }
+
+function initStatusPieChart() {
+        if (statusPieChart && !statusPieChart.isDisposed()) statusPieChart.dispose();
+        if (!statusPieChartContainer) return; 
+        statusPieChart = echarts.init(statusPieChartContainer);
+        const option = {
+            title: {
+                text: '', 
+                subtext: 'Toàn bộ',
+                left: 'center', top: '2%',
+                textStyle: { fontSize: 16 }, subtextStyle: { fontSize: 12 }
+            },
+            tooltip: { trigger: 'item', formatter: '{b} <br/>{c} cuộn ({d}%)' },
+            legend: {
+                orient: 'horizontal', bottom: '2%',
+                left: 'center', type: 'scroll'
+            },
+            series: [{
+                name: 'Trạng thái', type: 'pie',
+                radius: ['40%', '65%'], center: ['50%', '50%'], 
+                data: [], 
+                emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' } },
+                label: { formatter: '{d}%', position: 'inside', color: '#000', fontSize: 12 }
+            }],
+        };
+        statusPieChart.setOption(option);
+        statusPieChart.on('click', function(params) {
+            if (!params.data) return;
+            
+            const clickedStatus = params.name;
+
+            // Toggle (Bật/Tắt) filter
+            if (globalStatusFilter === clickedStatus) {
+                globalStatusFilter = null; // Bỏ chọn
+                statusPieChart.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+            } else {
+                globalStatusFilter = clickedStatus; // Chọn mới
+                // Highlight miếng bánh được chọn
+                statusPieChart.dispatchAction({ type: 'downplay', seriesIndex: 0 }); // Reset trước
+                statusPieChart.dispatchAction({ type: 'highlight', seriesIndex: 0, dataIndex: params.dataIndex });
+            }
+
+            // Gọi hàm trung tâm để vẽ lại tất cả (Top 5, Tree, Table...)
+            applyFiltersAndRedraw('pie_click');
+        });
+
+        statusPieChart.getZr().on('click', function (event) {
+            if (!event.target && globalStatusFilter && !isZoomedIn) {
+                 globalStatusFilter = null;
+                 statusPieChart.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+                 applyFiltersAndRedraw('pie_deselect_blank');
+            }
+        });
+    }
+    
+function updateStatusPieChart(coils, titleScope) {
+        if (!statusPieChartContainer) return;
+        const colorMap = {
+            'Chờ nhập kho': '#fdc500',         
+            'Nhập kho chưa mapping': '#0d6efd', 
+            'Nhập kho đã mapping': '#198754',  
+            'Không xác định': '#ccc'         
+        };
+        const counts = {};
+        for (const coil of coils) {
+            const status = coil['TrangThai'] || 'Không xác định';
+            if (status === 'Đã bán') continue;
+            counts[status] = (counts[status] || 0) + 1;
+        }
+
+        const pieData = Object.keys(counts).map(name => ({ 
+            name: name, 
+            value: counts[name],
+            itemStyle: { 
+                color: colorMap[name] || colorMap['Không xác định'] 
+            }
+        }));
+        
+        pieData.sort((a, b) => {
+             const order = { 'Chờ nhập kho': 1, 'Nhập kho chưa mapping': 2, 'Nhập kho đã mapping': 3 };
+            return (order[a.name] || 99) - (order[b.name] || 99);
+        });
+
+        if (coils.length === 0) {
+            if (statusPieChart && !statusPieChart.isDisposed()) statusPieChart.dispose();
+            statusPieChartContainer.innerHTML = `<div class="d-flex h-100 justify-content-center align-items-center text-muted">Không có dữ liệu.</div>`;
+        } else {
+            if (!statusPieChart || statusPieChart.isDisposed()) {
+                 statusPieChart = echarts.init(statusPieChartContainer);
+                 initStatusPieChart(); 
+            }
+            statusPieChart.setOption({
+                title: { subtext: `${titleScope} (${coils.length.toLocaleString('vi-VN')} cuộn)` },
+                series: [{ data: pieData }]
+            });
+        }
+    }
+
+function categorizeSOData(soList) {
+        return soList.map(so => {
+            const yeuCauKg = so['Quantity (KG)'] || 0;
+            const tienDo = so['Process'] || 0;
+            const yeuCauTan = yeuCauKg / 1000;
+            
+            let status = 'Chưa hoàn thành';
+            
+            if (yeuCauTan <= 100 && tienDo > 80) {
+                status = 'Hoàn thành';
+            } else if (yeuCauTan > 100 && tienDo > 90) {
+                status = 'Hoàn thành';
+            }
+            
+            return {
+                ...so, // Giữ lại tất cả các thuộc tính gốc
+                calculated_status: status,
+                // THÊM CÁC TRƯỜNG LỌC TƯƠNG TỰ CUỘN VÀO SO
+                kho_rong_group: so['kho_rong_group'] || 'Không xác định', // Đảm bảo trường này tồn tại
+                chieu_day_group: so['chieu_day_group'] || 'Không xác định', // Đảm bảo trường này tồn tại
+                'Nhóm': so['Nhóm'] || 'Không xác định' // Đảm bảo trường Nhóm tồn tại
+            };
+        });
+    }
+
+function initSoPieChart() {
+        if (soPieChart && !soPieChart.isDisposed()) soPieChart.dispose();
+        if (!soPieChartContainer) return;
+        soPieChart = echarts.init(soPieChartContainer);
+        const option = {
+            title: {
+                text: '', 
+                subtext: 'Toàn bộ',
+                left: 'center', top: '2%',
+                textStyle: { fontSize: 16 }, subtextStyle: { fontSize: 12 }
+            },
+            tooltip: { trigger: 'item', formatter: '{b} <br/>{c} SO ({d}%)' },
+            legend: {
+                orient: 'horizontal', bottom: '2%',
+                left: 'center', type: 'scroll'
+            },
+            series: [{
+                name: 'Trạng thái SO', type: 'pie',
+                radius: ['40%', '65%'], center: ['50%', '50%'],
+                data: [], 
+                emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' } },
+                label: { formatter: '{d}%', position: 'inside', color: '#000', fontSize: 12 }
+            }],
+        };
+        soPieChart.setOption(option);
+    }
+
+function updateSoPieChart(categorizedSoList, titleScope) {
+        if (!soPieChartContainer) return;
+        const colorMap = {
+            'Hoàn thành': '#198754',     
+            'Chưa hoàn thành': '#ffc107' 
+        };
+        const counts = { 'Hoàn thành': 0, 'Chưa hoàn thành': 0 };
+        for (const so of categorizedSoList) {
+            counts[so.calculated_status]++;
+        }
+
+        const pieData = [
+            { 
+                name: 'Hoàn thành', 
+                value: counts['Hoàn thành'],
+                itemStyle: { color: colorMap['Hoàn thành'] }
+            },
+            { 
+                name: 'Chưa hoàn thành', 
+                value: counts['Chưa hoàn thành'],
+                itemStyle: { color: colorMap['Chưa hoàn thành'] }
+            }
+        ];
+
+        if (categorizedSoList.length === 0) {
+            if (soPieChart && !soPieChart.isDisposed()) soPieChart.dispose();
+            soPieChartContainer.innerHTML = `<div class="d-flex h-100 justify-content-center align-items-center text-muted">Không có dữ liệu SO.</div>`;
+        } else {
+            if (!soPieChart || soPieChart.isDisposed()) {
+                 soPieChart = echarts.init(soPieChartContainer);
+                 initSoPieChart(); 
+            }
+            soPieChart.setOption({
+                title: { subtext: `${titleScope} (${categorizedSoList.length.toLocaleString('vi-VN')} SO)` },
+                series: [{ data: pieData }]
+            });
+        }
+    }
+
+    // Khởi chạy ứng dụng
+    initializeData();
+});
+</script>
+
+{% endblock %}

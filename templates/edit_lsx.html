@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Sửa LSX{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h4 class="mb-0"><i class="fas fa-edit me-2"></i>Sửa thông tin LSX</h4>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="mb-3">
+                <label for="name" class="form-label">Tên LSX</label>
+                <input type="text" id="name" name="name" class="form-control" value="{{ entry.name }}">
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a href="{{ url_for('lsx.danhsach_lsx') }}" class="btn btn-secondary"><i class="fas fa-times me-1"></i> Hủy</a>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Lưu thay đổi</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

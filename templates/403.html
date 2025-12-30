@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Từ chối truy cập{% endblock %}
+
+{% block content %}
+<div class="container text-center mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-danger">
+                <div class="card-body p-5">
+                    <h1 class="display-1 text-danger"><i class="fas fa-hand-paper"></i></h1>
+                    <h2 class="card-title mt-4">403 - Từ chối truy cập</h2>
+                    <p class="card-text lead mt-3">
+                        Rất tiếc, bạn không có quyền để truy cập vào chức năng hoặc trang này.
+                    </p>
+                    <p class="text-muted">Vui lòng liên hệ quản trị viên nếu bạn cho rằng đây là một sự nhầm lẫn.</p>
+                    <a href="{{ url_for('reportlsx.lsx_all') }}" class="btn btn-primary mt-4"><i class="fas fa-home me-2"></i>Về trang chủ</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

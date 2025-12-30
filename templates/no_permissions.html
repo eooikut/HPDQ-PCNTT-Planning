@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Chưa được cấp quyền{% endblock %}
+
+{% block content %}
+<div class="container text-center mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-warning">
+                <div class="card-body p-5">
+                    <h1 class="display-1 text-warning"><i class="fas fa-user-lock"></i></h1>
+                    <h2 class="card-title mt-4">Tài khoản chưa được cấp quyền</h2>
+                    <p class="card-text lead mt-3">
+                        Tài khoản <strong>{{ session.get('username') }}</strong> của bạn đã đăng nhập thành công, nhưng hiện tại chưa được gán bất kỳ quyền truy cập nào.
+                    </p>
+                    <p class="text-muted">Vui lòng liên hệ quản trị viên để được cấp quyền cho các chức năng cần thiết.</p>
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-danger mt-4"><i class="fas fa-sign-out-alt me-2"></i>Đăng xuất</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Tạo người dùng mới{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0"><i class="fas fa-user-plus me-2"></i>Tạo tài khoản người dùng mới</h4>
+  </div>
+  <div class="card-body">
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="username" class="form-label">Tài khoản</label>
+          <input type="text" class="form-control" id="username" name="username" required>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label for="password" class="form-label">Mật khẩu</label>
+          <input type="password" class="form-control" id="password" name="password" required>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label for="full_name" class="form-label">Họ và tên</label>
+        <input type="text" class="form-control" id="full_name" name="full_name" required>
+      </div>
+      <div class="mb-3">
+        <label for="role" class="form-label">Vai trò</label>
+        <select class="form-select" id="role" name="role">
+          <option value="user" selected>User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
+      <hr>
+      {% if all_permissions %}
+        <div id="permissions-section">
+          <h5>Quyền chi tiết (chỉ áp dụng cho vai trò "User")</h5>
+          <p class="text-muted small">Khi chọn vai trò "Admin", các quyền này sẽ tự động bị vô hiệu hóa vì Admin đã có tất cả các quyền.</p>
+          <div class="row">
+            {% for p in all_permissions %}
+            <div class="col-md-4">
+              <div class="form-check form-switch">
+                <input 
+                  class="form-check-input" 
+                  type="checkbox" 
+                  role="switch" 
+                  id="perm_{{ p.name }}" 
+                  name="permissions" 
+                  value="{{ p.name }}">
+                <label class="form-check-label" for="perm_{{ p.name }}">{{ p.description }}</label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <hr>
+      {% endif %}
+
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <a href="{{ url_for('user.list_users') }}" class="btn btn-secondary"><i class="fas fa-times me-1"></i> Hủy</a>
+        <button type="submit" class="btn btn-success"><i class="fas fa-plus me-1"></i> Tạo tài khoản</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('role');
+    const permissionsSection = document.getElementById('permissions-section');
+
+    function togglePermissions() {
+        const isAdmin = roleSelect.value === 'admin';
+        permissionsSection.style.display = isAdmin ? 'none' : 'block';
+    }
+
+    roleSelect.addEventListener('change', togglePermissions);
+    togglePermissions(); // Chạy lần đầu khi tải trang
+});
+</script>
+{% endblock %}

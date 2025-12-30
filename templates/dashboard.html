@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Lịch Tàu{% endblock %}
+{% block content %}
+
+<h3 style="margin-bottom: 20px">Dashboard Lịch Tàu</h3>
+
+<form id="filterForm" class="d-flex flex-wrap align-items-end gap-2 mb-3">
+  <div>
+    <label for="filter-sheetmonth" class="form-label mb-1 small">Lịch tàu Tháng</label>
+    <select id="filter-sheetmonth" name="sheetmonth" class="form-select">
+      <option value="">Tất cả tháng</option>
+      {% for month in sheetmonth_list %}
+      <option value="{{ month }}" {% if month == selected_month %}selected{% endif %}>{{ month }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="filter-tau" class="form-label mb-1 small">Tàu</label>
+    <select id="filter-tau" name="tau" class="form-select">
+      <option value="">-- Tất cả Tàu --</option>
+      {% for tau in tau_list %}
+      <option value="{{ tau }}" {% if tau == selected_ship %}selected{% endif %}>{{ tau }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="filter-start-date" class="form-label mb-1 small">Từ ngày</label>
+    <input type="date" id="filter-start-date" name="start_date" class="form-control" value="{{ selected_start_date or '' }}">
+  </div>
+  <div>
+    <label for="filter-end-date" class="form-label mb-1 small">Đến ngày</label>
+    <input type="date" id="filter-end-date" name="end_date" class="form-control" value="{{ selected_end_date or '' }}">
+  </div>
+  <button type="submit" class="btn btn-primary">Lọc</button>
+  <a href="{{ url_for('dashboard_bp.dashboard') }}?sheetmonth={{ selected_month }}" class="btn btn-secondary">Reset</a>
+
+  <!-- Sử dụng flex-grow-1 để phần tử này chiếm hết không gian còn lại và justify-content-center để căn giữa nội dung -->
+  <div class="flex-grow-1 d-flex justify-content-center">
+    <div class="d-flex align-items-center gap-4 small text-muted">
+    <strong>Chú thích:</strong>
+    <div class="d-flex align-items-center">
+        <span style="width: 15px; height: 15px; background-color: #28a745; display: inline-block; margin-right: 5px; border-radius: 3px;"></span>
+        <span>Đã có hàng / Đủ dung sai</span>
+    </div>
+    <div class="d-flex align-items-center">
+        <span style="width: 15px; height: 15px; background-color: #ffc107; display: inline-block; margin-right: 5px; border-radius: 3px;"></span>
+        <span>Còn thiếu / Chưa đủ dung sai</span>
+    </div>
+    </div>
+  </div>
+</form>
+
+<!-- Hàng chứa các biểu đồ -->
+<div class="row mb-4">
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card shadow-sm"><div class="card-body" style="height: 300px;"><canvas id="factoryProductionChart"></canvas></div></div>
+    </div>
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card shadow-sm"><div class="card-body" style="height: 300px;"><canvas id="shipStatusChart"></canvas></div></div>
+    </div>
+    <div class="col-lg-4 col-md-12 mb-4">
+        <div class="card shadow-sm"><div class="card-body" style="height: 300px;"><canvas id="deliveryTrendChart"></canvas></div></div>
+    </div>
+</div>
+
+<!-- Chú thích màu sắc -->
+
+
+<div class="table-container">
+  <table class="table table-bordered table-hover table-sm" id="dashboard-table">
+    <thead>
+      <tr class="text-center">
+        <th class="sticky-col">Tàu</th>
+        {% for day in date_range %}
+        <th class="date-header {% if day.weekday() >= 5 %}weekend{% endif %}">
+          <div>Th.{{ day.strftime('%m') }}</div>
+          <div>{{ day.day }}</div>
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% if not ships_data %}
+      <tr>
+        <td colspan="{{ date_range|length + 1 }}" class="text-center text-muted p-4">
+          Không có dữ liệu cho tháng đã chọn.
+        </td>
+      </tr>
+      {% else %}
+        {% for ship_name, dates in ships_data.items() %}
+        <tr>
+          <td class="sticky-col ship-name">{{ ship_name }}</td>
+          {% for day in date_range %}
+          <td>
+            {% set day_str = day.strftime('%Y-%m-%d') %}
+            {% if day_str in dates %}
+              {% set data = dates[day_str] %}
+              <div class="progress-container">
+                <div class="progress position-relative" style="height: 24px; font-size: 0.8rem;">
+                  <div class="progress-bar {{ data.color }}" role="progressbar" style="width: {{ data.percentage }}%;" aria-valuenow="{{ data.percentage }}" aria-valuemin="0" aria-valuemax="100">
+                  </div>
+                  <!-- Phần text được đặt ở đây để luôn hiển thị đầy đủ -->
+                  <span style="position: absolute; width: 100%; text-align: center; line-height: 24px; font-weight: bold; color: #212529; left: 0;">
+                      {{ data.tongkhoiluong }}/{{ data.khoi_luong_tong }}
+                  </span>
+                </div>
+                <!-- Tooltip chi tiết -->
+                <div class="custom-tooltip">
+                    <strong>Tàu:</strong> {{ ship_name }}<br>
+                    <strong>ETA:</strong> {{ day.strftime('%d/%m/%Y') }}<br>
+                    <strong>Tổng tiến độ:</strong> {{ data.tongkhoiluong }} / {{ data.khoi_luong_tong }} tấn ({{ "%.1f"|format(data.percentage) }}%)
+                    <hr>
+                    <strong>Chi tiết SO:</strong>
+                    <ul class="so-details-list">
+                        {% for so_number, so_detail in data.so_details.items() %}
+                            <li class="so-item" data-so-id="{{ so_number }}">
+                                <div class="so-info">
+                                    <i class="fas fa-chevron-right so-toggle-icon"></i>
+                                    SO {{ so_number }}: {{ so_detail.summary.progress_text }} T (Phân bổ : {{ so_detail.summary.so_phan_bo }} / {{ (so_detail.summary.klyeucau / 1000)|int }} T)
+                                </div>
+                                <div class="progress progress-sm position-relative">
+                                    {# Nếu SO có material < 90% thì màu vàng, ngược lại màu xanh #}
+                                    <div class="progress-bar {% if so_detail.has_underperforming_material %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ so_detail.summary.progress_percent }}%;" aria-valuenow="{{ so_detail.summary.progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                    </div>
+                                    <span style="position: absolute; width: 100%; text-align: center; line-height: 12px; font-weight: bold; color: #212529; left: 0; font-size: 10px;">
+                                        {{ "%.1f"|format(so_detail.summary.progress_percent) }}%
+                                    </span>
+                                </div>
+                                <!-- Danh sách material (ẩn ban đầu) -->
+                                <ul class="material-details-list">
+                                    {% for material in so_detail.materials %}
+                                        <li class="material-item">
+                                            <div class="material-info">{{ material.name }}: {{ material.progress_text }} T</div>
+                                            {# Nếu material < 90% thì màu vàng, ngược lại màu xanh #}
+                                            {# Logic màu mới theo quantity #}
+                                            {% set success_threshold = 80 if material.qty_kg <= 100000 else 90 %}
+                                            <div class="progress progress-xs">
+                                                <div class="progress-bar 
+                                                    {% if material.progress_percent < 30 %}bg-danger
+                                                    {% elif material.progress_percent < success_threshold %}bg-warning
+                                                    {% else %}bg-success{% endif %}" style="width: {{ material.progress_percent }}%;"></div>
+                                            </div>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+              </div>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal for Missing Details -->
+<div class="modal fade" id="missingDetailsModal" tabindex="-1" aria-labelledby="missingDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="missingDetailsModalLabel">Chi tiết các SO còn thiếu</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-striped table-sm">
+          <thead>
+            <tr>
+              <th>Tàu</th>
+              <th>ETA</th>
+              <th>SO</th>
+              <th>Material</th>
+              <th>Còn thiếu (tấn)</th>
+            </tr>
+          </thead>
+          <tbody id="missingDetailsTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Thư viện Chart.js và adapter ngày tháng -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+
+<style>
+  .table-container {
+    overflow-x: auto;
+    /* Tính toán chiều cao để lấp đầy phần còn lại của màn hình */
+    /* 100vh (chiều cao màn hình) - 60px (navbar) - 40px (padding) - 380px (ước lượng chiều cao của các phần tử trên) */
+    height: calc(100vh - 380px); 
+    width: 100%;
+    position: relative; /* Cần thiết để sticky hoạt động đúng */
+  }
+
+  .progress-container .custom-tooltip {
+    visibility: hidden;
+    width: 420px; /* Tăng chiều rộng để dễ nhìn hơn */
+    background-color: #2c3e50;
+    color: #fff;
+    text-align: left;
+    border-radius: 8px;
+    padding: 15px; /* Tăng khoảng đệm */
+    position: absolute;
+    z-index: 10;
+    
+    /* Thay đổi vị trí: từ trên xuống và sang phải để không bị che */
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 13px; /* Giữ cỡ chữ vừa phải */
+    line-height: 1.6;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3); /* Tăng hiệu ứng bóng đổ */
+  }
+
+  /* .progress-container:hover .custom-tooltip {
+    visibility: visible;
+    opacity: 1;
+  } */
+
+  .custom-tooltip hr {
+    border-top: 1px solid #4a627a;
+    margin: 8px 0;
+  }
+
+  .custom-tooltip .so-details-list {
+    list-style: none;
+    padding: 0;
+    margin: 5px 0 0 0;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .custom-tooltip .so-details-list li {
+    margin-bottom: 8px;
+  }
+  .progress-sm {
+    height: 12px;
+    font-size: 10px;
+    background-color: #4a627a;
+  }
+  .so-info {
+    margin-bottom: 2px;
+  }
+  .so-item {
+      cursor: pointer;
+  }
+  .so-toggle-icon {
+      transition: transform 0.2s ease-in-out;
+      font-size: 0.8em;
+      margin-right: 5px;
+  }
+  .so-item.expanded .so-toggle-icon {
+      transform: rotate(90deg);
+  }
+  .material-details-list {
+      display: none; /* Ẩn ban đầu */
+      list-style: none;
+      padding-left: 20px;
+      margin-top: 5px;
+  }
+  .material-item {
+      font-size: 0.9em;
+      margin-bottom: 4px;
+  }
+  .progress-xs {
+      height: 6px;
+      font-size: 8px;
+      background-color: #5a6268;
+  }
+
+
+
+  #dashboard-table tbody tr {    
+    transition: background-color 0.2s ease-in-out; /* Hiệu ứng chuyển màu nền mượt mà */
+  }
+
+  /* Thêm đường kẻ dưới cho tất cả các ô trong tbody để tạo thành đường kẻ ngang */
+  #dashboard-table tbody td {
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  /* Hiệu ứng khi di chuột vào hàng của tàu */
+  #dashboard-table tbody tr:hover {
+    background-color: #f1f3f5; /* Tô nền sáng cho toàn bộ hàng */
+  }
+
+  /* Tô sáng các ô tiến độ của tàu đang được di chuột vào */
+  #dashboard-table tbody tr:hover .progress-container {
+    outline: 2px solid #0d6efd; /* Thêm viền xanh dương nổi bật */
+    border-radius: 5px;
+    box-shadow: 0 0 8px rgba(13, 110, 253, 0.4); /* Thêm hiệu ứng bóng mờ */
+  }
+
+  #dashboard-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.8rem;
+  }
+
+  #dashboard-table thead th {
+    position: sticky;
+    top: 0;
+    background: #343a40;
+    color: white;
+    z-index: 2;
+    padding: 4px 8px;
+    min-width: 60px;
+  }
+
+  .sticky-col {
+    position: sticky;
+    left: 0;
+    background: #f8f9fa;
+    z-index: 1;
+    min-width: 200px;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #dashboard-table thead th.sticky-col {
+    z-index: 3;
+  }
+
+  /* Tăng chiều rộng tối thiểu cho các cột ngày để hiển thị đủ số liệu */
+  #dashboard-table .date-header {
+    min-width: 120px !important;
+  }
+
+  .ship-name {
+    font-weight: bold;
+  }
+
+  .date-header div:first-child {
+    font-size: 0.7em;
+    font-weight: normal;
+  }
+  .date-header div:last-child {
+    font-weight: bold;
+  }
+  .weekend {
+    background-color: #495057 !important;
+  }
+
+  .progress-container {
+    position: relative;
+    text-align: center;
+    cursor: pointer;
+  }
+  .progress-label {
+    /* Không còn sử dụng */
+  }
+  .progress-bar {
+    color: #212529;
+    font-weight: bold;
+    text-align: center;
+    line-height: 24px; /* Căn giữa text theo chiều dọc */
+  }
+  .bg-success { background-color: #28a745 !important; }
+  .bg-warning { background-color: #ffc107 !important; }
+  .bg-danger { background-color: #dc3545 !important; color: white; }
+  .bg-info { background-color: #17a2b8 !important; }
+
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const filterForm = document.getElementById("filterForm");
+    const filterSheetMonth = document.getElementById("filter-sheetmonth");
+
+    // Khi thay đổi tháng, tự động tải lại trang với tháng mới và reset bộ lọc ngày
+    filterSheetMonth.addEventListener("change", function() {
+      const selectedMonth = this.value;
+      window.location.href = `{{ url_for('dashboard_bp.dashboard') }}?sheetmonth=${selectedMonth}`;
+    });
+
+    // Form submission sẽ xử lý việc lọc theo ngày trong tháng đã chọn
+    // Action mặc định của form là GET, sẽ tự động thêm các tham số vào URL
+
+    // Thêm sự kiện click cho các SO item trong tooltip
+    document.querySelectorAll('.so-item').forEach(item => {
+        item.addEventListener('click', function(event) {
+            event.stopPropagation(); // Ngăn tooltip bị đóng khi click vào SO
+            this.classList.toggle('expanded');
+            const materialList = this.querySelector('.material-details-list');
+            if (materialList) {
+                materialList.style.display = this.classList.contains('expanded') ? 'block' : 'none';
+            }
+        });
+    });
+
+   // --- Logic hiển thị Tooltip bằng Click ---
+document.querySelectorAll('.progress-container').forEach(container => {
+    const tooltip = container.querySelector('.custom-tooltip');
+    if (!tooltip) return;
+
+    container.addEventListener('click', function(event) {
+        event.stopPropagation(); // Ngăn sự kiện click lan ra document
+
+        // Ẩn tất cả các tooltip khác trước khi hiển thị tooltip mới
+        document.querySelectorAll('.custom-tooltip').forEach(otherTooltip => {
+            if (otherTooltip !== tooltip) {
+                otherTooltip.style.visibility = 'hidden';
+                otherTooltip.style.opacity = '0';
+            }
+        });
+
+        const rect = container.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect(); // Lấy kích thước thật của tooltip
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // --- Tính toán vị trí ngang (Left) ---
+        let left = rect.right + 5;
+        if (rect.right + tooltipRect.width > viewportWidth) {
+            left = rect.left - tooltipRect.width - 5;
+        }
+
+        // --- Tính toán vị trí dọc (Top) thông minh ---
+        let top = rect.top; // Vị trí mặc định
+        // Nếu tooltip bị tràn xuống dưới
+        if (top + tooltipRect.height > viewportHeight) {
+            // Đẩy tooltip lên trên, căn chỉnh đáy của nó với đáy màn hình (có khoảng đệm)
+            top = viewportHeight - tooltipRect.height - 10;
+        }
+        // Đảm bảo tooltip không bị đẩy lên quá cao (tràn lên trên)
+        if (top < 10) top = 10;
+
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+        tooltip.style.position = 'fixed';
+        tooltip.style.visibility = 'visible';
+        tooltip.style.opacity = '1';
+    });
+
+    tooltip.addEventListener('click', function(event) {
+        event.stopPropagation(); // Ngăn click bên trong tooltip làm ẩn nó
+    });
+});
+
+// Click ra ngoài để ẩn tất cả tooltip
+document.addEventListener('click', function() {
+    document.querySelectorAll('.custom-tooltip').forEach(tooltip => {
+        tooltip.style.visibility = 'hidden';
+        tooltip.style.opacity = '0';
+    });
+});
+
+    // --- Logic cho Biểu đồ (đặt trong DOMContentLoaded) ---
+    let factoryProductionChart, shipStatusChart, deliveryTrendChart;
+
+    // Hàm gọi API và hiển thị modal chi tiết hàng thiếu
+    async function getMissingDetails(factory) {
+        const params = new URLSearchParams(window.location.search);
+        params.append('factory', factory);
+
+        try {
+            const response = await fetch(`/api/dashboard/missing-details?${params.toString()}`);
+            const data = await response.json();
+
+            const tbody = document.getElementById('missingDetailsTbody');
+            tbody.innerHTML = ''; // Xóa dữ liệu cũ
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">Không có dữ liệu vật tư còn thiếu cho nhà máy này.</td></tr>';
+            } else {
+                data.forEach(item => {
+                    const row = `
+                        <tr>
+                            <td>${item.tau || ''}</td>
+                            <td>${item.eta || ''}</td>
+                            <td>${item.so || ''}</td>
+                            <td>${item.material || ''}</td>
+                            <td>${item.missing_tons.toLocaleString()}</td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', row);
+                });
+            }
+
+            const modalTitle = document.getElementById('missingDetailsModalLabel');
+            modalTitle.textContent = `Chi tiết các SO còn thiếu - Nhà máy ${factory}`;
+            const missingDetailsModal = new bootstrap.Modal(document.getElementById('missingDetailsModal'));
+            missingDetailsModal.show();
+        } catch (error) {
+            console.error("Lỗi khi lấy chi tiết hàng thiếu:", error);
+        }
+    }
+    function createCharts() {
+        // Biểu đồ 1: Tỷ trọng nhà máy
+        const factoryCtx = document.getElementById('factoryProductionChart').getContext('2d');
+        factoryProductionChart = new Chart(factoryCtx, {
+            type: 'bar', // Chuyển sang biểu đồ cột
+            data: { labels: [], datasets: [] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: true, text: 'Tiến độ sản xuất theo Nhà máy (tấn)' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.raw.toLocaleString()} tấn`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true }, // Xếp chồng trên trục X
+                    y: { stacked: true, title: { display: true, text: 'Tấn' } } // Xếp chồng trên trục Y
+                }
+                ,
+                // Thêm sự kiện onClick vào trong options
+                onClick: (event, elements) => {
+                    if (elements.length > 0) {
+                        const element = elements[0];
+                        // Chỉ kích hoạt khi click vào dataset "Còn thiếu" (index = 1)
+                        if (element.datasetIndex === 1) {
+                            const factory = factoryProductionChart.data.labels[element.index];
+                            getMissingDetails(factory);
+                        }
+                    }
+                }
+            }
+        });
+
+        // Biểu đồ 2: Tình trạng tàu
+        const shipStatusCtx = document.getElementById('shipStatusChart').getContext('2d');
+        shipStatusChart = new Chart(shipStatusCtx, {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Số lượng tàu', data: [], backgroundColor: ['#28a745', '#ffc107'] }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Tình trạng các Tàu' }
+                },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+
+        // Biểu đồ 3: Xu hướng giao hàng
+        const deliveryTrendCtx = document.getElementById('deliveryTrendChart').getContext('2d');
+        deliveryTrendChart = new Chart(deliveryTrendCtx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Khối lượng giao (tấn)', data: [], borderColor: '#0d6efd', tension: 0.1 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { 
+                    title: { display: true, text: 'Xu hướng giao hàng theo ngày' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Khối lượng giao: ${context.raw.toLocaleString()} tấn`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { type: 'time', time: { unit: 'day', tooltipFormat: 'dd/MM/yyyy' } },
+                    y: { beginAtZero: true, title: { display: true, text: 'Tấn' } }
+                }
+            }
+        });
+    }
+
+    async function updateCharts() {
+        const params = new URLSearchParams(window.location.search);
+        try {
+            const response = await fetch(`/api/dashboard-charts?${params.toString()}`);
+            const data = await response.json();
+
+            // Cập nhật biểu đồ nhà máy
+            factoryProductionChart.data.labels = data.factory_production.labels;
+            factoryProductionChart.data.datasets = [
+                { ...data.factory_production.datasets[0], backgroundColor: '#28a745' }, // Đã có hàng: màu xanh
+                { ...data.factory_production.datasets[1], backgroundColor: '#ffc107' }  // Còn thiếu: màu vàng
+            ];
+            factoryProductionChart.update();
+
+            shipStatusChart.data.labels = data.ship_status.labels;
+            shipStatusChart.data.datasets[0].data = data.ship_status.data;
+            shipStatusChart.update();
+
+            deliveryTrendChart.data.labels = data.delivery_trend.labels;
+            deliveryTrendChart.data.datasets[0].data = data.delivery_trend.data;
+            deliveryTrendChart.update();
+
+        } catch (error) {
+            console.error("Lỗi khi cập nhật biểu đồ:", error);
+        }
+    }
+
+    // Khởi tạo và cập nhật biểu đồ khi trang tải xong
+    createCharts();
+    updateCharts();
+  });
+</script>
+
+{% endblock %}

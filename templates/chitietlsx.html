@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Chi tiết LSX{% endblock %}
+
+{% block content %}
+<div class="card p-3 shadow">
+    <h4>📄 Thông tin LSX</h4>
+    <ul class="list-group mb-3">
+        <!-- <li class="list-group-item"><b>ID:</b> {{ lsx.id }}</li> -->
+        <li class="list-group-item"><b>Tên:</b> {{ lsx.name }}</li>
+        <li class="list-group-item"><b>Ngày tải lên:</b> {{ lsx.uploaded_at }}</li>
+        <li class="list-group-item"><b>File LSX:</b> {{ lsx.lsx }}</li>
+        <!-- <li class="list-group-item"><b>File sản lượng:</b> {{ lsx.sanluong }}</li> -->
+    </ul>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('lsx.edit_lsx', lsx_id=lsx.id) }}" class="btn btn-warning">✏️ Sửa</a>
+        <form action="{{ url_for('lsx.delete_lsx', lsx_id=lsx.id) }}" method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Bạn có chắc muốn xóa?')">🗑 Xóa</button>
+        </form>
+        <a href="{{ url_for('lsx.danhsach_lsx') }}" class="btn btn-secondary">⬅️ Quay lại</a>
+    </div>
+</div>
+{% endblock %}

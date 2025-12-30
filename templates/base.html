@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{% block title %}LSX Tracker{% endblock %}</title>
+	<meta name="csrf-token" content="{{ csrf_token() }}" />
+    <!-- Bootstrap & Font Awesome -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/base.css') }}"
+    />
+    <link
+      rel="icon"
+      href="{{ url_for('static', filename='image/Logo-Gang-thep-mau.png') }}"
+    />
+
+    <style>
+      .update-time small {
+        margin-right: 20px;
+        font-size: 0.9rem;
+      }
+      .flash-update {
+        background-color: #d4edda;
+        transition: background-color 1s ease;
+        border-radius: 5px;
+        padding: 2px 5px;
+      }
+      .flash-update {
+        background-color: #d4edda;
+        transition: background-color 1s ease;
+        border-radius: 5px;
+        padding: 2px 5px;
+      }
+      /* Thêm style cho mục sidebar đang active */
+      .sidebar a.active {
+        background-color: #0d6efd; /* Màu xanh dương của Bootstrap */
+        color: white !important;
+        border-radius: 0.375rem; /* bo góc */
+      }
+	  /* --- CSS CHO PHẦN HỖ TRỢ SIDEBAR --- */
+
+	/* Mặc định: Hiển thị đầy đủ */
+	.support-info {
+		opacity: 1;
+		transition: opacity 0.3s ease;
+	}
+
+	/* KHI SIDEBAR ĐÓNG (.collapsed) */
+	.sidebar.collapsed .support-box {
+		background-color: transparent !important; /* Mất màu nền xám */
+		border: none !important;                  /* Mất viền */
+		padding: 10px 0 !important;               /* Giảm padding */
+	}
+
+	.sidebar.collapsed .support-title,   /* Ẩn tiêu đề "LIÊN HỆ..." */
+	.sidebar.collapsed .support-detail,  /* Ẩn tên, phòng ban */
+	.sidebar.collapsed .support-email-btn { /* Ẩn nút email */
+		display: none !important;
+	}
+
+	.sidebar.collapsed .support-avatar {
+		margin: 0 auto !important; /* Căn giữa avatar khi đóng */
+		width: 40px !important;    /* Kích thước gọn gàng */
+		height: 40px !important;
+		font-size: 0.8rem !important;
+		background-color: #0d6efd !important; /* Màu xanh đậm hơn cho nổi */
+		box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+	}
+    </style>
+  </head>
+
+  <body>
+    <!-- 🔝 TOPBAR -->
+    <nav
+      class="navbar navbar-light bg-white shadow-sm fixed-top d-flex justify-content-between align-items-center px-3"
+    >
+      <div class="d-flex align-items-center">
+        <!-- Logo -->
+        <a class="navbar-brand d-flex align-items-center mb-0 h1" href="#">
+          <img
+            src="{{ url_for('static', filename='image/Logo-Gang-thep-mau.png') }}"
+            alt="Logo"
+            height="40"
+          />
+        </a>
+
+        <!-- Toggle -->
+        <button id="sidebarToggle" class="btn btn-outline-primary me-2">
+          <i class="fas fa-bars"></i>
+        </button>
+      </div>
+
+      <!-- Thời gian cập nhật -->
+      <div class="update-time d-flex align-items-center text-muted">
+        <small id="so_time">
+          📦 SO: {% if so_created_at %} {{ so_created_at.strftime("%Y-%m-%d
+          %H:%M:%S") }} {% else %} Đang cập nhật... {% endif %}
+        </small>
+        <small id="sl_time">
+          🏭 Kho, sản lượng: {% if sl_kho_created_at %} {{
+          sl_kho_created_at.strftime("%Y-%m-%d %H:%M:%S") }} {% else %} Đang cập
+          nhật... {% endif %}
+        </small>
+        <small id="lichtau_time">
+          🚢 Lịch tàu: Đang cập nhật...
+        </small>
+		<small id="donhangchitiet_time">
+          🧾 ĐƠN HÀNG CHI TIẾT: Đang cập nhật...
+        </small>
+      </div>
+
+      <!-- User -->
+      <div class="d-flex align-items-center">
+        {% if session.get('user_id') %}
+        <span class="me-3">👋 Xin chào, {{ session.get('username') }}</span>
+        <a
+          class="btn btn-outline-danger btn-sm"
+          href="{{ url_for('auth.logout') }}"
+        >
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </a>
+        {% else %}
+        <a
+          class="btn btn-outline-primary btn-sm"
+          href="{{ url_for('auth.login') }}"
+        >
+          <i class="fas fa-sign-in-alt"></i> Login
+        </a>
+        {% endif %}
+      </div>
+    </nav>
+
+    <!-- 📁 SIDEBAR -->
+    <div class="sidebar">
+      <h6>BÁO CÁO</h6>
+      {% if 'view_ship_schedule' in session.get('permissions', []) or session.get('role') == 'admin' %}
+      <a href="{{ url_for('dashboard_bp.dashboard') }}"
+        ><i class="fas fa-tachometer-alt"></i><span>Dashboard Tàu</span></a>
+      {% endif %}
+	  {% if 'view_cpk_kho' in session.get('permissions', []) or session.get('role') == 'admin' %}
+      <a href="{{ url_for('dashboard_so_bp.dashboard_inventory') }}"><i class="fas fa-sitemap"></i><span>Dashboard Kho</span></a>
+      {% endif %}
+      {% if 'view_cpk_kho' in session.get('permissions', []) or session.get('role') == 'admin' %}
+      <a href="{{ url_for('dashboard_so_bp.dashboard_capacity') }}"><i class="fas fa-sitemap"></i><span>Dashboard CPK</span></a>
+      {% endif %}
+	  {% if 'view_ship_schedule' in session.get('permissions', []) or session.get('role') == 'admin' %}
+	  <a href="{{ url_for('tau_bp.lichtau') }}"
+        ><i class="fas fa-ship"></i><span>Check Lịch tàu</span></a>
+	  {% endif %}
+      {% if 'view_order' in session.get('permissions', []) or session.get('role') == 'admin' %}
+      <a href="{{ url_for('report.order') }}"
+        ><i class="fas fa-chart-line"></i><span>Check Order</span></a
+      >
+      {% endif %}
+      {% if 'view_customer' in session.get('permissions', []) or session.get('role') == 'admin' %}
+      <a href="{{ url_for('so.so_all') }}"
+        ><i class="fas fa-users"></i><span>Check Khách hàng</span></a
+      >
+      {% endif %}
+      {% if 'view_coil_id' in session.get('permissions', []) or session.get('role') == 'admin' %}
+      <a href="{{ url_for('idcuonbo_bp.idcuonbo') }}"
+        ><i class="fas fa-list"></i><span>Check ID Cuộn</span></a
+      >
+      {% endif %}
+      {% if 'view_lsx_report' in session.get('permissions', []) or session.get('role') == 'admin' %}
+      <a href="{{ url_for('reportlsx.lsx_all') }}"
+        ><i class="fas fa-calendar-day"></i><span>Check LSX</span></a
+      >
+      {% endif %}
+
+      {% if 'manage_lsx' in session.get('permissions', []) or session.get('role') == 'admin' %}
+      <h6>KIỂM SOÁT</h6>
+      <a href="{{ url_for('lsx.danhsach_lsx') }}" title="Danh sách LSX">
+        <i class="fas fa-list"></i><span>Danh sách LSX</span>
+      </a>
+	  <a href="{{ url_for('lsx.lap_lsx') }}" title="Lập Form LSX">
+        <i class="fas fa-edit"></i><span>Lập Form LSX</span>
+      </a>
+      {% endif %}
+		{% if 'view_kho2d' in session.get('permissions', []) or session.get('role') == 'admin' %}
+      <a href="{{ url_for('kho2d_bp.kho2d') }}" title="Kho 2D">
+        <i class="fas fa-users-cog"></i><span>Kho 2D</span>
+      </a>
+      {% endif %}
+      {% if 'manage_users' in session.get('permissions', []) or session.get('role') == 'admin' %}
+      <a href="{{ url_for('user.list_users') }}" title="Quản lý người dùng">
+        <i class="fas fa-users-cog"></i><span>Quản lý người dùng</span>
+      </a>
+      {% endif %}
+	  {% if 'upload_files' in session.get('permissions', []) or session.get('role') == 'admin' %}
+      <h6>THAO TÁC</h6>
+      <a class="text-success" href="{{ url_for('upload.upload_files') }}">
+        <i class="fas fa-upload"></i><span>Upload LSX hoặc Lịch tàu</span>
+      </a>
+      {% endif %}
+	  <h6>CÔNG CỤ</h6>
+      <a href="{{ url_for('tools.production_calc') }}"> <i class="fas fa-calculator"></i><span>Tính toán Sản xuất</span>
+      </a>
+	  <!-- 📄 SUPPORT -->
+	  <div class="mx-2 mb-1" style="margin-top: 80px;">
+		  <div class="support-box p-3 bg-light rounded-3 border transition-all">
+			
+			<div class="support-title text-uppercase text-secondary fw-bold mb-2" style="font-size: 0.7rem; letter-spacing: 1px;">
+			  <i class="fas fa-headset me-1"></i> Liên hệ hỗ trợ
+			</div>
+			
+			<div class="d-flex align-items-center mb-2 justify-content-center justify-content-md-start">
+			  <div class="support-avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 me-md-2" 
+				   style="width: 35px; height: 35px; font-size: 0.9rem; transition: all 0.3s;">
+				NC
+			  </div>
+			  
+			  <div class="support-detail" style="line-height: 1.2;">
+				<div class="fw-bold text-dark" style="font-size: 0.9rem; white-space: nowrap;">Nguyễn Văn Công</div>
+				<small class="text-muted" style="font-size: 0.75rem; white-space: nowrap;">P. Kế hoạch</small>
+			  </div>
+			</div>
+
+			<button onclick="copyEmail(this)" 
+					data-email="congnv@hoaphat.com.vn" 
+					class="support-email-btn btn btn-outline-primary btn-sm w-100 d-flex align-items-center justify-content-center" 
+					style="font-size: 0.8rem; transition: all 0.2s; user-select: text !important; -webkit-user-select: text !important; cursor: text;">
+			  <i class="fas fa-envelope me-2"></i> <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">congnv@HP...</span>
+			</button>
+		  </div>
+		</div>
+    </div>
+
+    <!-- 📄 MAIN CONTENT -->
+    <div class="main-content">{% block content %}{% endblock %}</div>
+
+    <!-- 🔔 TOAST -->
+    <div id="flash-toast-container">
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div
+        class="toast align-items-center text-bg-{{ 'danger' if category=='danger' else 'success' }} border-0 mb-2"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+      >
+        <div class="d-flex">
+          <div class="toast-body">{{ message }}</div>
+          <button
+            type="button"
+            class="btn-close btn-close-white me-2 m-auto"
+            data-bs-dismiss="toast"
+            aria-label="Close"
+          ></button>
+        </div>
+      </div>
+      {% endfor %} {% endif %} {% endwith %}
+    </div>
+	<script>
+	  function copyEmail(btn) {
+		// ... (Giữ nguyên code script copy email cũ của bạn) ...
+		const email = btn.getAttribute('data-email');
+		const icon = btn.querySelector('i');
+		const textSpan = btn.querySelector('span');
+		const originalText = textSpan.textContent; 
+
+		navigator.clipboard.writeText(email).then(() => {
+		  btn.classList.remove('btn-outline-primary');
+		  btn.classList.add('btn-success');
+		  icon.className = 'fas fa-check me-2';
+		  textSpan.textContent = 'Đã copy!';
+
+		  setTimeout(() => {
+			btn.classList.remove('btn-success');
+			btn.classList.add('btn-outline-primary');
+			icon.className = 'fas fa-envelope me-2';
+			textSpan.textContent = originalText;
+		  }, 2000);
+		}).catch(err => {
+			alert('Không thể copy: ' + email);
+		});
+	  }
+	</script>
+    <!-- 🧠 SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const sidebar = document.querySelector(".sidebar");
+        const mainContent = document.querySelector(".main-content");
+        const toggleBtn = document.getElementById("sidebarToggle");
+
+        toggleBtn.addEventListener("click", function () {
+          sidebar.classList.toggle("collapsed");
+          mainContent.classList.toggle("collapsed");
+        });
+
+        // Hiển thị toast tự động
+        document.querySelectorAll(".toast").forEach((toastEl) => {
+          const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+          toast.show();
+        });
+
+        // 🔁 Cập nhật thời gian file
+        function updateTimes() {
+          fetch("/api/file-times")
+            .then((response) => response.json())
+            .then((data) => {
+              updateTimeDisplay(
+                "so_time",
+                "📦 SO",
+                data.so_created_at,
+                data.so_status
+              );
+              updateTimeDisplay(
+                "sl_time",
+                "🏭 Kho",
+                data.sl_kho_created_at,
+                data.sl_status
+              );
+              updateShipDisplay("lichtau_time", "🚢 Lịch tàu", data.lichtau_name, data.lichtau_time);
+			  updateShipDisplay(
+                "donhangchitiet_time", 
+                "🧾ĐƠN HÀNG CHI TIẾT", // Bạn có thể đổi tên label này
+                data.donhangchitiet_name, 
+                data.donhangchitiet_time
+              );
+            })
+            .catch((err) => {
+              document.getElementById("so_time").textContent =
+                "📦 SO: Mất kết nối server";
+              document.getElementById("sl_time").textContent =
+                "🏭 Kho: Mất kết nối server";
+              console.error("Lỗi cập nhật thời gian:", err);
+            });
+        }
+
+        // 🔦 Cập nhật nội dung & hiệu ứng
+        function updateTimeDisplay(id, label, time, status) {
+          const el = document.getElementById(id);
+          if (status === "updating") {
+            el.textContent = `${label}: Đang cập nhật...`;
+            el.style.color = "orange";
+            el.classList.remove("flash-update");
+          } else {
+            const newText = `${label}: ${time}`;
+            if (el.textContent !== newText) {
+              el.textContent = newText;
+              el.style.color = "green";
+              flash(el);
+            }
+          }
+        }
+        function updateShipDisplay(id, label, name, time) {
+        const el = document.getElementById(id);
+        if (!time) {
+          el.textContent = `${label}: Đang cập nhật...`;
+          el.style.color = "orange";
+        } else {
+          const newText = `${label}: ${name} (${time})`;
+          if (el.textContent !== newText) {
+            el.textContent = newText;
+            el.style.color = "green";
+            flash(el);
+          }
+        }
+      }
+              // 💥 Hiệu ứng nhấp nháy khi cập nhật mới
+        function flash(el) {
+          el.classList.add("flash-update");
+          setTimeout(() => el.classList.remove("flash-update"), 1500);
+        }
+
+        // Cập nhật mỗi 5 giây
+        updateTimes();
+        setInterval(updateTimes, 30000);
+      });
+    </script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // Lấy đường dẫn URL hiện tại
+        const currentPath = window.location.pathname;
+
+        // Lấy tất cả các liên kết trong sidebar
+        const sidebarLinks = document.querySelectorAll(".sidebar a");
+        
+        let mostSpecificLink = null;
+        let maxMatchLength = 0;
+
+        sidebarLinks.forEach((link) => {
+          // Lấy đường dẫn từ thuộc tính href của link
+          const linkPath = new URL(link.href).pathname;
+
+          // 1. Bỏ qua trang chủ '/' để tránh active nhầm tất cả
+          // 2. Kiểm tra xem đường dẫn hiện tại có chứa đường dẫn của link không
+          if (linkPath !== "/" && currentPath.startsWith(linkPath)) {
+            
+            // LOGIC MỚI: Chỉ chọn link có độ dài khớp lớn nhất
+            // Ví dụ: '/dashboard/kho' (dài hơn) sẽ thắng '/dashboard' (ngắn hơn)
+            if (linkPath.length > maxMatchLength) {
+                mostSpecificLink = link;
+                maxMatchLength = linkPath.length;
+            }
+          }
+          // Xử lý riêng cho trang chủ (Dashboard chính) nếu cần thiết kế trùng khớp hoàn toàn
+          else if (linkPath === "/" && currentPath === "/") {
+             mostSpecificLink = link;
+          }
+        });
+
+        // Chỉ thêm class active cho link cụ thể nhất tìm được
+        if (mostSpecificLink) {
+            mostSpecificLink.classList.add("active");
+        }
+      });
+    </script>
+  </body>
+</html>

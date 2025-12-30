@@ -1,0 +1,30 @@
+.table-container {
+    max-height: 700px;
+    overflow-y: auto;
+}
+
+/* Sticky Header */
+#order-table thead th {
+    position: sticky;
+    top: 0;
+    background: #212529;
+    color: #fff;
+    z-index: 10;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #d6e9f9;
+}
+
+.sort-icon {
+    cursor: pointer;
+    margin-left: 5px;
+}
+
+.sort-icon.asc i {
+    color: #4caf50;
+}
+
+.sort-icon.desc i {
+    color: #f44336;
+}

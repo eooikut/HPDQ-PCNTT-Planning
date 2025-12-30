@@ -1,0 +1,1465 @@
+{% extends "base.html" %}
+{% block title %}Phân tích Năng lực & Cung cầu{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h6 class="mb-0 fw-bold text-primary"><i class="fas fa-chart-line me-2"></i>Phân tích Năng lực & Cung cầu</h6>
+        </div>
+        
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-4 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-muted small fw-bold mb-0">Cung vs Cầu (Tấn)</h6>
+                    </div>
+                    <div class="bg-light p-2 rounded border mb-2">
+                        <div class="row g-1">
+                            <div class="col-4">
+                                <select id="trend-factory" class="form-select form-select-sm" style="font-size: 0.8rem;">
+                                    <option value="all">Tất cả NM</option>
+                                    <option value="HRC1">HRC1</option>
+                                    <option value="HRC2">HRC2</option>
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <select id="trend-mac-thep" class="form-select form-select-sm" style="font-size: 0.8rem;">
+                                    <option value="all">Tất cả Mác</option>
+                                </select>
+                            </div>
+                            <div class="col-4">
+                                <select id="trend-width" class="form-select form-select-sm" style="font-size: 0.8rem;">
+                                    <option value="all">Tất cả Khổ</option>
+                                    <option value="900-1000">900-1000</option>
+                                    <option value="1000-1100">1000-1100</option>
+                                    <option value="1100-1200">1100-1200</option>
+                                    <option value="1200-1300">1200-1300</option>
+                                    <option value="1300-1400">1300-1400</option>
+                                    <option value="1400-1500">1400-1500</option>
+                                    <option value="1500-1650">1500-1650</option>
+                                </select>
+                            </div>
+                            <div class="col-4">
+                                <select id="trend-thickness" class="form-select form-select-sm" style="font-size: 0.8rem;">
+                                    <option value="all">Tất cả Dày</option>
+                                    <option value="1.2-1.3">1.20 - 1.30</option>
+                                    <option value="1.3-1.4">1.30 - 1.40</option>
+                                    <option value="1.4-1.5">1.40 - 1.50</option>
+                                    <option value="1.5-1.65">1.50 - 1.65</option>
+                                    <option value="1.65-1.8">1.65 - 1.80</option>
+                                    <option value="1.8-2.0">1.80 - 2.00</option>
+                                    <option value="2.0-2.2">2.00 - 2.20</option>
+                                    <option value="2.2-2.4">2.20 - 2.40</option>
+                                    <option value="2.4-2.75">2.40 - 2.75</option>
+                                    <option value="2.75-2.9">2.75 -2.90</option>
+                                    <option value="2.9-10.0">> 2.9</option>
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <select id="trend-month" class="form-select form-select-sm" style="font-size: 0.8rem; border-color: #6f42c1; color: #6f42c1; font-weight: bold;">
+                                    <option value="all">-- Tất cả Tháng --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="chart-monthly-trend" style="width: 100%; height: 340px;"></div>
+                </div>
+
+                <div class="col-lg-4 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-center text-muted small fw-bold mb-0">Cơ cấu Khổ rộng</h6>
+                    </div>
+                    <div id="chart-cpk-width" style="width: 100%; height: 380px;"></div>
+                </div>
+
+                <div class="col-lg-4 mb-3">
+                    <h6 class="text-center text-muted small fw-bold">Cơ cấu Chiều dày</h6>
+                    <div id="chart-cpk-thickness" style="width: 100%; height: 380px;"></div>
+                </div>
+            </div> <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 fw-bold text-primary">
+                                <i class="fas fa-wave-square me-2"></i>Năng lực Quy trình (CPK) theo Chiều dày
+                            </h6>
+                            <span class="badge bg-white text-dark border">Dữ liệu thực tế từ CSV</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="chart-cpk-summary" style="width: 100%; height: 350px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div> </div> </div> </div>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script>
+    // --- KHAI BÁO BIẾN TOÀN CỤC ---
+    const apiUrl = "{{ url_for('dashboard_so_bp.get_capacity_api') }}";
+    let allCoils = [], allSOs = [], allFuturePlans = [];
+    // Biến tạm để filter
+    let currentFilteredCoils = [], currentFilteredSOs = [];
+    let inventoryCoils = [];
+    let totalPlanWeightsByMonth = {};
+    // Hằng số logic
+    const THICKNESS_STD_MAP = { 1.5: [0.14,0.15,0.16], 1.8: [0.16,0.17,0.18], 2.0: [0.17,0.19,0.20], 2.3: [0.17,0.19,0.20], 3.0: [0.19,0.21,0.22], 4.0: [0.24,0.26,0.28], 5.0: [0.26,0.28,0.29], 8.0: [0.32,0.33,0.34], 12.0: [0.35,0.36,0.37] };
+    const CAPACITY_CONST = { 'HRC1': 187040, 'HRC2': 280000 };
+    // Hàm tìm Max an toàn cho mảng lớn
+function getSafeMax(arr) {
+    if (!arr || arr.length === 0) return 0;
+    let max = arr[0];
+    for (let i = 1; i < arr.length; i++) {
+        if (arr[i] > max) max = arr[i];
+    }
+    return max;
+}
+
+// Hàm tìm Min an toàn cho mảng lớn
+function getSafeMin(arr) {
+    if (!arr || arr.length === 0) return 0;
+    let min = arr[0];
+    for (let i = 1; i < arr.length; i++) {
+        if (arr[i] < min) min = arr[i];
+    }
+    return min;
+}
+    function getFactoryType(name) {
+    // Vì SQL đã trả về đúng "HRC1" hoặc "HRC2" rồi, ta lấy luôn
+    return name || 'HRC1'; 
+}
+    function parseRange(rangeStr) { const parts = rangeStr.split('-'); return { min: parseFloat(parts[0]), max: parseFloat(parts[1]) }; }
+    function calculateStats(dataArray) { 
+        if (!dataArray || dataArray.length < 2) return { mean: 0, stdDev: 0 };
+        const n = dataArray.length;
+        const mean = dataArray.reduce((a, b) => a + b, 0) / n;
+        const variance = dataArray.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (n - 1);
+        return { mean, stdDev: Math.sqrt(variance) };
+    }
+    function calculateWeightedStats(dataArray, valueKey, weightKey) {
+    let totalWeight = 0;
+    let weightedSum = 0;
+
+    // 1. Tính Weighted Mean
+    dataArray.forEach(item => {
+        const val = parseFloat(item[valueKey]);
+        const weight = parseFloat(item[weightKey] || 0);
+        if (!isNaN(val) && !isNaN(weight) && weight > 0) {
+            weightedSum += val * weight;
+            totalWeight += weight;
+        }
+    });
+
+    if (totalWeight === 0) return { mean: 0, stdDev: 0 };
+    const mean = weightedSum / totalWeight;
+
+    // 2. Tính Weighted Variance -> StdDev
+    let weightedVarianceSum = 0;
+    dataArray.forEach(item => {
+        const val = parseFloat(item[valueKey]);
+        const weight = parseFloat(item[weightKey] || 0);
+        if (!isNaN(val) && !isNaN(weight) && weight > 0) {
+            weightedVarianceSum += weight * Math.pow(val - mean, 2);
+        }
+    });
+
+    // Bảo vệ: Nếu chỉ có 1 SO hoặc variance quá nhỏ, gán stdDev nhỏ tượng trưng để vẽ được hình chuông nhọn
+    let stdDev = Math.sqrt(weightedVarianceSum / totalWeight);
+    if (stdDev < 0.01) stdDev = 0.5; // Giả lập độ lệch nhỏ nếu dữ liệu quá tập trung
+
+    return { mean, stdDev };
+}
+function generateGaussian(mean, stdDev, lsl, usl, minVal, maxVal) {
+    if (stdDev === 0) return [];
+
+    // 1. Xác định điểm bắt đầu và kết thúc vẽ
+    // MẶC ĐỊNH: Kẹp cứng trong khoảng LSL và USL (Theo yêu cầu của bạn)
+    let startDraw = lsl;
+    let endDraw = usl;
+
+    // 2. Kiểm tra ngoại lệ:
+    // Chỉ mở rộng ra ngoài LSL/USL NẾU VÀ CHỈ NẾU có dữ liệu thực tế (minVal/maxVal) nằm ngoài đó.
+    // (Nếu bạn đã lọc kỹ dữ liệu đầu vào > 1200 thì dòng này sẽ không bao giờ kích hoạt, đảm bảo không bị lem)
+    if (minVal !== undefined && minVal < startDraw) startDraw = minVal;
+    if (maxVal !== undefined && maxVal > endDraw) endDraw = maxVal;
+
+    // 3. Tạo padding cực nhỏ (chỉ để nét vẽ không bị đè lên vạch đỏ)
+    // Lưu ý: Không dùng padding lớn, tránh bị hiểu nhầm là lem
+    const step = (endDraw - startDraw) / 100; 
+    
+    const lineData = [];
+
+    // Vòng lặp tính toán tọa độ (x, y)
+    for (let x = startDraw; x <= endDraw + (step/2); x += step) {
+        // Công thức phân phối chuẩn
+        const y = (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / stdDev, 2));
+        
+        // Chỉ thêm điểm nếu x thực sự nằm trong vùng vẽ (fix lỗi làm tròn số thực)
+        // Logic này đảm bảo đồ thị bị "cắt cụt" tại vạch đỏ thay vì vẽ thoai thoải ra ngoài
+        lineData.push([Number(x.toFixed(2)), Number(y.toFixed(6))]);
+    }
+
+    // Chốt chặn cuối cùng: Đảm bảo điểm cuối cùng luôn là endDraw để khép kín
+    // (Tránh trường hợp vòng lặp dừng sớm do làm tròn số)
+    if (lineData.length > 0 && lineData[lineData.length-1][0] < endDraw) {
+         const x = endDraw;
+         const y = (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / stdDev, 2));
+         lineData.push([Number(x.toFixed(2)), Number(y.toFixed(6))]);
+    }
+
+    return lineData;
+}
+function getMonthKeyFromDate(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function initCPKChart(domId, cpkData, unit) {
+    const chartDom = document.getElementById(domId);
+    if (!chartDom || !cpkData) return;
+    if (echarts.getInstanceByDom(chartDom)) echarts.getInstanceByDom(chartDom).dispose();
+    const myChart = echarts.init(chartDom);
+
+    // --- [BƯỚC 1: XÁC ĐỊNH TÊN GỌI ĐỘNG] ---
+    // Mặc định là SO
+    let soDisplayName = 'Nhu cầu (SO)'; 
+    
+    // Nếu tiêu đề tháng có chữ "Dự kiến" -> Đổi tên
+    if (cpkData.monthly_title && cpkData.monthly_title.toString().includes('Dự kiến')) {
+        soDisplayName = 'Nhu cầu (Dự kiến)';
+    }
+    // ----------------------------------------
+
+    // --- 2. CẤU HÌNH MARK LINE ---
+    const markLineData = [
+        { xAxis: cpkData.lsl, name: 'LSL', lineStyle: { color: '#dc3545', width: 2 }, label: { show: false } },
+        { xAxis: cpkData.usl, name: 'USL', lineStyle: { color: '#dc3545', width: 2 }, label: { show: false } },
+        { xAxis: cpkData.mean, name: 'Mean Kho', lineStyle: { color: '#0d6efd', type: 'dashed', width: 2 }, label: { show: false } }
+    ];
+
+    if (cpkData.monthly_mean) {
+        markLineData.push({
+            xAxis: cpkData.monthly_mean, 
+            name: 'Mean Tháng',
+            lineStyle: { color: '#6f42c1', type: 'dashed', width: 2 }, 
+            label: { show: false }
+        });
+    }
+
+    if (cpkData.so_mean) {
+        markLineData.push({
+            xAxis: cpkData.so_mean, 
+            name: 'Mean SO', 
+            lineStyle: { color: '#ff9800', type: 'dotted', width: 2 },
+            label: { show: false } 
+        });
+    }
+
+    // --- 3. TÍNH TOÁN TRỤC X ---
+    let plotMin = cpkData.lsl;
+    let plotMax = cpkData.usl;
+    const allX = [
+        ...cpkData.line_data.map(p => p[0]), 
+        ...(cpkData.so_line_data || []).map(p => p[0]),
+        ...(cpkData.monthly_line_data || []).map(p => p[0])
+    ];
+    
+    if (allX.length > 0) {
+        const realMin = Math.min(...allX);
+        const realMax = Math.max(...allX);
+        if (realMin < plotMin) plotMin = realMin;
+        if (realMax > plotMax) plotMax = realMax;
+    }
+
+    // --- 4. CẤU HÌNH LEGEND ---
+    const legendData = ['Năng lực sản xuất', soDisplayName]; 
+    
+    if (cpkData.monthly_line_data && cpkData.monthly_line_data.length > 0) {
+        legendData.push(cpkData.monthly_title || 'Tháng chọn');
+    }
+
+    const option = {
+        title: { 
+            text: cpkData.title || '', 
+            left: 'center', top: '2%',
+            textStyle: { fontSize: 13, fontWeight: 'bold' }
+        },
+        tooltip: {
+            trigger: 'axis',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            borderColor: '#ccc',
+            borderWidth: 1,
+            textStyle: { color: '#333', fontSize: 12 },
+            formatter: function (params) {
+                if (!params || params.length === 0) return '';
+
+                let html = `<div style="margin-bottom: 8px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 4px;">
+                                Kích thước: ${params[0].axisValue} ${unit}
+                            </div>`;
+
+                const seenSeries = new Set(); 
+                params.forEach(p => {
+                    if (seenSeries.has(p.seriesName)) return; 
+                    seenSeries.add(p.seriesName);
+
+                    const color = p.color;
+                    const valueDisplay = typeof p.value[1] === 'number' ? p.value[1].toFixed(2) : p.value[1];
+
+                    html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:5px;"></span>${p.seriesName}</span>
+                                <span style="font-weight:bold; margin-left: 15px;">${valueDisplay}</span>
+                             </div>`;
+                });
+
+                // Static Info
+                html += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ccc; font-size: 11px; color: #666;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span>Quy chuẩn:</span>
+                                <span style="color:#dc3545; font-weight:bold;">${cpkData.lsl}-${cpkData.usl}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-top:2px;">
+                                <span>Mean Kho:</span>
+                                <span style="color:#0d6efd; font-weight:bold;">${cpkData.mean}</span>
+                            </div>`;
+                
+                if (cpkData.so_mean) {
+                    // --- [SỬA CHÍNH Ở ĐÂY: Dùng tên biến soDisplayName] ---
+                    html += `<div style="display:flex; justify-content:space-between; margin-top:2px;">
+                                <span>Mean ${soDisplayName}:</span> 
+                                <span style="color:#ff9800; font-weight:bold;">${cpkData.so_mean}</span>
+                             </div>`;
+                }
+                
+                if (cpkData.monthly_mean) {
+                    html += `<div style="display:flex; justify-content:space-between; margin-top:2px;">
+                                <span>Mean ${cpkData.monthly_title}:</span>
+                                <span style="color:#6f42c1; font-weight:bold;">${cpkData.monthly_mean}</span>
+                             </div>`;
+                }
+                
+                // Độ lệch (Cũng sửa tên hiển thị cho khớp)
+                if(cpkData.so_mean) {
+                     const diff = (cpkData.mean - cpkData.so_mean).toFixed(2);
+                     const color = diff > 0 ? 'red' : (diff < 0 ? 'blue' : 'green');
+                     let shortName = soDisplayName.includes('Dự kiến') ? 'Dự kiến' : 'SO';
+                     
+                     html += `<div style="display:flex; justify-content:space-between; margin-top:4px; font-style:italic;">
+                                <span>Độ lệch (Kho - ${shortName}):</span>
+                                <span style="color:${color};">${diff > 0 ? '+' : ''}${diff}</span>
+                             </div>`;
+                }
+
+                html += `</div>`;
+                return html;
+            }
+        },
+        legend: { 
+            data: legendData, 
+            bottom: 0,
+            itemGap: 20 
+        },
+        grid: { 
+            left: '2%', right: '4%', bottom: '10%', top: '15%', containLabel: true 
+        },
+        xAxis: {
+            type: 'value', scale: true, name: unit, nameGap: 5,
+            min: plotMin, max: plotMax,
+            axisLabel: { fontSize: 11 }
+        },
+        yAxis: { type: 'value', show: false }, 
+        series: [
+            {
+                name: 'Năng lực sản xuất', type: 'line', smooth: true,
+                data: cpkData.line_data, symbol: 'none',
+                lineStyle: { width: 2.5, color: '#20c997' },
+                areaStyle: { opacity: 0.25, color: '#20c997' },
+                markLine: { symbol: 'none', data: markLineData, animation: false, silent: true }
+            },
+            {
+                name: soDisplayName, // Dùng tên động
+                type: 'line', smooth: true,
+                data: cpkData.so_line_data || [],
+                symbol: 'none',
+                lineStyle: { width: 2.5, color: '#ff9800', type: 'solid' },
+                areaStyle: { opacity: 0.1, color: '#ff9800' }
+            },
+            {
+                name: cpkData.monthly_title || 'Tháng chọn',
+                type: 'line', smooth: true,
+                data: cpkData.monthly_line_data || [],
+                symbol: 'none',
+                lineStyle: { width: 2.5, color: '#6f42c1', type: 'dashed' }, 
+                areaStyle: { opacity: 0.1, color: '#6f42c1' },
+            }
+        ]
+    };
+    myChart.setOption(option);
+}
+function clearChart(domId, msg) {
+    const chartDom = document.getElementById(domId);
+    if(chartDom) {
+        const myChart = echarts.getInstanceByDom(chartDom);
+        if(myChart) myChart.clear();
+        chartDom.innerHTML = `<div class="d-flex h-100 align-items-center justify-content-center text-muted small">${msg}</div>`;
+    }
+}
+function renderWidthChartOnly(coils, sos, forceRangeStr = null, forceFactory = 'all', forceMacThep = 'all', forceMonth = 'all') {
+    // 1. Lấy giá trị bộ lọc
+    const trendWidthEl = document.getElementById('trend-width');
+    let rangeStr = forceRangeStr;
+    if (!rangeStr || rangeStr === 'all') rangeStr = trendWidthEl ? trendWidthEl.value : 'all';
+    const localSelect = document.getElementById('width-range-select');
+    if (localSelect && rangeStr !== 'all') localSelect.value = rangeStr;
+
+    // 2. Lọc dữ liệu thô (Kho & SO)
+    let filteredCoils = coils;
+    let filteredSOs = sos;
+    if (forceFactory && forceFactory !== 'all') {
+        filteredCoils = filteredCoils.filter(c => getFactoryType(c['NhaMay'] || c['Factory']) === forceFactory);
+    }
+    if (forceMacThep && forceMacThep !== 'all') {
+        filteredCoils = filteredCoils.filter(c => (c['Mác thép'] || c['mac_thep']) === forceMacThep);
+        filteredSOs = filteredSOs.filter(s => (s['Mác thép'] || s['mac_thep']) === forceMacThep);
+    }
+
+    // 3. Xử lý LSL, USL và Giá trị chuẩn
+    let lsl, usl;
+    let widthInScope = [];
+    let targetStandard = 0;
+
+    // Lấy toàn bộ dữ liệu khổ rộng để phân tích
+    const allWidths = filteredCoils.map(c => c['kho_rong_num']).filter(w => w !== null);
+
+    if (allWidths.length === 0) {
+        clearChart('chart-cpk-width', `Không đủ dữ liệu.`);
+        return;
+    }
+
+    if (rangeStr && rangeStr !== 'all') {
+        // TRƯỜNG HỢP 1: Có chọn khoảng cụ thể
+        const range = parseRange(rangeStr);
+        lsl = range.min;
+        usl = range.max;
+        
+        widthInScope = allWidths.filter(w => w >= lsl && w < usl);
+        
+        // Tìm Mode làm chuẩn
+        if (widthInScope.length > 0) {
+            const counts = {}; widthInScope.forEach(x => counts[x] = (counts[x] || 0) + 1);
+            targetStandard = Number(Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b));
+        } else {
+            targetStandard = (lsl + usl) / 2;
+        }
+
+    } else {
+        // TRƯỜNG HỢP 2: Chọn "Tất cả" -> Auto-Scale
+        const minReal = getSafeMin(allWidths);
+        const maxReal = getSafeMax(allWidths);
+
+        // Tìm Mode
+        const counts = {}; allWidths.forEach(x => counts[x] = (counts[x] || 0) + 1);
+        const dominantW = Number(Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b));
+        targetStandard = dominantW;
+
+        // Mở rộng LSL/USL theo thực tế
+        lsl = Math.floor(minReal / 10) * 10; 
+        usl = Math.ceil(maxReal / 10) * 10;  
+        
+        if (usl - lsl < 10) { lsl = dominantW - 20; usl = dominantW + 20; }
+
+        widthInScope = allWidths.filter(w => w >= lsl && w <= usl);
+    }
+
+    // 4. TÍNH TOÁN VÀ VẼ
+    if (widthInScope.length > 1) {
+        // A. Thống kê Kho (Đường Xanh - Cố định)
+        const stats = calculateStats(widthInScope);
+        
+        // B. Xử lý TƯƠNG LAI vs QUÁ KHỨ
+        let soStats = null;
+        let soVals = [];
+        let monthlyLineData = [];
+        let monthlyMean = null;
+        let monthlyTitle = '';
+        let isFutureMonth = false;
+        let futureWidths = [];
+        let monthVals = []; // Dùng để tính scale chung
+
+        // Kiểm tra tháng Tương lai
+        if (forceMonth && forceMonth !== 'all' && typeof allFuturePlans !== 'undefined') {
+             const relevantPlans = allFuturePlans.filter(p => {
+                 let m = p['month_key'] || p['month'];
+                 if (m && m.includes('T.')) {
+                     let part = m.replace('T.', '').trim();
+                     if(part.length === 1) part = '0' + part;
+                     m = `2025-${part}`;
+                 }
+                 let matchMonth = (m === forceMonth);
+                 let matchFactory = (forceFactory === 'all') || (getFactoryType(p['Factory']) === forceFactory);
+                 let matchMac = (forceMacThep === 'all') || (p['mac_thep'] === forceMacThep);
+                 return matchMonth && matchFactory && matchMac;
+             });
+
+             if (relevantPlans.length > 0) {
+                 isFutureMonth = true;
+                 // Lấy dữ liệu khổ từ kế hoạch
+                 futureWidths = relevantPlans.map(p => parseFloat(p['kho_rong'] || 0)).filter(w => w >= lsl && w <= usl);
+             }
+        }
+
+        if (isFutureMonth) {
+            // --- TƯƠNG LAI ---
+            // Đường Cam = Dự kiến
+            if (futureWidths.length > 0) {
+                soStats = calculateStats(futureWidths);
+                soVals = futureWidths;
+                monthlyTitle = `Dự kiến ${forceMonth}`;
+            } else {
+                soStats = { mean: 0, stdDev: 0 };
+            }
+            // Đường Tím = Ẩn
+            monthlyMean = null;
+            monthlyLineData = [];
+
+        } else {
+            // --- QUÁ KHỨ ---
+            // Đường Cam = SO Lịch sử
+            const validSOs = filteredSOs.filter(s => s['kho_rong_num'] >= lsl && s['kho_rong_num'] <= usl);
+            soStats = calculateWeightedStats(validSOs, 'kho_rong_num', 'Quantity (KG)');
+            soVals = validSOs.map(s => s['kho_rong_num']);
+
+            // Đường Tím = SX Thực tế tháng đó
+            if (forceMonth && forceMonth !== 'all') {
+                const monthCoils = filteredCoils.filter(c => getMonthKeyFromDate(c['Ngày sản xuất']) === forceMonth);
+                const monthWidths = monthCoils.map(c => c['kho_rong_num']).filter(w => w >= lsl && w <= usl);
+                if (monthWidths.length > 1) {
+                    const mStats = calculateStats(monthWidths);
+                    monthlyMean = mStats.mean;
+                    monthVals = monthWidths; // Lưu để tính scale
+                    monthlyTitle = `Sản xuất ${forceMonth}`;
+                }
+            }
+        }
+
+        // --- C. ĐỒNG BỘ LƯỚI VẼ (SYNC GRID) ---
+        const minInv = getSafeMin(widthInScope);
+        const maxInv = getSafeMax(widthInScope);
+        const minSO = soVals.length ? getSafeMin(soVals) : lsl;
+        const maxSO = soVals.length ? getSafeMax(soVals) : usl;
+        const minMonth = monthVals.length ? getSafeMin(monthVals) : lsl;
+        const maxMonth = monthVals.length ? getSafeMax(monthVals) : usl;
+
+        // Phạm vi vẽ bao trùm tất cả
+        const drawMin = Math.min(minInv, minSO, minMonth, lsl);
+        const drawMax = Math.max(maxInv, maxSO, maxMonth, usl);
+
+        // Vẽ các đường cong
+        const lineData = generateGaussian(stats.mean, stats.stdDev, lsl, usl, drawMin, drawMax);
+        const soLineData = generateGaussian(soStats.mean, soStats.stdDev, lsl, usl, drawMin, drawMax);
+        
+        // Vẽ đường tháng nếu có (Quá khứ)
+        if (!isFutureMonth && monthlyMean !== null && monthVals.length > 0) {
+             const mStats = calculateStats(monthVals);
+             monthlyLineData = generateGaussian(mStats.mean, mStats.stdDev, lsl, usl, drawMin, drawMax);
+        }
+
+        const titlePrefix = (forceFactory && forceFactory !== 'all') ? `[${forceFactory}] ` : '[Toàn NM] ';
+        const rangeTitle = (rangeStr !== 'all') ? `${rangeStr}mm` : `~${stats.mean.toFixed(0)}mm`;
+        const displayTitle = `${titlePrefix}Khổ ${rangeTitle}  [Chuẩn: ${Number(targetStandard)}mm]`;
+
+        initCPKChart('chart-cpk-width', {
+            lsl: lsl, usl: usl,
+            mean: Number(stats.mean.toFixed(2)),
+            
+            so_mean: soStats.mean ? Number(soStats.mean.toFixed(2)) : null,
+            
+            monthly_mean: monthlyMean ? Number(monthlyMean.toFixed(2)) : null,
+            monthly_line_data: monthlyLineData,
+            monthly_title: monthlyTitle,
+
+            so_line_data: soLineData,
+            line_data: lineData,
+            title: displayTitle
+        }, 'mm');
+    } else {
+        clearChart('chart-cpk-width', `Không đủ dữ liệu.`);
+    }
+}
+function renderThicknessChartOnly(coils, sos, forceRangeStr = 'all', forceFactory = 'all', forceMacThep = 'all', forceMonth = 'all') {
+    // 1. LỌC DỮ LIỆU CƠ BẢN
+    let filteredCoils = coils;
+    let filteredSOs = sos;
+
+    if (forceFactory && forceFactory !== 'all') {
+        filteredCoils = filteredCoils.filter(c => getFactoryType(c['NhaMay'] || c['Factory']) === forceFactory);
+    }
+    if (forceMacThep && forceMacThep !== 'all') {
+        filteredCoils = filteredCoils.filter(c => (c['Mác thép'] || c['mac_thep']) === forceMacThep);
+        filteredSOs = filteredSOs.filter(s => (s['Mác thép'] || s['mac_thep']) === forceMacThep);
+    }
+
+    let t_LSL, t_USL, rangeTitle;
+    
+    // Lấy danh sách độ dày toàn bộ
+    const allThicks = filteredCoils.map(c => parseFloat(c['chieu_day'])).filter(t => !isNaN(t));
+    if (allThicks.length === 0) {
+         clearChart('chart-cpk-thickness', `Không có dữ liệu chiều dày phù hợp`);
+         return;
+    }
+
+    let validThicks = [];
+    let targetStandard = 0;
+
+    // 2. XÁC ĐỊNH LSL/USL VÀ GIÁ TRỊ CHUẨN
+    if (forceRangeStr && forceRangeStr !== 'all') {
+        const range = parseRange(forceRangeStr);
+        t_LSL = range.min; t_USL = range.max;
+        rangeTitle = `${forceRangeStr} mm`;
+
+        validThicks = allThicks.filter(t => t >= t_LSL && t < t_USL);
+        
+        if(validThicks.length > 0) {
+            const counts = {};
+            validThicks.forEach(x => { const k = x.toFixed(2); counts[k] = (counts[k] || 0) + 1; });
+            targetStandard = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+        } else {
+            targetStandard = (t_LSL + t_USL) / 2;
+        }
+
+    } else {
+        // Logic chọn "Tất cả" -> Tìm Mode
+        const counts = {}; allThicks.forEach(x => { const key = x.toFixed(1); counts[key] = (counts[key] || 0) + 1; });
+        const dominantStr = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+        const dominantVal = parseFloat(dominantStr);
+        
+        const stdKeys = Object.keys(THICKNESS_STD_MAP).map(Number);
+        const closestStd = stdKeys.reduce((prev, curr) => Math.abs(curr - dominantVal) < Math.abs(prev - dominantVal) ? curr : prev);
+        const stdTols = THICKNESS_STD_MAP[closestStd];
+        const tolerance = stdTols ? stdTols[2] : 0.2;
+
+        t_LSL = Number((closestStd - tolerance).toFixed(3));
+        t_USL = Number((closestStd + tolerance).toFixed(3));
+        targetStandard = closestStd;
+        rangeTitle = `Chuẩn phổ biến`;
+        validThicks = allThicks.filter(t => t >= t_LSL && t <= t_USL);
+    }
+    
+    // 3. TÍNH TOÁN VÀ VẼ
+    if (validThicks.length > 1) {
+        // A. Thống kê Kho (Đường Xanh - Luôn cố định)
+        const stats = calculateStats(validThicks);
+        
+        // B. Xử lý TƯƠNG LAI vs QUÁ KHỨ
+        let soStats = null;
+        let soVals = [];
+        let monthlyLineData = [];
+        let monthlyMean = null;
+        let monthlyTitle = '';
+        let isFutureMonth = false;
+        let futureThicks = [];
+        let monthVals = []; // Dùng để tính min/max scale
+
+        // Kiểm tra xem tháng được chọn có phải là Tương lai không
+        if (forceMonth && forceMonth !== 'all' && typeof allFuturePlans !== 'undefined') {
+             const relevantPlans = allFuturePlans.filter(p => {
+                 let m = p['month_key'] || p['month'];
+                 if (m && m.includes('T.')) {
+                     let part = m.replace('T.', '').trim();
+                     if(part.length === 1) part = '0' + part;
+                     m = `2025-${part}`;
+                 }
+                 let matchMonth = (m === forceMonth);
+                 let matchFactory = (forceFactory === 'all') || (getFactoryType(p['Factory']) === forceFactory);
+                 let matchMac = (forceMacThep === 'all') || (p['mac_thep'] === forceMacThep);
+                 return matchMonth && matchFactory && matchMac;
+             });
+
+             if (relevantPlans.length > 0) {
+                 isFutureMonth = true;
+                 // Lấy dữ liệu độ dày từ kế hoạch
+                 futureThicks = relevantPlans.map(p => parseFloat(p['chieu_day'] || 0)).filter(t => t >= t_LSL && t < t_USL);
+             }
+        }
+
+        if (isFutureMonth) {
+            // --- TRƯỜNG HỢP TƯƠNG LAI ---
+            // Đường Cam (SO) = Dữ liệu Dự kiến
+            if (futureThicks.length > 0) {
+                soStats = calculateStats(futureThicks);
+                soVals = futureThicks;
+                monthlyTitle = `Dự kiến ${forceMonth}`;
+            } else {
+                soStats = { mean: 0, stdDev: 0 };
+            }
+            // Đường Tím (SX Tháng) = Ẩn (Vì chưa sản xuất)
+            monthlyMean = null;
+            monthlyLineData = [];
+
+        } else {
+            // --- TRƯỜNG HỢP QUÁ KHỨ (HOẶC KHÔNG CHỌN THÁNG) ---
+            // Đường Cam (SO) = SO Lịch sử
+            const validSOs = filteredSOs.filter(s => {
+                const t = parseFloat(s['chieu_day']);
+                return t >= t_LSL && t <= t_USL;
+            });
+            soStats = calculateWeightedStats(validSOs, 'chieu_day', 'Quantity (KG)');
+            soVals = validSOs.map(s => parseFloat(s['chieu_day']));
+
+            // Đường Tím (SX Tháng) = Thực tế sản xuất tháng đó
+            if (forceMonth && forceMonth !== 'all') {
+                const monthCoils = filteredCoils.filter(c => getMonthKeyFromDate(c['Ngày sản xuất']) === forceMonth);
+                const monthThicks = monthCoils.map(c => parseFloat(c['chieu_day'])).filter(t => t >= t_LSL && t < t_USL);
+                
+                if (monthThicks.length > 1) {
+                    const mStats = calculateStats(monthThicks);
+                    monthlyMean = mStats.mean;
+                    monthVals = monthThicks; // Lưu để tính scale
+                    monthlyTitle = `Sản xuất ${forceMonth}`;
+                }
+            }
+        }
+
+        // --- [QUAN TRỌNG: ĐỒNG BỘ LƯỚI VẼ (SYNC GRID)] ---
+        // Tìm Min/Max của TẤT CẢ dữ liệu để ép vào cùng 1 khung hình
+        const minInv = getSafeMin(validThicks);
+        const maxInv = getSafeMax(validThicks);
+
+        const minSO = soVals.length ? getSafeMin(soVals) : t_LSL;
+        const maxSO = soVals.length ? getSafeMax(soVals) : t_USL;
+
+        const minMonth = monthVals.length ? getSafeMin(monthVals) : t_LSL;
+        const maxMonth = monthVals.length ? getSafeMax(monthVals) : t_USL;
+        
+        const drawMin = Math.min(minInv, minSO, minMonth, t_LSL);
+        const drawMax = Math.max(maxInv, maxSO, maxMonth, t_USL);
+        // Vẽ các đường cong
+        const lineData = generateGaussian(stats.mean, stats.stdDev, t_LSL, t_USL, drawMin, drawMax);
+        const soLineData = generateGaussian(soStats.mean, soStats.stdDev, t_LSL, t_USL, drawMin, drawMax);
+        
+        // Vẽ đường tháng nếu có dữ liệu (chỉ xảy ra ở quá khứ)
+        if (!isFutureMonth && monthlyMean !== null && monthVals.length > 0) {
+             // Tính lại mStats từ monthVals
+             const mStats = calculateStats(monthVals);
+             monthlyLineData = generateGaussian(mStats.mean, mStats.stdDev, t_LSL, t_USL, drawMin, drawMax);
+        }
+
+        const factoryTitle = (forceFactory && forceFactory !== 'all') ? `[${forceFactory}]` : '[Toàn NM]';
+        const displayTitle = `${factoryTitle} ${rangeTitle}  [Chuẩn: ${Number(targetStandard)}mm]`;
+
+        initCPKChart('chart-cpk-thickness', {
+            lsl: t_LSL, usl: t_USL,
+            mean: Number(stats.mean.toFixed(3)),
+            
+            // Mean SO (Nếu tương lai thì là Mean Dự kiến)
+            so_mean: soStats.mean ? Number(soStats.mean.toFixed(3)) : null,
+            
+            // Mean Tháng (Chỉ có ở quá khứ)
+            monthly_mean: monthlyMean ? Number(monthlyMean.toFixed(3)) : null,
+            monthly_line_data: monthlyLineData,
+            monthly_title: monthlyTitle,
+
+            so_line_data: soLineData,
+            line_data: lineData,
+            title: displayTitle
+        }, 'mm');
+    } else {
+        clearChart('chart-cpk-thickness', `Dữ liệu quá phân tán hoặc không đủ.`);
+    }
+}
+// --- HÀM MỚI: VẼ BIỂU ĐỒ TỔNG HỢP CPK ---
+// --- Thay thế hàm cũ trong thẻ <script> ---
+
+function renderCPKSummaryChart(cpkData) {
+    const chartDom = document.getElementById('chart-cpk-summary');
+    if (!chartDom) return;
+    if (echarts.getInstanceByDom(chartDom)) echarts.getInstanceByDom(chartDom).dispose();
+    const myChart = echarts.init(chartDom);
+
+    if (!cpkData || cpkData.length === 0) {
+        chartDom.innerHTML = '<div class="d-flex h-100 align-items-center justify-content-center text-muted">Chưa có dữ liệu</div>';
+        return;
+    }
+    
+    // Tách dữ liệu
+    const xData = cpkData.map(item => item.thickness + ' mm');
+    const yCpk = cpkData.map(item => item.cpk);
+    const yScrap = cpkData.map(item => item.scrap_rate);
+    
+    const option = {
+        title: {
+            text: 'Năng lực sản xuất (CPK) & Tỷ lệ ngoại lai (Scrap)',
+            left: 'center',
+            textStyle: { fontSize: 14 }
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'cross' },
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            formatter: function(params) {
+                const idx = params[0].dataIndex;
+                const item = cpkData[idx];
+                
+                let cpkColor = item.cpk >= 1.33 ? '#28a745' : (item.cpk >= 1.0 ? '#ffc107' : '#dc3545');
+                
+                return `<div style="min-width: 200px;">
+                            <div style="font-weight:bold; border-bottom:1px solid #eee; margin-bottom:5px; padding-bottom:5px;">
+                                Độ dày: ${item.thickness} mm
+                            </div>
+                            <div style="display:flex; justify-content:space-between; color:${cpkColor}; font-weight:bold;">
+                                <span>CPK (Data sạch):</span>
+                                <span>${item.cpk}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; font-size:11px; color:#666; margin-bottom:8px;">
+                                <span>Số cuộn đạt:</span>
+                                <span>${item.count} cuộn</span>
+                            </div>
+                            
+                            <div style="border-top:1px dashed #ccc; padding-top:5px; display:flex; justify-content:space-between; color:#6c757d; font-weight:bold;">
+                                <span>Tỷ lệ Phế phẩm:</span>
+                                <span>${item.scrap_rate}%</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; font-size:11px; color:#666;">
+                                <span>Số cuộn lỗi (>0.5mm):</span>
+                                <span>${item.scrap_count} cuộn</span>
+                            </div>
+                        </div>`;
+            }
+        },
+        legend: { bottom: 0, data: ['CPK (Trục trái)', 'Tỷ lệ Lỗi % (Trục phải)'] },
+        grid: { left: '3%', right: '3%', bottom: '10%', top: '15%', containLabel: true },
+        xAxis: {
+           type: 'category',
+            data: xData,
+            name: 'Độ dày',
+            nameLocation: 'middle',
+            nameGap: 30,
+            // --- SỬA Ở ĐÂY ---
+            axisLabel: { 
+                interval: 'auto', // Để tự động giãn cách, không ép hiện hết (thay vì 0)
+                rotate: 0,        // Không cần xoay nếu đã giãn cách tốt (hoặc để 45 nếu muốn)
+                hideOverlap: true // Tự động ẩn nếu bị đè lên nhau
+            }
+        },
+        // TRỤC Y KÉP (Dual Y-Axis)
+        yAxis: [
+            {
+                type: 'value',
+                name: 'CPK',
+                position: 'left',
+                axisLine: { show: true, lineStyle: { color: '#20c997' } },
+                splitLine: { show: true, lineStyle: { type: 'dashed' } }
+            },
+            {
+                type: 'value',
+                name: 'Tỷ lệ Lỗi (%)',
+                position: 'right',
+                min: 0,
+                max: function(value) { return Math.ceil(value.max * 1.5); }, // Tự động scale cho đẹp
+                axisLine: { show: true, lineStyle: { color: '#6c757d' } },
+                splitLine: { show: false },
+                axisLabel: { formatter: '{value} %' }
+            }
+        ],
+        series: [
+            {
+                name: 'CPK (Trục trái)',
+                type: 'line',
+                data: yCpk,
+                smooth: true,
+                
+                // --- SỬA Ở ĐÂY: KÍCH THƯỚC ĐIỂM ĐỘNG ---
+                symbolSize: function (value, params) {
+                    // Lấy số lượng cuộn từ dữ liệu gốc
+                    const count = cpkData[params.dataIndex].count;
+                    
+                    // Logic tính toán kích thước (Scale cho đẹp mắt)
+                    // Ví dụ: Nhỏ nhất là 5px, Lớn nhất là 25px
+                    // Dùng Logarithm để số 12000 không làm điểm to quá khổ so với số 9
+                    let size = Math.log(count) * 3; 
+                    
+                    // Giới hạn Min/Max để không bị quá bé hoặc quá to che mất biểu đồ
+                    if (size < 5) size = 5;
+                    if (size > 25) size = 25;
+                    
+                    return size;
+                },
+                itemStyle: { color: '#20c997' },
+                lineStyle: { width: 3 },
+                markLine: {
+                    symbol: 'none',
+                    data: [
+                        { yAxis: 1.33, lineStyle: { color: 'green', type: 'solid', width: 1 }, label: { formatter: 'Target' } },
+                        { yAxis: 1.0, lineStyle: { color: 'red', type: 'dashed' } }
+                    ]
+                }
+            },
+            {
+                name: 'Tỷ lệ Lỗi % (Trục phải)',
+                type: 'bar',
+                yAxisIndex: 1, // Gắn vào trục phải
+                data: yScrap,
+                itemStyle: { color: 'rgba(108, 117, 125, 0.5)' }, // Màu xám nhạt
+                barMaxWidth: 30
+            }
+        ]
+    };
+    
+    myChart.setOption(option);
+    window.addEventListener('resize', () => myChart.resize());
+}
+function isInRange(value, rangeStr) {
+    if (rangeStr === 'all' || !rangeStr) return true;
+    if (!value) return false;
+    const parts = rangeStr.split('-');
+    const min = parseFloat(parts[0]);
+    const max = parseFloat(parts[1]);
+    return value >= min && value < max;
+}
+function updateMonthlyTrendSpecific() {
+    // 1. LẤY GIÁ TRỊ BỘ LỌC (Giữ nguyên)
+    const factoryVal = document.getElementById('trend-factory').value;
+    const widthVal = document.getElementById('trend-width').value;
+    const thickVal = document.getElementById('trend-thickness').value;
+    const elMac = document.getElementById('trend-mac-thep');
+    const macThepVal = elMac ? elMac.value : 'all';
+
+    const getWeight = (item) => parseFloat(item['weight'] || item['Khối lượng'] || 0);
+
+    const getMonthKey = (dateInput) => {
+        if (!dateInput) return null;
+        if (typeof dateInput === 'string') {
+            if (dateInput.match(/^\d{4}-\d{2}/)) return dateInput.substring(0, 7);
+        }
+        const d = new Date(dateInput);
+        if (!isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return null;
+    };
+
+    const generateMonthRange = (minStr, maxStr) => {
+        if (!minStr || !maxStr) return [];
+        const start = new Date(minStr + "-01");
+        const end = new Date(maxStr + "-01");
+        const list = [];
+        let loops = 0;
+        while (start <= end && loops < 60) {
+            const m = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+            list.push(m);
+            start.setMonth(start.getMonth() + 1);
+            loops++;
+        }
+        return list;
+    };
+
+    // 2. LOGIC LỌC DỮ LIỆU (Giữ nguyên)
+    const filterItem = (item) => {
+        const itemFactory = getFactoryType(item['NhaMay'] || item['Factory'] || item['Plant']);
+        if (factoryVal !== 'all' && itemFactory !== factoryVal) return false;
+        
+        const w = parseFloat(item['kho_rong_num'] || item['kho_rong'] || 0);
+        if (!isInRange(w, widthVal)) return false;
+        
+        const t = parseFloat(item['chieu_day'] || 0);
+        if (!isInRange(t, thickVal)) return false;
+
+        if (macThepVal !== 'all') {
+            const itemMac = item['Mác thép'] || item['mac_thep'];
+            if (itemMac !== macThepVal) return false;
+        }
+        return true;
+    };
+
+    // 3. TỔNG HỢP DỮ LIỆU (Giữ nguyên)
+    const allMonthsSet = new Set();
+    const monthlyData = {};
+
+    const addToMonth = (dateRaw, type, value) => {
+        const m = getMonthKey(dateRaw);
+        if (!m) return;
+        allMonthsSet.add(m);
+        if (!monthlyData[m]) monthlyData[m] = { prod: 0, stock: 0, so: 0, future_demand: 0, future_cap: 0 };
+        monthlyData[m][type] += value;
+    };
+
+    if (typeof allCoils !== 'undefined') allCoils.forEach(c => { if (filterItem(c)) addToMonth(c['Ngày sản xuất'], 'prod', getWeight(c)); });
+    if (typeof inventoryCoils !== 'undefined') inventoryCoils.forEach(c => { if (filterItem(c)) addToMonth(c['Ngày sản xuất'], 'stock', getWeight(c)); });
+    if (typeof allSOs !== 'undefined') allSOs.forEach(s => { if (filterItem(s)) addToMonth(s['Document Date'] || s['Month'], 'so', s['Quantity (KG)'] || s['quantity'] || 0); });
+
+    if (typeof allFuturePlans !== 'undefined') {
+        allFuturePlans.forEach(p => {
+            let m = p['month_key'] || p['month'];
+            if (m && m.includes('T.')) {
+                 let part = m.replace('T.', '').trim();
+                 if(part.length === 1) part = '0' + part;
+                 m = `2025-${part}`;
+            }
+            if (filterItem(p)) {
+                 allMonthsSet.add(m);
+                 if (!monthlyData[m]) monthlyData[m] = { prod: 0, stock: 0, so: 0, future_demand: 0, future_cap: 0 };
+                 monthlyData[m]['future_demand'] += getWeight(p);
+                 // Tính năng lực tương tự...
+                 const factory = p['Factory'];
+                 const keyTotal = `${factory}_${m}`;
+                 const totalW_Month = totalPlanWeightsByMonth[keyTotal] || 0;
+                 if (totalW_Month > 0 && CAPACITY_CONST[factory]) {
+                      const allocatedCap = (getWeight(p) / totalW_Month) * CAPACITY_CONST[factory];
+                      monthlyData[m]['future_cap'] += (allocatedCap * 1000);
+                 }
+            }
+        });
+    }
+
+    // 4. CHUẨN BỊ DỮ LIỆU VẼ (ĐÃ CẬP NHẬT LOGIC RẼ NHÁNH)
+    const existingMonths = Array.from(allMonthsSet).sort();
+    if (existingMonths.length === 0) {
+        clearChart('chart-monthly-trend', 'Không có dữ liệu phù hợp');
+        return;
+    }
+
+    const fullTimeline = generateMonthRange(existingMonths[0], existingMonths[existingMonths.length - 1]);
+    
+    const seriesProd = [], seriesStock = [], seriesSO = [], seriesFutureDemand = [], seriesFutureCap = [];
+
+    fullTimeline.forEach((m, index) => {
+        const d = monthlyData[m] || { prod: 0, stock: 0, so: 0, future_demand: 0, future_cap: 0 };
+        
+        // --- 4.1 XỬ LÝ DỮ LIỆU THỰC TẾ ---
+        // Cứ có số liệu > 0 là vẽ, không quan tâm quá khứ hay tương lai
+        seriesProd.push(d.prod > 0 ? d.prod / 1000 : null);
+        seriesStock.push(d.stock > 0 ? d.stock / 1000 : null);
+        seriesSO.push(d.so > 0 ? d.so / 1000 : null);
+
+        // --- 4.2 XỬ LÝ DỮ LIỆU KẾ HOẠCH (LOGIC ĐIỂM NEO) ---
+        // Kiểm tra tháng TIẾP THEO có kế hoạch không?
+        const nextM = fullTimeline[index + 1];
+        const nextD = monthlyData[nextM];
+        const hasFutureNow = d.future_demand > 0;
+        const hasFutureNext = nextD && nextD.future_demand > 0;
+
+        if (hasFutureNow) {
+            // Trường hợp 1: Tháng này CÓ kế hoạch -> Lấy giá trị Kế hoạch
+            seriesFutureDemand.push(d.future_demand / 1000);
+            seriesFutureCap.push(d.future_cap / 1000);
+        } 
+        else if (hasFutureNext && (d.so > 0 || d.prod > 0)) {
+            // Trường hợp 2 (QUAN TRỌNG): Tháng này KHÔNG có kế hoạch, nhưng tháng sau CÓ.
+            // -> Đây là ĐIỂM GIAO NHAU (Tháng 11).
+            // -> Lấy giá trị THỰC TẾ của tháng này làm điểm bắt đầu cho đường nét đứt.
+            // Ưu tiên lấy SO, nếu không có thì lấy Sản xuất
+            const anchorVal = d.so > 0 ? d.so : d.prod;
+            seriesFutureDemand.push(anchorVal / 1000);
+            
+            // Năng lực cũng tương tự, lấy sản xuất thực tế làm neo
+            seriesFutureCap.push(d.prod / 1000);
+        } 
+        else {
+            // Trường hợp 3: Không có gì cả
+            seriesFutureDemand.push(null);
+            seriesFutureCap.push(null);
+        }
+    });
+
+    // 5. VẼ ECHARTS
+    const chartDom = document.getElementById('chart-monthly-trend');
+    if (!chartDom) return;
+    let myChart = echarts.getInstanceByDom(chartDom);
+    if (!myChart) myChart = echarts.init(chartDom);
+
+    const option = {
+        tooltip: { 
+            trigger: 'axis',
+            formatter: function(params) {
+                let html = `<b>Tháng ${params[0].axisValue}</b><br/>`;
+                params.forEach(p => {
+                    if (p.value !== null && p.value !== undefined) {
+                        html += `${p.marker} ${p.seriesName}: <b>${Math.round(p.value).toLocaleString('vi-VN')}</b> tấn<br/>`;
+                    }
+                });
+                return html;
+            }
+        },
+        legend: { data: ['Sản xuất thực tế', 'Đang Tồn kho', 'Đặt hàng thực tế', 'Nhu cầu dự kiến', 'Năng lực dự kiến'], bottom: 0, type: 'scroll' },
+        grid: { left: '3%', right: '4%', top: '10%', bottom: '15%', containLabel: true },
+        xAxis: { type: 'category', data: fullTimeline, boundaryGap: false, axisLabel: { rotate: 45, interval: 0, fontSize: 10 } },
+        yAxis: { type: 'value', name: 'Tấn' },
+        series: [
+            { name: 'Sản xuất thực tế', type: 'line', data: seriesProd, itemStyle: { color: '#28a745' }, symbol: 'circle', smooth: true, connectNulls: false },
+            { name: 'Đang Tồn kho', type: 'line', data: seriesStock, itemStyle: { color: '#ffc107' }, symbol: 'circle', smooth: true, connectNulls: false },
+            { name: 'Đặt hàng thực tế', type: 'line', data: seriesSO, itemStyle: { color: '#dc3545' }, lineStyle: { width: 3 }, symbol: 'circle', smooth: true, connectNulls: false },
+            
+            // Đường nét đứt (Dự kiến)
+            { name: 'Nhu cầu dự kiến', type: 'line', data: seriesFutureDemand, itemStyle: { color: '#dc3545' }, lineStyle: { width: 3, type: 'dashed' }, symbol: 'emptyCircle', connectNulls: true },
+            { name: 'Năng lực dự kiến', type: 'line', data: seriesFutureCap, itemStyle: { color: '#28a745' }, lineStyle: { width: 3, type: 'dashed' }, symbol: 'diamond', connectNulls: true }
+        ]
+    };
+    myChart.setOption(option, true);
+}
+// function updateMonthlyTrendSpecific() {
+//     // Lấy giá trị các bộ lọc
+//     const factoryVal = document.getElementById('trend-factory').value;
+//     const widthVal = document.getElementById('trend-width').value;
+//     const thickVal = document.getElementById('trend-thickness').value;
+    
+//     // --- MỚI: Lấy giá trị Mác thép ---
+//     const elMac = document.getElementById('trend-mac-thep');
+//     const macThepVal = elMac ? elMac.value : 'all';
+
+//     const getWeight = (item) => parseFloat(item['weight'] || item['Khối lượng'] || 0);
+
+//     const getMonthKey = (dateInput) => {
+//         if (!dateInput) return null;
+//         if (typeof dateInput === 'string') {
+//             if (dateInput.match(/^\d{4}-\d{2}/)) return dateInput.substring(0, 7);
+//         }
+//         const d = new Date(dateInput);
+//         if (!isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+//         return null;
+//     };
+
+//     const generateMonthRange = (minStr, maxStr) => {
+//         if (!minStr || !maxStr) return [];
+//         const start = new Date(minStr + "-01");
+//         const end = new Date(maxStr + "-01");
+//         const list = [];
+//         let loops = 0;
+//         while (start <= end && loops < 60) {
+//             const m = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+//             list.push(m);
+//             start.setMonth(start.getMonth() + 1);
+//             loops++;
+//         }
+//         return list;
+//     };
+
+//     // --- LOGIC LỌC DỮ LIỆU ---
+//     const filterItem = (item) => {
+//         // 1. Lọc Nhà máy
+//         const itemFactory = getFactoryType(item['NhaMay'] || item['Factory'] || item['Plant']);
+//         if (factoryVal !== 'all' && itemFactory !== factoryVal) return false;
+        
+//         // 2. Lọc Khổ
+//         const w = parseFloat(item['kho_rong_num'] || item['kho_rong'] || 0);
+//         if (!isInRange(w, widthVal)) return false;
+        
+//         // 3. Lọc Dày
+//         const t = parseFloat(item['chieu_day'] || 0);
+//         if (!isInRange(t, thickVal)) return false;
+
+//         // 4. --- MỚI: Lọc Mác Thép ---
+//         if (macThepVal !== 'all') {
+//             // Dữ liệu backend: Coils dùng 'Mác thép', Future dùng 'mac_thep'
+//             const itemMac = item['Mác thép'] || item['mac_thep'];
+//             if (itemMac !== macThepVal) return false;
+//         }
+
+//         return true;
+//     };
+
+//     // --- TỔNG HỢP DỮ LIỆU (Giữ nguyên logic cũ) ---
+//     const allMonthsSet = new Set();
+//     const monthlyData = {};
+
+//     const addToMonth = (dateRaw, type, value) => {
+//         const m = getMonthKey(dateRaw);
+//         if (!m) return;
+//         allMonthsSet.add(m);
+//         if (!monthlyData[m]) monthlyData[m] = { prod: 0, stock: 0, so: 0, future_demand: 0, future_cap: 0 };
+//         monthlyData[m][type] += value;
+//     };
+
+//     if (typeof allCoils !== 'undefined') allCoils.forEach(c => { if (filterItem(c)) addToMonth(c['Ngày sản xuất'], 'prod', getWeight(c)); });
+//     if (typeof inventoryCoils !== 'undefined') inventoryCoils.forEach(c => { if (filterItem(c)) addToMonth(c['Ngày sản xuất'], 'stock', getWeight(c)); });
+//     if (typeof allSOs !== 'undefined') allSOs.forEach(s => { if (filterItem(s)) addToMonth(s['Document Date'] || s['Month'], 'so', s['Quantity (KG)'] || s['quantity'] || 0); });
+
+//     if (typeof allFuturePlans !== 'undefined') {
+//         allFuturePlans.forEach(p => {
+//             let m = p['month_key'] || p['month'];
+//             if (m && m.includes('T.')) {
+//                  let part = m.replace('T.', '').trim();
+//                  if(part.length === 1) part = '0' + part;
+//                  m = `2025-${part}`;
+//             }
+//             if (filterItem(p)) {
+//                  allMonthsSet.add(m);
+//                  if (!monthlyData[m]) monthlyData[m] = { prod: 0, stock: 0, so: 0, future_demand: 0, future_cap: 0 };
+//                  const w = getWeight(p);
+//                  monthlyData[m]['future_demand'] += w;
+//                  const factory = p['Factory'];
+//                  const keyTotal = `${factory}_${m}`;
+//                  const totalW_Month = totalPlanWeightsByMonth[keyTotal] || 0;
+//                  if (totalW_Month > 0 && CAPACITY_CONST[factory]) {
+//                       const allocatedCap = (w / totalW_Month) * CAPACITY_CONST[factory];
+//                       monthlyData[m]['future_cap'] += (allocatedCap * 1000);
+//                  }
+//             }
+//         });
+//     }
+
+//     // --- CHUẨN BỊ DỮ LIỆU VẼ (Giữ nguyên) ---
+//     const existingMonths = Array.from(allMonthsSet).sort();
+//     if (existingMonths.length === 0) {
+//         const chartDom = document.getElementById('chart-monthly-trend');
+//         if(chartDom) {
+//             const myChart = echarts.getInstanceByDom(chartDom) || echarts.init(chartDom);
+//             myChart.clear();
+//             myChart.setOption({ title: { text: 'Không có dữ liệu phù hợp', left: 'center', top: 'center', textStyle: {color: '#999'} }});
+//         }
+//         return;
+//     }
+
+//     const fullTimeline = generateMonthRange(existingMonths[0], existingMonths[existingMonths.length - 1]);
+//     let lastRealSOIndex = -1;
+//     for (let i = fullTimeline.length - 1; i >= 0; i--) {
+//         const m = fullTimeline[i];
+//         const d = monthlyData[m] || { so: 0, future_demand: 0 };
+//         if (d.so > 0 && d.future_demand === 0) {
+//             lastRealSOIndex = i;
+//             break;
+//         }
+//     }
+//     if (lastRealSOIndex === -1) lastRealSOIndex = fullTimeline.length - 1;
+
+//     const seriesProd = [], seriesStock = [], seriesSO = [], seriesFutureDemand = [], seriesFutureCap = [];
+
+//     fullTimeline.forEach((m, index) => {
+//         const d = monthlyData[m] || { prod: 0, stock: 0, so: 0, future_demand: 0, future_cap: 0 };
+//         const vProd = d.prod / 1000, vStock = d.stock / 1000, vSO = d.so / 1000, vFutureDem = d.future_demand / 1000, vFutureCap = d.future_cap / 1000;
+
+//         if (index < lastRealSOIndex) {
+//             seriesProd.push(vProd); seriesStock.push(vStock); seriesSO.push(vSO);
+//             seriesFutureDemand.push(null); seriesFutureCap.push(null);
+//         } else if (index === lastRealSOIndex) {
+//             seriesProd.push(vProd); seriesStock.push(vStock); seriesSO.push(vSO);
+//             seriesFutureDemand.push(vSO); seriesFutureCap.push(vProd);
+//         } else {
+//             seriesProd.push(null); seriesStock.push(null); seriesSO.push(null);
+//             seriesFutureDemand.push(vFutureDem); seriesFutureCap.push(vFutureCap);
+//         }
+//     });
+
+//     // --- VẼ ECHARTS (Giữ nguyên cấu hình cũ) ---
+//     const chartDom = document.getElementById('chart-monthly-trend');
+//     if (!chartDom) return;
+//     let myChart = echarts.getInstanceByDom(chartDom);
+//     if (!myChart) myChart = echarts.init(chartDom);
+
+//     const option = {
+//         tooltip: { 
+//             trigger: 'axis',
+//             formatter: function(params) {
+//                 let html = `<b>Tháng ${params[0].axisValue}</b><br/>`;
+//                 params.forEach(p => {
+//                     if (p.value !== null && p.value !== undefined) {
+//                         // Sửa 'Năng lực sx (Dự kiến)' thành 'Năng lực dự kiến'
+// 					if (p.dataIndex === lastRealSOIndex && (p.seriesName === 'Nhu cầu dự kiến' || p.seriesName === 'Năng lực dự kiến')) return;
+//                         html += `${p.marker} ${p.seriesName}: <b>${Math.round(p.value).toLocaleString('vi-VN')}</b> tấn<br/>`;
+//                     }
+//                 });
+//                 return html;
+//             }
+//         },
+//         legend: { data: ['Sản xuất thực tế', 'Đang Tồn kho', 'Đặt hàng thực tế', 'Nhu cầu dự kiến', 'Năng lực dự kiến'], bottom: 0, type: 'scroll' },
+//         grid: { left: '3%', right: '4%', top: '10%', bottom: '15%', containLabel: true },
+//         xAxis: { type: 'category', data: fullTimeline, boundaryGap: false, axisLabel: { rotate: 45, interval: 0, fontSize: 10 } },
+//         yAxis: { type: 'value', name: 'Tấn' },
+//         series: [
+//             { name: 'Sản xuất thực tế', type: 'line', data: seriesProd, itemStyle: { color: '#28a745' }, symbol: 'circle', smooth: true },
+//             { name: 'Đang Tồn kho', type: 'line', data: seriesStock, itemStyle: { color: '#ffc107' }, symbol: 'circle', smooth: true },
+//             { name: 'Đặt hàng thực tế', type: 'line', data: seriesSO, itemStyle: { color: '#dc3545' }, lineStyle: { width: 3 }, symbol: 'circle', smooth: true },
+//             { name: 'Nhu cầu dự kiến', type: 'line', data: seriesFutureDemand, itemStyle: { color: '#dc3545' }, lineStyle: { width: 3, type: 'dashed' }, symbol: 'emptyCircle', connectNulls: true },
+//             { name: 'Năng lực dự kiến', type: 'line', data: seriesFutureCap, itemStyle: { color: '#28a745' }, lineStyle: { width: 3, type: 'dashed' }, symbol: 'diamond', connectNulls: true }
+//         ]
+//     };
+//     myChart.setOption(option, true);
+// }
+
+async function initializeData() {
+    try {
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        // Kiểm tra nếu Backend báo lỗi
+        if (data.error) {
+            console.error("Lỗi từ Backend:", data.error);
+            return;
+        }
+
+        allCoils = data.coils || [];
+        allSOs = data.sales_orders || [];
+        allFuturePlans = data.future_plans || [];
+        inventoryCoils = allCoils.filter(c => c['TrangThai'] !== 'Đã bán');
+        // Khởi tạo các biến filter
+        currentFilteredCoils = allCoils;
+        currentFilteredSOs = allSOs;
+
+        // 1. Tính toán & Điền dữ liệu vào Dropdown
+        if (typeof calculateTotalFutureWeights === 'function') {
+             calculateTotalFutureWeights(allFuturePlans);
+        }
+        populateMacThepFilter(allCoils, allFuturePlans);
+        updateMonthDropdown(allCoils);
+        
+        // --- [SỬA TỐI ƯU TẠI ĐÂY] ---
+        // Xóa 2 dòng update lẻ tẻ cũ đi vì handleMasterChange đã làm hết rồi.
+        // updateMonthlyTrendSpecific();  <-- XÓA
+        // updateCapabilityCharts(allCoils, allSOs); <-- XÓA
+        
+        // Chỉ cần gọi 1 hàm này là nó tự vẽ lại TẤT CẢ biểu đồ (Trend + CPK)
+        handleMasterChange(); 
+        if (data.cpk_by_thickness) {
+            renderCPKSummaryChart(data.cpk_by_thickness);
+        }
+    } catch (error) {
+        console.error("Lỗi khởi tạo Capacity Dashboard:", error);
+    }
+}
+    function populateMacThepFilter(coils, futurePlans) {
+    const select = document.getElementById('trend-mac-thep');
+    if (!select) return;
+
+    // 1. Đếm số lượng cuộn cho từng mác thép
+    const counts = {};
+    
+    // Đếm trong tồn kho (coils)
+    coils.forEach(c => {
+        // Dữ liệu tồn kho thường dùng key 'Mác thép'
+        const m = c['Mác thép']; 
+        if (m) {
+            counts[m] = (counts[m] || 0) + 1;
+        }
+    });
+
+    // Đếm thêm trong kế hoạch tương lai (nếu muốn hiển thị cả những mác sắp về)
+    if (futurePlans) {
+        futurePlans.forEach(p => {
+            // Dữ liệu kế hoạch thường dùng key 'mac_thep' (theo code backend của bạn)
+            const m = p['mac_thep']; 
+            if (m) {
+                counts[m] = (counts[m] || 0) + 1;
+            }
+        });
+    }
+
+    // 2. Sắp xếp danh sách Mác theo số lượng giảm dần (counts[b] - counts[a])
+    const sortedMac = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+
+    // 3. Render HTML vào Dropdown
+    // Luôn giữ option "Tất cả" ở đầu tiên
+    select.innerHTML = '<option value="all">Tất cả Mác</option>';
+    
+    sortedMac.forEach(mac => {
+        const opt = document.createElement('option');
+        opt.value = mac;
+        // Hiển thị: Tên Mác + (Số lượng) -> Ví dụ: SPHC (300)
+        opt.textContent = `${mac} (${counts[mac].toLocaleString('vi-VN')})`; 
+        select.appendChild(opt);
+    });
+}
+function updateMonthDropdown(filteredCoils) {
+    const monthSelect = document.getElementById('trend-month');
+    const currentVal = monthSelect.value; 
+
+    const monthsSet = new Set();
+
+    // 1. Lấy tháng từ Lịch sử (Coils)
+    filteredCoils.forEach(c => {
+        const m = getMonthKeyFromDate(c['Ngày sản xuất']);
+        if (m) monthsSet.add(m);
+    });
+
+    // 2. [MỚI] Lấy tháng từ Kế hoạch (Future Plans)
+    // Biến allFuturePlans là biến toàn cục đã khai báo ở đầu file
+    if (typeof allFuturePlans !== 'undefined') {
+        allFuturePlans.forEach(p => {
+            // Xử lý format tháng của kế hoạch (thường là T.12 hoặc 2025-12)
+            let m = p['month_key'] || p['month']; 
+            if (m && typeof m === 'string') {
+                if (m.includes('T.')) {
+                    let part = m.replace('T.', '').trim();
+                    if(part.length === 1) part = '0' + part;
+                    m = `2025-${part}`; // Giả định năm 2025, bạn có thể sửa logic lấy năm động
+                }
+                monthsSet.add(m);
+            }
+        });
+    }
+
+    // 3. Sắp xếp giảm dần (Mới nhất lên đầu)
+    const sortedMonths = Array.from(monthsSet).sort().reverse();
+
+    // 4. Vẽ Dropdown
+    monthSelect.innerHTML = '<option value="all">Chọn Tháng</option>';
+    
+    sortedMonths.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        
+        // Hiển thị đẹp: T12/2025
+        const parts = m.split('-'); 
+        if(parts.length === 2) {
+            opt.textContent = `T${parts[1]}/${parts[0]}`;
+        } else {
+            opt.textContent = m;
+        }
+        monthSelect.appendChild(opt);
+    });
+
+    if (sortedMonths.includes(currentVal)) {
+        monthSelect.value = currentVal;
+    }
+}
+function handleMasterChange() {
+        // SỬA: Lấy trực tiếp từ DOM, không dùng biến elFactory chưa khai báo
+        const factoryVal = document.getElementById('trend-factory').value;
+        const macThepVal = document.getElementById('trend-mac-thep').value;
+        const widthVal = document.getElementById('trend-width').value;
+        const thickVal = document.getElementById('trend-thickness').value;
+        const monthVal = document.getElementById('trend-month').value; 
+        
+        // Cập nhật Dropdown Tháng
+        let tempCoils = allCoils; 
+        if (factoryVal !== 'all') tempCoils = tempCoils.filter(c => getFactoryType(c['NhaMay']) === factoryVal);
+        if (macThepVal !== 'all') tempCoils = tempCoils.filter(c => c['Mác thép'] === macThepVal);
+        updateMonthDropdown(tempCoils); 
+
+        // Vẽ lại Trend
+        updateMonthlyTrendSpecific();
+        
+        // Vẽ lại 2 biểu đồ CPK
+        // Lưu ý: Dùng allCoils/allSOs vì Capacity dashboard load toàn bộ
+        renderWidthChartOnly(allCoils, allSOs, widthVal, factoryVal, macThepVal, monthVal);
+        renderThicknessChartOnly(allCoils, allSOs, thickVal, factoryVal, macThepVal, monthVal);
+    }
+function calculateTotalFutureWeights(plans) {
+    totalPlanWeightsByMonth = {}; // Reset
+    plans.forEach(p => {
+        const w = parseFloat(p['weight'] || p['Khối lượng'] || 0);
+        const factory = p['Factory'] || p['NhaMay'];
+
+        // Xử lý month key chuẩn xác y hệt hàm vẽ để khớp key
+        let m = p['month_key'] || p['month'];
+        if (m && typeof m === 'string' && m.includes('T.')) {
+                let part = m.replace('T.', '').trim();
+                if(part.length === 1) part = '0' + part;
+                m = `2025-${part}`;
+        }
+
+        // Tạo key kết hợp Nhà máy + Tháng (VD: HRC2_2025-12)
+        if (factory && m) {
+            const key = `${factory}_${m}`;
+            if (!totalPlanWeightsByMonth[key]) totalPlanWeightsByMonth[key] = 0;
+            totalPlanWeightsByMonth[key] += w;
+        }
+    });
+    console.log("Tổng kế hoạch theo tháng (Kg):", totalPlanWeightsByMonth);
+}
+document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('trend-factory').addEventListener('change', handleMasterChange);
+        document.getElementById('trend-mac-thep').addEventListener('change', handleMasterChange);
+        document.getElementById('trend-width').addEventListener('change', handleMasterChange);
+        document.getElementById('trend-thickness').addEventListener('change', handleMasterChange);
+        document.getElementById('trend-month').addEventListener('change', handleMasterChange); // Chọn tháng chỉ ảnh hưởng CPK
+
+        initializeData();
+    });
+</script>
+{% endblock %}

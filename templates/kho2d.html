@@ -1,0 +1,1258 @@
+{% extends "base.html" %} 
+{% block title %}Quản Lý Layout Kho Đa Điểm{% endblock %} 
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/kho2d.css') }}">
+
+<div class="kho-wrapper">
+  <div class="top-dashboard">
+    <div class="stats-container">
+      <div class="stat-item" onclick="openWarehouseList('ALL')"><b id="s-total">0</b><span>Tổng</span></div>
+      <div style="width:1px;height:25px;background:#eee"></div>
+      <div class="stat-item" onclick="openWarehouseList('HSPM')"><b id="s-hspm" style="color:#007bff">0</b><span>HSPM</span></div>
+      <div class="stat-item" onclick="openWarehouseList('HRC1')"><b id="s-hrc1" style="color:#6f42c1">0</b><span>HRC1</span></div>
+      <div class="stat-item" onclick="openWarehouseList('HRC2')"><b id="s-hrc2" style="color:#e83e8c">0</b><span>HRC2</span></div>
+      <div style="width:1px;height:25px;background:#eee"></div>
+      <div class="stat-item" onclick="openWarehouseList('BAIE')"><b id="s-baie" style="color:#28a745">0</b><span>Bãi E</span></div>
+      <div class="stat-item" onclick="openWarehouseList('BAID')"><b id="s-baid" style="color:#ffc107">0</b><span>Bãi D</span></div>
+      <div class="stat-item" onclick="showModal('error')"><b id="s-err" style="color:#dc3545">0</b><span>Lỗi</span></div>
+    </div>
+
+    <div class="toolbar-container">
+       <div class="legend-group">
+          <div class="legend-item"><span class="legend-dot" style="background:#60A5FA"></span>Mapping</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#adb5bd"></span>Trống</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#fd7e14"></span>Gợi ý</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#dc3545"></span>Lỗi</div>
+       </div>
+
+       <div class="action-group">
+           <button class="btn-custom btn-success-custom" onclick="showCapacityModal()">📊 Báo cáo</button>
+           <div class="search-wrapper">
+               <input type="text" id="inpSearch" placeholder="Tìm ID, SO..." onkeyup="if(event.key === 'Enter') doSearch()">
+           </div>
+           <button class="btn-custom btn-primary-custom" onclick="doSearch()">Tìm</button>
+           <button class="btn-custom btn-light-custom" onclick="clearSearch()">✖</button>
+       </div>
+    </div>
+  </div>
+  <div class="capacity-dashboard-bar">
+      <div class="cap-info-item" style="flex: 1.5;">
+          <span>📦 <b>Sức chứa vị trí:</b></span>
+          <div class="cap-progress-bg">
+              <div id="bar-usage" class="cap-progress-bar"></div>
+          </div>
+          <span id="txt-usage-pct" class="highlight-text" style="color: #28a745">0%</span>
+          <span class="text-muted" style="font-size: 11px; margin-left: 5px;">(<span id="txt-usage-fraction">0/0</span>)</span>
+      </div>
+
+      <div class="cap-info-item" style="flex: 1.5; border-left:1px solid #eee; padding-left:15px">
+          <span>⚖️ <b>Tải trọng:</b></span>
+          <div class="cap-progress-bg">
+              <div id="bar-weight" class="cap-progress-bar" style="background: #6f42c1"></div>
+          </div>
+          <span id="txt-weight-pct" class="highlight-text" style="color: #6f42c1">0%</span>
+          <span class="text-muted" style="font-size: 11px; margin-left: 5px;">(<span id="txt-current-weight">0</span> / <span id="txt-max-weight">0</span> Tấn)</span>
+      </div>
+
+      <div class="cap-info-item" style="flex: 1; border-left:1px solid #eee; padding-left:15px">
+          <span style="color:#dc3545">⚠️ <b>Lỗi kho này:</b></span>
+          <span id="txt-repo-error-count" class="highlight-text" style="color: #dc3545; font-size:16px">0</span>
+          <span style="font-size:12px; color:#777">cuộn</span>
+          <span style="color:#ccc; margin:0 5px">|</span>
+          <span id="txt-repo-error-weight" style="font-weight:bold; color:#dc3545">0</span>
+          <span style="font-size:12px; color:#777">Tấn</span>
+      </div>
+  </div>
+  <div class="tab-header">
+    <button class="tab-btn active" onclick="switchTab('hspm')" id="btn-hspm">🏢 Kho HSPM</button>
+    <button class="tab-btn" onclick="switchTab('hrc1')" id="btn-hrc1">🏭 Kho HRC1</button>
+    <button class="tab-btn" onclick="switchTab('hrc2')" id="btn-hrc2">🔥 Kho HRC2</button>
+    <button class="tab-btn" onclick="switchTab('baie')" id="btn-baie">🌲 Bãi E</button>
+    <button class="tab-btn" onclick="switchTab('baid')" id="btn-baid">🛢 Bãi D</button>
+  </div>
+
+  <div id="tab-hspm" class="tab-content active"><div class="warehouse-scroll-area"><div id="grid-view-hspm" class="warehouse-grid"></div></div></div>
+  <div id="tab-hrc1" class="tab-content"><div class="warehouse-scroll-area"><div id="grid-view-hrc1" class="warehouse-grid"></div></div></div>
+  <div id="tab-hrc2" class="tab-content"><div class="warehouse-scroll-area"><div id="grid-view-hrc2" class="warehouse-grid"></div></div></div>
+  <div id="tab-baie" class="tab-content"><div class="warehouse-scroll-area"><div id="grid-view-baie" class="warehouse-grid"></div></div></div>
+  <div id="tab-baid" class="tab-content"><div class="warehouse-scroll-area"><div id="grid-view-baid" class="warehouse-grid"></div></div></div>
+
+  <div id="modalList" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h5 id="m-title" style="margin:0">Danh sách</h5>
+        <span onclick="closeModal()" style="cursor:pointer;font-size:24px">&times;</span>
+      </div>
+      <div style="padding:10px 15px; background:#fff; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px;">
+        <div style="flex:1; position:relative">
+            <input type="text" id="inpErrSearch" class="form-control form-control-sm" 
+                    placeholder="🔍 Lọc ID, Vị trí trong danh sách..." 
+                    style="width:100%; padding: 6px 12px; border-radius:4px; border:1px solid #ced4da" 
+                    onkeyup="doErrorSearch()">
+        </div>
+
+        <button class="btn-export-excel" onclick="exportCurrentList()" style="height:34px; padding: 0 15px;">
+            📥 Xuất Excel
+        </button>
+      </div>
+      <div class="modal-tabs" id="modal-filter-tabs"></div>
+      
+      <div style="flex:1; overflow-y:auto">
+        <table class="err-table">
+          <thead><tr><th>ID</th><th>Vị trí (Gốc)</th><th>SO Mapping</th><th>Trạng thái</th><th>Thông tin / Quy hoạch</th></tr></thead>
+          <tbody id="m-body"></tbody>
+        </table>
+      </div>
+      
+      <div id="pagination-controls" class="pagination-container">
+         <button class="page-btn" onclick="changePage(-1)">❮ Trước</button>
+         <span class="page-info">Trang <span id="lbl-curr-page">1</span> / <span id="lbl-total-page">1</span></span>
+         <button class="page-btn" onclick="changePage(1)">Sau ❯</button>
+      </div>
+      <div style="padding:5px 15px; text-align:right; font-size:11px; color:#666">Tổng: <b id="m-count">0</b> dòng</div>
+    </div>
+  </div>
+
+  <div id="modalCapacity" class="modal-overlay">
+    <div class="modal-box" style="width:1100px; max-width:98vw"> <div class="modal-header">
+            <h5 style="margin:0; display:flex; align-items:center; gap:8px;">
+                📊 Báo cáo Sức chứa & Quy hoạch
+            </h5>
+            <span onclick="closeCapacityModal()" style="cursor:pointer;font-size:24px; color:#aaa; transition:0.2s" onmouseover="this.style.color='#000'" onmouseout="this.style.color='#aaa'">&times;</span>
+        </div>
+
+        <div class="modal-actions-bar">
+            <div class="filter-group">
+                <span class="filter-label"><span style="font-size:16px">🔍</span> Lọc:</span>
+                
+                <select id="selFilterKho" class="form-control form-control-sm" style="width:140px; border-radius:4px" onchange="onFilterChange('KHO')">
+                    <option>-- Kho --</option>
+                </select>
+                
+                <span style="color:#ccc">|</span>
+                
+                <select id="selFilterZone" class="form-control form-control-sm" style="width:100px; border-radius:4px" onchange="onFilterChange('ZONE')" disabled></select>
+                <select id="selFilterLine" class="form-control form-control-sm" style="width:100px; border-radius:4px" onchange="onFilterChange('LINE')" disabled></select>
+                
+                <button class="btn btn-sm btn-light" style="border:1px solid #ddd; margin-left:5px" onclick="resetCapacityFilters()" title="Đặt lại bộ lọc">
+                    ↺ Reset
+                </button>
+            </div>
+
+            <div class="stats-group">
+                <div id="lblCapacitySummary" class="capacity-summary-container">
+                    <div class="cap-item" style="color:#888; font-style:italic">Đang tính toán...</div>
+                </div>
+
+                <button class="btn-export-excel" onclick="window.location.href='{{ url_for('kho2d_bp.export_capacity_excel') }}'">
+                    📥 Xuất Excel
+                </button>
+            </div>
+        </div>
+
+        <div style="flex:1; overflow:auto; background:#f8f9fa; padding: 0 10px 10px 10px;">
+             <table class="table table-bordered table-sm table-hover" style="font-size:12px; text-align:center; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+                <thead class="table-sticky-header">
+                    <tr>
+                          <th rowspan="2" style="vertical-align:middle; background:#fff; width:80px;">Zone</th>
+                          <th rowspan="2" style="vertical-align:middle; background:#fff; width:120px;">Line</th>
+                          <th colspan="3" class="th-tier-1">TẦNG 1 (Dưới đất)</th>
+                          <th colspan="3" class="th-tier-2">TẦNG 2</th>
+                          <th colspan="3" class="th-tier-3">TẦNG 3 (Trên cùng)</th>
+                      </tr>
+                      <tr style="font-size: 11px; color:#555;">
+                          <th style="background:#eef6fc">Sức chứa</th> <th style="background:#fff">Đã sử dụng</th> <th style="background:#fff">Trống</th>
+                          <th style="background:#e6f7f9">Sức chứa</th> <th style="background:#fff">Đã sử dụng</th> <th style="background:#fff">Trống</th>
+                          <th style="background:#f0f1f2">Sức chứa</th> <th style="background:#fff">Đã sử dụng</th> <th style="background:#fff">Trống</th>
+                      </tr>
+                </thead>
+                <tbody id="tbCapacityBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+        </div>
+        <div style="flex:1;overflow:auto">
+            <table class="table table-bordered table-sm table-hover" style="font-size:12px; text-align:center">
+                <thead class="table-sticky-header">
+                  <tr>
+                      <th rowspan="2" style="vertical-align:middle; background:#fff; width:80px;">Zone</th>
+                      <th rowspan="2" style="vertical-align:middle; background:#fff; width:120px;">Line</th>
+                      <th colspan="3" class="th-tier-1">TẦNG 1</th>
+                      <th colspan="3" class="th-tier-2">TẦNG 2</th>
+                      <th colspan="3" class="th-tier-3">TẦNG 3</th>
+                  </tr>
+                  <tr style="font-size: 11px; color:#555;">
+                      <th style="background:#eef6fc">Max</th> <th style="background:#fff">Used</th> <th style="background:#fff">Free</th>
+                      <th style="background:#e6f7f9">Max</th> <th style="background:#fff">Used</th> <th style="background:#fff">Free</th>
+                      <th style="background:#f0f1f2">Max</th> <th style="background:#fff">Used</th> <th style="background:#fff">Free</th>
+                  </tr>
+              </thead>
+                <tbody id="tbCapacityBody"></tbody>
+            </table>
+        </div>
+     </div>
+  </div>
+
+  <div id="global-tooltip"></div>
+  <div id="pnlResult" class="search-result-panel">
+    <div id="pnlHeader" class="search-header">
+      <span id="txtSearchTitle">🔍 Kết quả (<span id="lblMatchCount">0</span>)</span>
+      <button class="btn btn-sm btn-danger" style="padding:0 6px" onclick="clearSearch()">✖</button>
+    </div>
+    <div style="padding:10px; background:#f8f9fa; text-align:center; border-bottom:1px solid #eee">
+      <button class="btn btn-sm btn-info w-100" onclick="openMatchDetail()">📄 Xem chi tiết</button>
+    </div>
+    <div id="lstZoneMatches" class="search-body"></div>
+  </div>
+</div>
+
+<script>
+  // --- 1. CẤU HÌNH & BIẾN TOÀN CỤC ---
+  const API_URL = "{{ url_for('kho2d_bp.get_data') }}";
+  
+  let G_DATA_HSPM={}, G_DATA_HRC1={}, G_DATA_HRC2={}, G_DATA_BAIE={}, G_DATA_BAID={};
+  let G_STRUCTURE={}, G_ERR_OBJ={}, G_AUTO=[];
+  let G_RAW_CAPACITY_DATA = [];
+  
+  let G_CURRENT_MATCHES = [];
+  let CURRENT_TAB = "hspm";
+let G_STATS = {};
+  // Biến Phân trang & Modal
+  let G_MODAL_MODE = "ERROR"; 
+  let G_CUR_ERR_TAB = 'ALL';
+  let G_CURRENT_LIST_SOURCE = [];   
+  let G_CURRENT_DISPLAY_LIST = [];  
+  let G_PAGE_SIZE = 50;             
+  let G_CUR_PAGE = 1;               
+  let G_SEARCH_INDEX = [];
+  // --- 2. KHỞI TẠO (INIT) ---
+  // --- 2. KHỞI TẠO (INIT) ---
+  async function init() {
+    try {
+      let res = await fetch(API_URL);
+      let data = await res.json();
+
+      if (data.status === "success") {
+        // 1. Lưu dữ liệu vào biến toàn cục
+        G_DATA_HSPM = data.data_hspm;
+        G_DATA_HRC1 = data.data_hrc1;
+        G_DATA_HRC2 = data.data_hrc2;
+        G_DATA_BAIE = data.data_baie || {};
+        G_DATA_BAID = data.data_baid || {};
+        G_STRUCTURE = data.structure || {};
+        G_ERR_OBJ = data.errors_by_wh || {};
+        G_AUTO = data.auto_list;
+        
+        // [QUAN TRỌNG] Lưu stats để hàm updateDashboardStats sử dụng
+        G_STATS = data.stats; 
+
+        // 2. Render các số liệu thống kê cơ bản (Header click)
+        if (data.stats) {
+            document.getElementById("s-total").innerText = data.stats.total;
+            document.getElementById("s-hspm").innerText = data.stats.hspm_count;
+            document.getElementById("s-hrc1").innerText = data.stats.hrc1_count;
+            document.getElementById("s-hrc2").innerText = data.stats.hrc2_count;
+            document.getElementById("s-baie").innerText = data.stats.baie_count || 0;
+            document.getElementById("s-baid").innerText = data.stats.baid_count || 0;
+            document.getElementById("s-err").innerText = data.stats.invalid;
+        }
+
+        // --- ĐOẠN GÂY LỖI CŨ ĐÃ BỊ XÓA TẠI ĐÂY ---
+        // (Trước đây có đoạn tính usagePct và gán vào txt-total-weight, giờ không cần nữa 
+        // vì hàm updateDashboardStats('hspm') bên dưới sẽ lo việc đó)
+
+        // 3. Vẽ Layout các kho
+        let allZones = Object.keys(G_STRUCTURE).sort();
+        await renderGridGeneric(G_DATA_HSPM, allZones.filter(z => z.startsWith('H')), "grid-view-hspm");
+        await renderGridGeneric(G_DATA_HRC1, allZones.filter(z => z.startsWith('K')), "grid-view-hrc1");
+        await renderGridGeneric(G_DATA_HRC2, allZones.filter(z => z.startsWith('N')), "grid-view-hrc2");
+        await renderGridGeneric(G_DATA_BAIE, allZones.filter(z => z.startsWith('E')), "grid-view-baie");
+        await renderGridGeneric(G_DATA_BAID, allZones.filter(z => z.startsWith('D')), "grid-view-baid");
+        
+        buildSearchIndex();
+        initGlobalEvents();
+        
+        if (document.getElementById("pnlResult")) {
+            makeDraggable(document.getElementById("pnlResult"));
+        }
+        
+        // 4. Gọi hàm updateDashboardStats để hiển thị thanh phần trăm và tải trọng
+        updateDashboardStats('hspm');
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Lỗi tải dữ liệu: " + e.message);
+    }
+  }
+function handleResultClick(tabId, zoneName) {
+    // Trường hợp 1: Click vào dòng Lỗi
+    if (tabId === 'error') {
+        // Lấy từ khóa đang nhập trong ô tìm kiếm
+        let kw = document.getElementById('inpSearch').value.toUpperCase().trim();
+        
+        // Mở Modal với chế độ 'SEARCH_ERR' để hiển thị chi tiết các lỗi này
+        showModal('SEARCH_ERR', kw); 
+    } 
+    // Trường hợp 2: Click vào Zone hợp lệ (HSPM, HRC...)
+    else {
+        // Nhảy đến vị trí vẽ trên sơ đồ
+        jumpToZoneInTab(zoneName, tabId);
+    }
+}
+  // --- 3. LOGIC VẼ GRID & PYRAMID (ĐÃ CHUẨN HÓA LOGIC CHÂN ĐẾ) ---
+  async function renderGridGeneric(mapData, zoneList, containerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = "";
+    for (const zone of zoneList) {
+        let linesConfig = G_STRUCTURE[zone] || [];
+        let zData = mapData[zone] || {};
+        if (linesConfig.length === 0) continue;
+
+        let zoneHtml = `<div class="zone-card" id="zone-${zone}"><div class="zone-title">${zone}</div>`;
+        linesConfig.sort((a, b) => a.line - b.line);
+
+        for (let lineInfo of linesConfig) {
+            let lineKey = lineInfo.line;
+            let lData = zData[lineKey] || { fixed: {}, pending: [] };
+            
+            zoneHtml += `
+            <div class="line-row">
+                <div class="line-name" title="Line ${lineKey}">${lineInfo.desc}</div>
+                <div class="pyramid-container">
+                    ${buildPyramid(
+                        lData, 
+                        lineInfo.max_capacity, 
+                        true, 
+                        lineInfo.max_tiers,
+                        zone // <--- [QUAN TRỌNG] TRUYỀN ZONE VÀO ĐÂY
+                    )}
+                </div>
+            </div>`;
+        }
+        zoneHtml += `</div>`;
+        container.insertAdjacentHTML("beforeend", zoneHtml);
+        if (zoneList.length > 5) await new Promise((r) => setTimeout(r, 0));
+    }
+}
+// --- LOGIC VẼ KIM TỰ THÁP (ĐÃ FIX: BÁO LỖI NẾU CHÂN ĐẾ LÀ GỢI Ý) ---
+function buildPyramid(lData, maxCellsRef, checkStructuralIntegrity, maxTiers = 3, currentZone = "") {
+    let fixed = lData.fixed || {};
+    let pending = [...(lData.pending || [])]; 
+    
+    let CONFIG_MAX = maxCellsRef || 15; 
+    let REAL_MAX_T1 = CONFIG_MAX; 
+
+    let mapT1 = {}, mapT2 = {}, mapT3 = {};
+
+    // 1. LOAD HÀNG FIXED
+    let maxIdFound = 0;
+    Object.keys(fixed).forEach((key) => {
+        let num = parseInt(key);
+        if (!isNaN(num)) {
+            if (num > maxIdFound) maxIdFound = num;
+            if (key.toUpperCase().endsWith("X")) mapT3[num] = fixed[key];
+            else {
+                if (maxTiers === 1) mapT1[num] = fixed[key];
+                else {
+                    if (num % 2 === 0) mapT2[num] = fixed[key];
+                    else mapT1[num] = fixed[key];
+                }
+            }
+        }
+    });
+    
+    let reqFixedLen = Math.ceil(maxIdFound / (maxTiers === 1 ? 1 : 2));
+    if (reqFixedLen > REAL_MAX_T1) REAL_MAX_T1 = reqFixedLen;
+
+    let isBaiDE = currentZone.startsWith('E') || currentZone.startsWith('D');
+    let step = (maxTiers === 1) ? 1 : 2;
+
+    // 2. VÁ CHÂN ĐẾ (ƯU TIÊN 1)
+    if (pending.length > 0 && maxTiers >= 2) {
+        Object.keys(mapT2).sort((a,b)=>a-b).forEach(key => {
+            let t2Num = parseInt(key);
+            if (!mapT1[t2Num-1] && pending.length > 0) { let item = pending.shift(); if(item.length<6) item.push(true); else item[5]=true; mapT1[t2Num-1] = item; }
+            if (!mapT1[t2Num+1] && pending.length > 0) { let item = pending.shift(); if(item.length<6) item.push(true); else item[5]=true; mapT1[t2Num+1] = item; }
+        });
+    }
+
+    // 3. VÒNG LẶP LẤP ĐẦY THỐNG NHẤT
+    let k = 0;
+    while (true) {
+        if (!isBaiDE && k >= REAL_MAX_T1) break;
+        if (isBaiDE && k >= REAL_MAX_T1 && pending.length === 0) break;
+        if (k > 500) break;
+
+        // A. T1
+        let t1Num = 1 + k * step;
+        if (!mapT1[t1Num] && pending.length > 0) {
+             let item = pending.shift(); if(item.length<6) item.push(true); else item[5]=true; mapT1[t1Num] = item;
+        }
+        if (mapT1[t1Num]) { if (k + 1 > REAL_MAX_T1) REAL_MAX_T1 = k + 1; }
+
+        // B. T2
+        if (maxTiers >= 2 && k > 0) {
+            let t2Num = 2 + (k - 1) * step;
+            if (!mapT2[t2Num] && pending.length > 0 && mapT1[t2Num-1] && mapT1[t2Num+1]) {
+                let item = pending.shift(); if(item.length<6) item.push(true); else item[5]=true; mapT2[t2Num] = item;
+            }
+        }
+
+        // C. T3
+        if (maxTiers >= 3 && k > 1) {
+            let t3Num = 3 + (k - 2) * step;
+            if (!mapT3[t3Num] && pending.length > 0 && mapT2[t3Num-1] && mapT2[t3Num+1]) {
+                let item = pending.shift(); if(item.length<6) item.push(true); else item[5]=true; mapT3[t3Num] = item;
+            }
+        }
+        k++;
+    }
+
+    // 4. RENDER & SAFETY CHECK (ĐÃ SỬA LOGIC KIỂM TRA CHÂN)
+    const drawRow = (tierName, startNum, count, marginClass, currentMap, supportMap) => {
+        let rowHtml = `<div class="tier ${marginClass}">`;
+        
+        for (let k = 0; k < count; k++) {
+            let num = startNum + k * step;
+            let item = currentMap[num]; 
+            let css = "empty"; 
+            let shortId = "";
+            let isErr = false;
+            let isAuto = false;
+
+            if (item) {
+                // Xác định đây là cuộn Gợi ý (Auto) hay cuộn Thật (Fixed)
+                // item[5] === true là Auto/Pending
+                isAuto = (item[5] === true);
+
+                // --- LOGIC CHECK LỖI AN TOÀN ---
+                if (maxTiers >= 2 && checkStructuralIntegrity && tierName !== "T1" && supportMap) {
+                    // Chỉ kiểm tra lỗi nếu bản thân nó là CUỘN THẬT
+                    // (Cuộn gợi ý thì không cần báo lỗi chân đế, vì nó là kế hoạch)
+                    if (!isAuto) {
+                        let legLeft = supportMap[num - 1];
+                        let legRight = supportMap[num + 1];
+                        
+                        // Lỗi khi: Thiếu chân HOẶC Chân đó là chân ảo (Gợi ý)
+                        // Vì cuộn thật không thể đứng trên cuộn ảo được.
+                        let leftIsReal = legLeft && (legLeft[5] !== true);
+                        let rightIsReal = legRight && (legRight[5] !== true);
+
+                        if (!leftIsReal || !rightIsReal) {
+                            isErr = true;
+                        }
+                    }
+                }
+
+                shortId = item[0].slice(-4);
+                
+                if (isErr) css = "error"; 
+                else if (isAuto) css = "auto";
+                else if (item[4] && item[4] != "") css = "ok";
+                else css = "empty-so";
+            } else {
+                let label = (tierName === "T3") ? num.toString().padStart(2, '0') + "X" : num.toString().padStart(3, '0');
+                shortId = `<span style="color:#aaa; font-size:6px; pointer-events:none;">${label}</span>`;
+            }
+
+            let dataStr = "";
+            if (item) {
+                dataStr = JSON.stringify({ id: item[0], pos: item[1], w: item[2], so: item[4], tier: tierName, zone: currentZone, isErr: isErr, isAuto: isAuto }).replace(/"/g, "&quot;");
+            } else {
+                dataStr = JSON.stringify({ id: "TRỐNG", pos: shortId.replace(/<[^>]*>/g, ''), w: 0, so: "-", tier: tierName, zone: currentZone, isErr: false, isAuto: false }).replace(/"/g, "&quot;");
+            }
+            rowHtml += `<div class="coil ${css}" data-info="${dataStr}">${shortId}</div>`;
+        }
+        rowHtml += `</div>`;
+        return rowHtml;
+    };
+
+    let html = "";
+    if (maxTiers >= 3) html += drawRow("T3", 3, REAL_MAX_T1 - 2, "t3", mapT3, mapT2);
+    if (maxTiers >= 2) html += drawRow("T2", 2, REAL_MAX_T1 - 1, "t2", mapT2, mapT1);
+    html += drawRow("T1", 1, REAL_MAX_T1, "t1", mapT1);
+    return html;
+}
+  // --- 4. LOGIC MODAL & PHÂN TRANG (GIỮ NGUYÊN CODE CHUẨN) ---
+
+  function showModal(type, keyword = '') {
+    const modal = document.getElementById('modalList');
+    const tabs = document.getElementById('modal-filter-tabs');
+    const searchInput = document.getElementById('inpErrSearch');
+    const pagination = document.getElementById('pagination-controls');
+    
+    modal.style.display = 'flex';
+    searchInput.value = ""; 
+    if(pagination) pagination.style.display = 'flex';
+
+    document.querySelectorAll('.mtab').forEach(t => t.classList.remove('active'));
+
+    if (type === 'error') {
+        G_MODAL_MODE = 'ERROR';
+        document.getElementById('m-title').innerText = "Danh sách Lỗi & Cảnh báo";
+        tabs.style.display = 'flex';
+        searchInput.style.display = 'block';
+        setupTabsFor('ERROR');
+        let t1 = document.querySelector(".mtab"); 
+        if(t1) filterModal('ALL', t1);
+    } 
+    else if (type === 'warehouse') {
+        G_MODAL_MODE = 'WAREHOUSE';
+        document.getElementById('m-title').innerText = "Danh sách Cuộn (Chi tiết)";
+        tabs.style.display = 'flex';
+        searchInput.style.display = 'block';
+        setupTabsFor('WAREHOUSE');
+        let t1 = document.querySelector(".mtab");
+        if(t1) filterWarehouse('HSPM', t1);
+    }
+    else if (type === 'SEARCH_ERR') {
+        G_MODAL_MODE = 'SEARCH_ERR';
+        document.getElementById('m-title').innerHTML = `Kết quả: "${keyword}"`;
+        tabs.style.display = 'none';
+        searchInput.style.display = 'none';
+        let list = (G_ERR_OBJ && G_ERR_OBJ['ALL']) ? G_ERR_OBJ['ALL'] : [];
+        let kw = keyword.toUpperCase();
+        let filtered = list.filter(item => {
+            return (item.id||'').toUpperCase().includes(kw) || (item.so||'').toUpperCase().includes(kw) || (item.pos||'').toUpperCase().includes(kw);
+        }).map(mapErrorItemToRow);
+        G_CURRENT_DISPLAY_LIST = filtered;
+        G_CUR_PAGE = 1;
+        renderPagedTable();
+    }
+    else {
+        G_MODAL_MODE = 'AUTO';
+        document.getElementById('m-title').innerText = "Danh sách Gợi ý (Auto)";
+        tabs.style.display = 'none';
+        searchInput.style.display = 'block';
+        G_CURRENT_LIST_SOURCE = G_AUTO.map(item => ({
+            id: item.id, org_pos: item.pos, so: item.so,
+            status_text: '<span class="badge bg-warning text-dark">Gợi ý</span>',
+            target_pos: item.reason
+        }));
+        G_CURRENT_DISPLAY_LIST = G_CURRENT_LIST_SOURCE;
+        G_CUR_PAGE = 1;
+        renderPagedTable();
+    }
+  }
+
+  function setupTabsFor(mode) {
+    const c = document.getElementById('modal-filter-tabs');
+    if (mode === 'ERROR') {
+        c.innerHTML = `
+            <div class="mtab active" data-key="ALL" onclick="filterModal('ALL', this)">Tất cả</div>
+            <div class="mtab" data-key="HSPM" onclick="filterModal('HSPM', this)">HSPM</div>
+            <div class="mtab" data-key="HRC1" onclick="filterModal('HRC1', this)">HRC1</div>
+            <div class="mtab" data-key="HRC2" onclick="filterModal('HRC2', this)">HRC2</div>
+            <div class="mtab" data-key="BAI_DE" onclick="filterModal('BAI_DE', this)">Bãi E/D</div>
+            <div class="mtab" data-key="OTHER" onclick="filterModal('OTHER', this)">Khác</div>
+        `;
+    } else {
+        c.innerHTML = `
+            <div class="mtab" data-key="HSPM" onclick="filterWarehouse('HSPM', this)">HSPM</div>
+            <div class="mtab" data-key="HRC1" onclick="filterWarehouse('HRC1', this)">HRC1</div>
+            <div class="mtab" data-key="HRC2" onclick="filterWarehouse('HRC2', this)">HRC2</div>
+            <div class="mtab" data-key="BAIE" onclick="filterWarehouse('BAIE', this)">Bãi E</div>
+            <div class="mtab" data-key="BAID" onclick="filterWarehouse('BAID', this)">Bãi D</div>
+            <div class="mtab" data-key="OTHER" onclick="filterModal('OTHER', this)">Khác</div>
+        `;
+    }
+  }
+
+  function openWarehouseList(repoType) {
+    showModal('warehouse');
+    setTimeout(() => {
+        let key = repoType === 'ALL' ? 'HSPM' : repoType; 
+        let tab = document.querySelector(`.mtab[data-key="${key}"]`);
+        if(tab) tab.click();
+    }, 50);
+  }
+
+  function filterWarehouse(repo, btn) {
+    document.querySelectorAll(".mtab").forEach(t => t.classList.remove("active"));
+    if(btn) btn.classList.add("active");
+    document.getElementById('inpErrSearch').value = ""; 
+    let source = {};
+    if(repo==='HSPM') source=G_DATA_HSPM;
+    else if(repo==='HRC1') source=G_DATA_HRC1;
+    else if(repo==='HRC2') source=G_DATA_HRC2;
+    else if(repo==='BAIE') source=G_DATA_BAIE;
+    else if(repo==='BAID') source=G_DATA_BAID;
+    G_CURRENT_LIST_SOURCE = flattenWarehouseData(source, repo);
+    G_CURRENT_DISPLAY_LIST = G_CURRENT_LIST_SOURCE;
+    G_CUR_PAGE = 1;
+    renderPagedTable();
+  }
+
+  function filterModal(key, btn) {
+    G_CUR_ERR_TAB = key;
+    document.querySelectorAll(".mtab").forEach(t => t.classList.remove("active"));
+    if(btn) btn.classList.add("active");
+    document.getElementById('inpErrSearch').value = "";
+    let list = G_ERR_OBJ[key] || [];
+    G_CURRENT_LIST_SOURCE = list.map(mapErrorItemToRow);
+    G_CURRENT_DISPLAY_LIST = G_CURRENT_LIST_SOURCE;
+    G_CUR_PAGE = 1;
+    renderPagedTable();
+  }
+
+  function mapErrorItemToRow(i) {
+      return {
+        id: i.id, org_pos: i.pos, so: i.so,
+        status_text: '<span class="badge bg-danger">Lỗi</span>',
+        target_pos: `<span class="text-danger small">⚠️ ${i.reason}</span>`
+      };
+  }
+
+  function flattenWarehouseData(whData, whName) {
+    let list = [];
+    if (!whData) return [];
+    for (let [zone, lines] of Object.entries(whData)) {
+        for (let [line, content] of Object.entries(lines)) {
+            let lineDesc = content.desc || `Line ${line}`;
+            if (content.fixed) {
+                for (let [suf, item] of Object.entries(content.fixed)) {
+                    list.push({
+                        id: item[0], org_pos: item[1], so: item[4],
+                        status_text: '<span class="badge bg-success">Đúng vị trí</span>',
+                        target_pos: `${zone}.${line}.${suf}`,
+                        sort_key: 1
+                    });
+                }
+            }
+            if (content.pending) {
+                content.pending.forEach(item => {
+                    list.push({
+                        id: item[0], org_pos: item[1], so: item[4],
+                        status_text: '<span class="badge bg-warning text-dark">Gợi ý</span>',
+                        target_pos: `${zone} - ${lineDesc} (Chờ xếp)`,
+                        sort_key: 2
+                    });
+                });
+            }
+        }
+    }
+    list.sort((a,b) => a.sort_key - b.sort_key);
+    return list;
+  }
+
+  function renderPagedTable() {
+    let total = G_CURRENT_DISPLAY_LIST.length;
+    let pages = Math.ceil(total / G_PAGE_SIZE) || 1;
+    if (G_CUR_PAGE > pages) G_CUR_PAGE = pages;
+    if (G_CUR_PAGE < 1) G_CUR_PAGE = 1;
+    let start = (G_CUR_PAGE - 1) * G_PAGE_SIZE;
+    let items = G_CURRENT_DISPLAY_LIST.slice(start, start + G_PAGE_SIZE);
+    let lblCurr = document.getElementById('lbl-curr-page');
+    let lblTotal = document.getElementById('lbl-total-page');
+    if(lblCurr) lblCurr.innerText = G_CUR_PAGE;
+    if(lblTotal) lblTotal.innerText = pages;
+    document.getElementById('m-count').innerText = total;
+    let html = items.map(i => `
+        <tr>
+            <td><b>${i.id}</b></td>
+            <td>${i.org_pos}</td>
+            <td class="${i.so ? 'text-primary' : 'text-muted'}" style="font-weight:bold">${i.so || '-'}</td>
+            <td>${i.status_text}</td>
+            <td>${i.target_pos}</td>
+        </tr>
+    `).join('');
+    document.getElementById('m-body').innerHTML = html || '<tr><td colspan="5" class="text-center">Không có dữ liệu</td></tr>';
+  }
+
+  function changePage(delta) {
+    G_CUR_PAGE += delta;
+    renderPagedTable();
+  }
+
+  function doErrorSearch() {
+    let kw = document.getElementById('inpErrSearch').value.toUpperCase().trim();
+    if (!kw) G_CURRENT_DISPLAY_LIST = G_CURRENT_LIST_SOURCE;
+    else {
+        G_CURRENT_DISPLAY_LIST = G_CURRENT_LIST_SOURCE.filter(i => 
+            (i.id||'').toUpperCase().includes(kw) || (i.org_pos||'').toUpperCase().includes(kw) || (i.so||'').toUpperCase().includes(kw)
+        );
+    }
+    G_CUR_PAGE = 1;
+    renderPagedTable();
+  }
+
+  // --- 5. CÁC HÀM TIỆN ÍCH ---
+  function closeModal() { document.getElementById("modalList").style.display = "none"; }
+  // --- HÀM MỚI: CẬP NHẬT THANH TRẠNG THÁI THEO TAB ---
+  function updateDashboardStats(tabId) {
+      // 1. Định nghĩa giới hạn tải trọng (Hardcode theo yêu cầu của bạn)
+      const LIMITS = {
+          "HSPM": 326968.0,
+          "HRC1": 79258.0,
+          "HRC2": 107272.0,
+          "BAIE": 68241.0, // Tạm tính riêng
+          "BAID": 94185.0  // Tạm tính riêng
+      };
+
+      // Mapping tabId sang Key dữ liệu
+      let mapKey = "";
+      let dataMap = {};
+      
+      if (tabId === 'hspm') { mapKey = "HSPM"; dataMap = G_DATA_HSPM; }
+      else if (tabId === 'hrc1') { mapKey = "HRC1"; dataMap = G_DATA_HRC1; }
+      else if (tabId === 'hrc2') { mapKey = "HRC2"; dataMap = G_DATA_HRC2; }
+      else if (tabId === 'baie') { mapKey = "BAIE"; dataMap = G_DATA_BAIE; }
+      else if (tabId === 'baid') { mapKey = "BAID"; dataMap = G_DATA_BAID; }
+
+      // --- PHẦN 1: TÍNH TOÁN LẠI KHỐI LƯỢNG HỢP LỆ TẠI FRONTEND (Fix lỗi 0%) ---
+      let validWeightKg = 0.0;
+      let usedSlots = 0;
+      
+      // Duyệt qua toàn bộ dữ liệu đang có ở máy khách để cộng dồn
+      if (dataMap) {
+          Object.values(dataMap).forEach(zoneData => {
+              Object.values(zoneData).forEach(lineData => {
+                  // 1. Cộng hàng Fixed (Đúng vị trí)
+                  if (lineData.fixed) {
+                      Object.values(lineData.fixed).forEach(item => {
+                          usedSlots++;
+                          // item[2] là chuỗi "12,345" -> cần parse ra số
+                          let w = parseFloat((item[2] || "0").toString().replace(/,/g, ""));
+                          validWeightKg += w;
+                      });
+                  }
+                  // 2. Cộng hàng Pending (Gợi ý)
+                  if (lineData.pending) {
+                      lineData.pending.forEach(item => {
+                          usedSlots++;
+                          let w = parseFloat((item[2] || "0").toString().replace(/,/g, ""));
+                          validWeightKg += w;
+                      });
+                  }
+              });
+          });
+      }
+      
+      let validWeightTon = validWeightKg / 1000.0; // Đổi sang Tấn
+
+      // --- PHẦN 2: LẤY THÔNG TIN LỖI TỪ BACKEND ---
+      // (Phần này Backend đã trả về đúng như hình bạn gửi: 9514 Tấn lỗi)
+      let errCount = 0;
+      let errWeight = 0;
+      if (typeof G_STATS !== 'undefined' && G_STATS.err_count_by_wh) {
+          errCount = G_STATS.err_count_by_wh[mapKey] || 0;
+          errWeight = G_STATS.err_weight_by_wh[mapKey] || 0;
+      }
+
+      // --- PHẦN 3: HIỂN THỊ LÊN GIAO DIỆN ---
+      
+      // A. Hiển thị thông tin Lỗi
+      document.getElementById("txt-repo-error-count").innerText = errCount.toLocaleString();
+      document.getElementById("txt-repo-error-weight").innerText = errWeight.toLocaleString(undefined, {maximumFractionDigits: 1});
+
+      // B. Hiển thị Tải trọng (Weight Capacity)
+      let maxWeight = LIMITS[mapKey] || 100000; // Mặc định nếu không tìm thấy key
+      let wPct = (validWeightTon / maxWeight) * 100;
+      if (wPct > 100) wPct = 100;
+
+      let elBarW = document.getElementById("bar-weight");
+      elBarW.style.width = wPct + "%";
+      document.getElementById("txt-weight-pct").innerText = wPct.toFixed(1) + "%";
+      document.getElementById("txt-current-weight").innerText = validWeightTon.toLocaleString(undefined, {maximumFractionDigits: 0});
+      document.getElementById("txt-max-weight").innerText = maxWeight.toLocaleString();
+
+      // Đổi màu thanh Weight
+      if(wPct < 70) elBarW.style.background = "#6f42c1"; // Tím
+      else if(wPct < 90) elBarW.style.background = "#fd7e14"; // Cam
+      else elBarW.style.background = "#dc3545"; // Đỏ
+
+      // C. Hiển thị Sức chứa vị trí (Position Capacity)
+      let zones = [];
+      if (tabId === 'hspm') zones = Object.keys(G_STRUCTURE).filter(z => z.startsWith('H'));
+      else if (tabId === 'hrc1') zones = Object.keys(G_STRUCTURE).filter(z => z.startsWith('K'));
+      else if (tabId === 'hrc2') zones = Object.keys(G_STRUCTURE).filter(z => z.startsWith('N'));
+      else if (tabId === 'baie') zones = Object.keys(G_STRUCTURE).filter(z => z.startsWith('E'));
+      else if (tabId === 'baid') zones = Object.keys(G_STRUCTURE).filter(z => z.startsWith('D'));
+
+      let capSlots = 0;
+      zones.forEach(z => {
+          let linesConfig = G_STRUCTURE[z] || [];
+          linesConfig.forEach(l => {
+              let c = l.max_capacity; let t = l.max_tiers;
+              capSlots += c + (t>=2?c-1:0) + (t>=3?c-2:0);
+          });
+      });
+
+      let sPct = capSlots > 0 ? (usedSlots / capSlots) * 100 : 0;
+      if (sPct > 100) sPct = 100;
+      
+      let elBarU = document.getElementById("bar-usage");
+      elBarU.style.width = sPct + "%";
+      document.getElementById("txt-usage-pct").innerText = sPct.toFixed(1) + "%";
+      document.getElementById("txt-usage-fraction").innerText = `${usedSlots.toLocaleString()}/${capSlots.toLocaleString()}`;
+      
+      // Đổi màu thanh Sức chứa
+      if(sPct < 50) elBarU.style.background = "#28a745";
+      else if(sPct < 80) elBarU.style.background = "#ffc107";
+      else elBarU.style.background = "#dc3545";
+  }
+  function switchTab(tabName) {
+    CURRENT_TAB = tabName;
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+    document.getElementById("btn-" + tabName).classList.add("active");
+    document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+    document.getElementById("tab-" + tabName).classList.add("active");
+
+    // [MỚI] Cập nhật thanh thông tin theo Tab vừa chọn
+    updateDashboardStats(tabName);
+}
+  function buildSearchIndex() {
+      G_SEARCH_INDEX = [];
+      const allCoils = document.querySelectorAll('.coil[data-info]');
+      allCoils.forEach(el => {
+          let infoStr = el.getAttribute('data-info');
+          if(infoStr) {
+              try {
+                  let data = JSON.parse(infoStr);
+                  // Tạo chuỗi tìm kiếm gộp chung để so sánh cho nhanh
+                  let searchStr = (data.id + "|" + data.so + "|" + data.pos).toUpperCase();
+                  
+                  // Xác định tab chứa
+                  let tabId = 'hspm';
+                  if (el.closest('#grid-view-hrc1')) tabId = 'hrc1';
+                  else if (el.closest('#grid-view-hrc2')) tabId = 'hrc2';
+                  else if (el.closest('#grid-view-baie')) tabId = 'baie';
+                  else if (el.closest('#grid-view-baid')) tabId = 'baid';
+
+                  G_SEARCH_INDEX.push({
+                      str: searchStr,
+                      data: data,
+                      el: el,
+                      tabId: tabId
+                  });
+              } catch(e){}
+          }
+      });
+      console.log("Đã index xong " + G_SEARCH_INDEX.length + " cuộn.");
+  }
+function doSearch() {
+    let rawKw = document.getElementById('inpSearch').value.trim();
+    if(!rawKw) { clearSearch(); return; }
+    let kw = rawKw.toUpperCase();
+
+    // 1. Dọn dẹp kết quả cũ (Dùng danh sách đã lưu để xóa nhanh)
+    if (G_CURRENT_MATCHES.length > 0) {
+        G_CURRENT_MATCHES.forEach(item => {
+            if(item.element) item.element.classList.remove('match');
+        });
+        G_CURRENT_MATCHES = [];
+    }
+    
+    // 2. Bật chế độ mờ (Filtering Mode) - Dùng requestAnimationFrame để mượt
+    requestAnimationFrame(() => {
+        document.querySelectorAll('.warehouse-scroll-area').forEach(el => el.classList.add('is-filtering'));
+    });
+
+    let count = 0;
+    let zoneStats = {}; 
+    let MAX_HIGHLIGHT = 1000; // [TỐI ƯU] Giới hạn số lượng highlight để không đơ web
+
+    // 3. TÌM TRONG INDEX (Tốc độ cực nhanh, không đụng DOM)
+    for (let i = 0; i < G_SEARCH_INDEX.length; i++) {
+        let item = G_SEARCH_INDEX[i];
+        if (item.str.includes(kw)) {
+            count++;
+            
+            // Chỉ tô màu DOM nếu số lượng chưa vượt quá giới hạn an toàn
+            if (count <= MAX_HIGHLIGHT) {
+                item.el.classList.add('match');
+                
+                // Lưu vào danh sách kết quả hiện tại
+                let zName = item.data.zone || 'Khác';
+                if(!zoneStats[zName]) zoneStats[zName] = 0;
+                zoneStats[zName]++;
+                
+                G_CURRENT_MATCHES.push({ ...item.data, zone: zName, tab: item.tabId, element: item.el, type: 'valid' });
+            }
+        }
+    }
+
+    // 4. TÌM TRONG DANH SÁCH LỖI
+    if (G_ERR_OBJ && G_ERR_OBJ['ALL']) {
+        let errList = G_ERR_OBJ['ALL'];
+        for (let i = 0; i < errList.length; i++) {
+            let item = errList[i];
+            let matchID = item.id && item.id.toUpperCase().includes(kw);
+            let matchSO = item.so && item.so.toUpperCase().includes(kw);
+            let matchPos = item.pos && item.pos.toUpperCase().includes(kw);
+
+            if (matchID || matchSO || matchPos) {
+                count++;
+                let zName = "LỖI";
+                if(!zoneStats[zName]) zoneStats[zName] = 0;
+                zoneStats[zName]++;
+                G_CURRENT_MATCHES.push({
+                    id: item.id, pos: item.pos, so: item.so, 
+                    zone: 'Lỗi', tab: 'error', type: 'error', reason: item.reason,
+                    element: null 
+                });
+            }
+        }
+    }
+
+    if(count === 0) { alert("Không tìm thấy!"); clearSearch(); return; }
+
+    // 5. HIỂN THỊ KẾT QUẢ
+    let displayKw = rawKw.length > 15 ? rawKw.substring(0, 15) + "..." : rawKw;
+    let warningMsg = count > MAX_HIGHLIGHT ? `<br><small class="text-danger">(Kết quả quá lớn, chỉ hiển thị ${MAX_HIGHLIGHT} vị trí đầu)</small>` : '';
+    
+    document.getElementById('txtSearchTitle').innerHTML = `🔍 "${displayKw}" (<span id="lblMatchCount">${count}</span>)${warningMsg}`;
+    
+    let html = '';
+    let sortedZones = Object.keys(zoneStats).sort();
+    
+    for (const zone of sortedZones) {
+        let qty = zoneStats[zone];
+        let color = '#007bff';
+        let targetTab = 'hspm';
+        
+        if (zone.startsWith('K')) { color = '#6f42c1'; targetTab = 'hrc1'; }
+        else if (zone.startsWith('N')) { color = '#e83e8c'; targetTab = 'hrc2'; }
+        else if (zone.startsWith('E')) { color = '#28a745'; targetTab = 'baie'; }
+        else if (zone.startsWith('D')) { color = '#ffc107'; targetTab = 'baid'; }
+        else if (zone === 'LỖI') { color = '#dc3545'; targetTab = 'error'; }
+
+        html += `<div class="search-item" onclick="handleResultClick('${targetTab}', '${zone}')">
+                    <b>${zone}</b>
+                    <span style="color:${color};font-weight:bold">${qty} &rarr;</span>
+                 </div>`;
+    }
+    
+    document.getElementById('lstZoneMatches').innerHTML = html;
+    document.getElementById('pnlResult').style.display = 'flex';
+  }
+function clearSearch() {
+    document.getElementById("pnlResult").style.display = "none";
+    document.getElementById("inpSearch").value = "";
+    document.getElementById("txtSearchTitle").innerHTML = '🔍 Kết quả (<span id="lblMatchCount">0</span>)';
+
+    requestAnimationFrame(() => {
+        // Xóa class lọc khỏi container
+        const containers = document.querySelectorAll(".warehouse-scroll-area");
+        for (let i = 0; i < containers.length; i++) {
+            containers[i].classList.remove("is-filtering");
+        }
+
+        // Xóa class match dựa trên danh sách đã lưu (Nhanh hơn quét lại DOM)
+        if (G_CURRENT_MATCHES && G_CURRENT_MATCHES.length > 0) {
+            for (let i = 0; i < G_CURRENT_MATCHES.length; i++) {
+                let item = G_CURRENT_MATCHES[i];
+                if (item.element) {
+                    item.element.classList.remove("match");
+                }
+            }
+        }
+        G_CURRENT_MATCHES = [];
+    });
+  }
+  function jumpToZoneInTab(zoneName) {
+      let tabId = 'hspm';
+      if(zoneName.startsWith('K')) tabId = 'hrc1';
+      else if(zoneName.startsWith('N')) tabId = 'hrc2';
+      else if(zoneName.startsWith('E')) tabId = 'baie';
+      else if(zoneName.startsWith('D')) tabId = 'baid';
+      switchTab(tabId);
+      setTimeout(() => {
+          let el = document.getElementById("zone-" + zoneName);
+          smoothScrollTo(el);
+      }, 100);
+  }
+  function smoothScrollTo(element) {
+    if (!element) return;
+    let container = element.closest(".warehouse-scroll-area");
+    if (container) { let targetTop = element.offsetTop - 20; container.scrollTo({ top: targetTop, behavior: "smooth" }); }
+  }
+  function makeDraggable(elmnt) {
+    var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    if (document.getElementById("pnlHeader")) { document.getElementById("pnlHeader").onmousedown = dragMouseDown; } else { elmnt.onmousedown = dragMouseDown; }
+    function dragMouseDown(e) { e = e || window.event; e.preventDefault(); pos3 = e.clientX; pos4 = e.clientY; document.onmouseup = closeDragElement; document.onmousemove = elementDrag; }
+    function elementDrag(e) { e = e || window.event; e.preventDefault(); pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY; pos3 = e.clientX; pos4 = e.clientY; elmnt.style.top = (elmnt.offsetTop - pos2) + "px"; elmnt.style.left = (elmnt.offsetLeft - pos1) + "px"; }
+    function closeDragElement() { document.onmouseup = null; document.onmousemove = null; }
+  }
+  function initGlobalEvents() {
+    const tooltip = document.getElementById("global-tooltip");
+    document.querySelectorAll(".warehouse-scroll-area").forEach((c) => {
+      c.addEventListener("mouseover", (e) => {
+        const coil = e.target.closest(".coil");
+        if (!coil) { tooltip.style.display = "none"; return; }
+        const infoStr = coil.getAttribute("data-info");
+        if (!infoStr) return;
+        const data = JSON.parse(infoStr);
+        let wFmt = data.w ? parseFloat(data.w.replace(/,/g, "")).toLocaleString() : "0";
+        tooltip.innerHTML = `<b>${data.id}</b><br>Pos: ${data.pos}<br>KL: ${wFmt}<br>SO: ${data.so || "-"} ${data.isErr?'<br><b style="color:#ffadad">⚠ Lỗi chân đế</b>':''}`;
+        tooltip.style.display = "block";
+      });
+      c.addEventListener("mousemove", (e) => { if (tooltip.style.display === "block") { tooltip.style.top = e.clientY + 15 + "px"; tooltip.style.left = e.clientX + 15 + "px"; } });
+      c.addEventListener("mouseout", () => (tooltip.style.display = "none"));
+    });
+  }
+  // Modal Capacity
+  async function showCapacityModal() {
+    document.getElementById('modalCapacity').style.display = 'flex';
+    document.getElementById('tbCapacityBody').innerHTML = '<tr><td colspan="11" class="text-center py-4"><div class="spinner-border text-primary"></div><br>Đang tải dữ liệu...</td></tr>';
+    let res = await fetch("{{ url_for('kho2d_bp.get_capacity_stats') }}");
+    let json = await res.json();
+    G_RAW_CAPACITY_DATA = json.data;
+    initFilterDropdowns();
+    renderCapacityTable(G_RAW_CAPACITY_DATA);
+  }
+  function closeCapacityModal() { document.getElementById('modalCapacity').style.display = 'none'; }
+// 1. KHỞI TẠO DROPDOWN KHO (GỌI KHI MỞ MODAL)
+function initFilterDropdowns() {
+    // Lấy danh sách Kho duy nhất
+    let warehouses = [...new Set(G_RAW_CAPACITY_DATA.map(item => item.warehouse))].sort();
+    
+    let selKho = document.getElementById('selFilterKho');
+    selKho.innerHTML = '<option value="">-- Tất cả Kho --</option>';
+    warehouses.forEach(w => {
+        selKho.insertAdjacentHTML('beforeend', `<option value="${w}">${w}</option>`);
+    });
+}
+
+// 2. LOGIC CASCADING DROPDOWN (KHO -> ZONE -> LINE)
+function onFilterChange(level) {
+    let selKho = document.getElementById('selFilterKho');
+    let selZone = document.getElementById('selFilterZone');
+    let selLine = document.getElementById('selFilterLine');
+
+    let valKho = selKho.value;
+    let valZone = selZone.value;
+    let valLine = selLine.value;
+
+    // --- LOGIC ĐỔ DỮ LIỆU PHỤ THUỘC ---
+    
+    // Nếu đổi Kho -> Cập nhật lại list Zone, Reset Line
+    if (level === 'KHO') {
+        selZone.innerHTML = '<option value="">-- Zone --</option>';
+        selLine.innerHTML = '<option value="">-- Line --</option>';
+        
+        if (valKho) {
+            selZone.disabled = false;
+            // Lọc các Zone thuộc Kho này
+            let zones = [...new Set(G_RAW_CAPACITY_DATA
+                .filter(i => i.warehouse === valKho)
+                .map(i => i.zone))].sort();
+            
+            zones.forEach(z => {
+                selZone.insertAdjacentHTML('beforeend', `<option value="${z}">${z}</option>`);
+            });
+        } else {
+            selZone.disabled = true;
+            selLine.disabled = true;
+        }
+        // Reset giá trị con
+        valZone = ""; valLine = ""; 
+    }
+
+    // Nếu đổi Zone -> Cập nhật lại list Line
+    if (level === 'ZONE' || (level === 'KHO' && valZone)) {
+        selLine.innerHTML = '<option value="">-- Line --</option>';
+        
+        if (valZone) {
+            selLine.disabled = false;
+            // Lọc các Line thuộc Zone này
+            let lines = [...new Set(G_RAW_CAPACITY_DATA
+                .filter(i => i.zone === valZone)
+                .map(i => i.line))].sort((a,b) => a - b);
+            
+            lines.forEach(l => {
+                selLine.insertAdjacentHTML('beforeend', `<option value="${l}">Line ${l}</option>`);
+            });
+        } else {
+            selLine.disabled = true;
+        }
+        valLine = "";
+    }
+
+    // --- LOGIC LỌC DỮ LIỆU HIỂN THỊ ---
+    let filteredData = G_RAW_CAPACITY_DATA.filter(item => {
+        let matchKho = (!valKho || item.warehouse === valKho);
+        let matchZone = (!valZone || item.zone === valZone);
+        let matchLine = (!valLine || item.line == valLine); // Dùng == vì line có thể là string/number
+        return matchKho && matchZone && matchLine;
+    });
+
+    renderCapacityTable(filteredData);
+}
+
+// 3. LOGIC VẼ BẢNG (HIỂN THỊ ĐẦY ĐỦ GỢI Ý T1, T2, T3)
+function renderCapacityTable(data) {
+    if (data.length === 0) { document.getElementById('tbCapacityBody').innerHTML = '<tr><td colspan="11" class="text-center text-muted p-3">Không có dữ liệu phù hợp</td></tr>'; return; }
+    
+    // --- [MỚI] TÍNH TỔNG HỢP ---
+    let totalCap = 0, totalUsed = 0;
+    let freeT1 = 0, freeT2 = 0, freeT3 = 0; // Biến đếm chỗ trống từng tầng
+
+    data.forEach(item => {
+        totalCap += item.stats.t1.max + (item.tiers>=2 ? item.stats.t2.max : 0) + (item.tiers>=3 ? item.stats.t3.max : 0);
+        totalUsed += item.stats.t1.total_used + (item.tiers>=2 ? item.stats.t2.total_used : 0) + (item.tiers>=3 ? item.stats.t3.total_used : 0);
+        
+        // Cộng dồn chỗ trống (final_empty đã được tính sẵn ở Backend/Frontend logic trước đó)
+        freeT1 += item.stats.t1.final_empty;
+        if(item.tiers >= 2) freeT2 += item.stats.t2.final_empty;
+        if(item.tiers >= 3) freeT3 += item.stats.t3.final_empty;
+    });
+    
+    let pct = totalCap > 0 ? ((totalUsed/totalCap)*100).toFixed(1) : 0;
+    
+    // Render HTML Thanh trạng thái mới
+    let summaryHtml = `
+    <div class="sum-card total-box" title="Tổng số vị trí ĐANG DÙNG trên Tổng sức chứa">
+        <div class="sum-label">Tổng sử dụng</div>
+        <div class="sum-value">
+            ${totalUsed.toLocaleString()} <span style="font-weight:400; opacity:0.7; font-size:12px">/ ${totalCap.toLocaleString()}</span>
+        </div>
+        <div class="sum-badge-pct">${pct}%</div>
+    </div>
+
+    <div class="sum-card tier-box t1-box" title="Số vị trí còn trống tại Tầng 1">
+        <div class="tier-name">Tầng 1 (Đáy)</div>
+        <div class="tier-val ${freeT1 > 0 ? 'has-data' : 'full'}">
+            ${freeT1.toLocaleString()} <span class="small-unit">trống</span>
+        </div>
+    </div>
+
+    <div class="sum-card tier-box t2-box" title="Số vị trí còn trống tại Tầng 2">
+        <div class="tier-name">Tầng 2</div>
+        <div class="tier-val ${freeT2 > 0 ? 'has-data' : 'full'}">
+            ${freeT2.toLocaleString()} <span class="small-unit">trống</span>
+        </div>
+    </div>
+
+    <div class="sum-card tier-box t3-box" title="Số vị trí còn trống tại Tầng 3">
+        <div class="tier-name">Tầng 3 (Đỉnh)</div>
+        <div class="tier-val ${freeT3 > 0 ? 'has-data' : 'full'}">
+            ${freeT3.toLocaleString()} <span class="small-unit">trống</span>
+        </div>
+    </div>
+`;
+
+document.getElementById('lblCapacitySummary').innerHTML = summaryHtml;
+    // ----------------------------
+
+    let html = '';
+    data.sort((a, b) => { if (a.warehouse !== b.warehouse) return a.warehouse.localeCompare(b.warehouse); if (a.zone !== b.zone) return a.zone.localeCompare(b.zone); return a.line - b.line; });
+    let currentWarehouse = '';
+    data.forEach(item => {
+        let s = item.stats;
+        let showT2 = item.tiers >= 2;
+        let showT3 = item.tiers >= 3;
+        if (item.warehouse !== currentWarehouse) {
+            currentWarehouse = item.warehouse;
+            let badgeColor = 'bg-secondary';
+            if (currentWarehouse.includes('HSPM')) badgeColor = 'bg-primary';
+            else if (currentWarehouse.includes('HRC1')) badgeColor = 'bg-info';
+            else if (currentWarehouse.includes('HRC2')) badgeColor = 'bg-danger';
+            else if (currentWarehouse.includes('Bãi E')) badgeColor = 'bg-success'; 
+            else if (currentWarehouse.includes('Bãi D')) badgeColor = 'bg-warning text-dark';
+            html += `<tr class="row-warehouse-header"><td colspan="11"><span class="badge ${badgeColor}" style="font-size:14px; padding: 8px 12px;">🏭 KHO: ${currentWarehouse}</span></td></tr>`;
+        }
+        const renderUsedCell = (tierStats) => {
+            let suggestBadge = '';
+            if (tierStats.suggested > 0) { suggestBadge = `<span class="badge-suggest">+${tierStats.suggested} dự kiến</span>`; }
+            let numClass = tierStats.total_used > tierStats.max ? 'text-danger font-weight-bold' : '';
+            return `<td><div class="${numClass}">${tierStats.total_used}</div>${suggestBadge}</td>`;
+        };
+        const renderEmptyCell = (val) => { let colorClass = 'text-good'; if (val <= 0) colorClass = 'text-bad'; else if (val <= 3) colorClass = 'text-warn'; return `<td class="cell-empty ${colorClass}">${val}</td>`; };
+        html += `<tr><td style="font-weight:bold; color:#555">${item.zone}</td><td style="font-weight:bold; color:#007bff">${item.desc}</td><td class="cell-max">${s.t1.max}</td>${renderUsedCell(s.t1)}${renderEmptyCell(s.t1.final_empty)}<td class="cell-max" style="background:#fcfcfc">${showT2 ? s.t2.max : '-'}</td>${showT2 ? renderUsedCell(s.t2) : '<td style="background:#fcfcfc">-</td>'}${showT2 ? renderEmptyCell(s.t2.final_empty) : '<td style="background:#fcfcfc">-</td>'}<td class="cell-max">${showT3 ? s.t3.max : '-'}</td>${showT3 ? renderUsedCell(s.t3) : '<td>-</td>'}${showT3 ? renderEmptyCell(s.t3.final_empty) : '<td>-</td>'}</tr>`;
+    });
+    document.getElementById('tbCapacityBody').innerHTML = html;
+  }
+function resetCapacityFilters() {
+    // 1. Reset giá trị các ô chọn về rỗng
+    document.getElementById('selFilterKho').value = "";
+    
+    // 2. Reset nội dung dropdown con về trạng thái ban đầu
+    document.getElementById('selFilterZone').innerHTML = '<option value="">-- Zone --</option>';
+    document.getElementById('selFilterLine').innerHTML = '<option value="">-- Line --</option>';
+    
+    // 3. Khóa các dropdown con lại
+    document.getElementById('selFilterZone').disabled = true;
+    document.getElementById('selFilterLine').disabled = true;
+
+    // 4. Render lại bảng với toàn bộ dữ liệu gốc (Không cần qua bộ lọc tính toán lại)
+    renderCapacityTable(G_RAW_CAPACITY_DATA);
+}
+  function openMatchDetail() {
+      // 1. Kiểm tra dữ liệu tìm kiếm
+      if (!G_CURRENT_MATCHES || G_CURRENT_MATCHES.length === 0) {
+          alert("Chưa có kết quả tìm kiếm nào để xem!");
+          return;
+      }
+
+      // 2. Mở Modal hiển thị danh sách
+      const modal = document.getElementById('modalList');
+      const tabs = document.getElementById('modal-filter-tabs');
+      const searchInput = document.getElementById('inpErrSearch');
+      const pagination = document.getElementById('pagination-controls');
+      
+      modal.style.display = 'flex';
+      if(pagination) pagination.style.display = 'flex';
+      
+      // 3. Tùy chỉnh giao diện Modal cho chế độ xem chi tiết tìm kiếm
+      document.getElementById('m-title').innerHTML = `🔍 Chi tiết tìm kiếm (${G_CURRENT_MATCHES.length} kết quả)`;
+      
+      // Ẩn các tab lọc Kho vì đây là danh sách kết quả hỗn hợp
+      if(tabs) tabs.style.display = 'none'; 
+      // Reset ô tìm kiếm phụ trong modal
+      if(searchInput) { searchInput.value = ""; searchInput.style.display = 'block'; }
+
+      // 4. Chuyển đổi dữ liệu tìm kiếm sang định dạng bảng
+      // (Mapping từ G_CURRENT_MATCHES sang cấu trúc hiển thị của renderPagedTable)
+      G_CURRENT_LIST_SOURCE = G_CURRENT_MATCHES.map(item => {
+          let statusHtml = '';
+          let locationHtml = '';
+          
+          if (item.type === 'valid') {
+              // Nếu là cuộn hợp lệ đang vẽ trên sơ đồ
+              statusHtml = '<span class="badge bg-success">Đang hiển thị</span>';
+              locationHtml = `<b>${item.zone}</b>`;
+          } else {
+              // Nếu là cuộn Lỗi
+              statusHtml = '<span class="badge bg-danger">Lỗi</span>';
+              locationHtml = `<span class="text-danger small">${item.reason || 'Lỗi dữ liệu'}</span>`;
+          }
+
+          return {
+              id: item.id,
+              org_pos: item.pos,
+              so: item.so,
+              status_text: statusHtml,
+              target_pos: locationHtml
+          };
+      });
+
+      // 5. Render dữ liệu lên bảng
+      G_CURRENT_DISPLAY_LIST = G_CURRENT_LIST_SOURCE;
+      G_CUR_PAGE = 1;
+      renderPagedTable();
+  }
+// Thay thế hàm exportErrorExcel cũ
+function exportCurrentList() {
+    // TRƯỜNG HỢP 1: Đang xem danh sách LỖI
+    if (G_MODAL_MODE === 'ERROR' || G_MODAL_MODE === 'SEARCH_ERR') {
+        window.location.href = "{{ url_for('kho2d_bp.export_errors_excel') }}";
+    } 
+    // TRƯỜNG HỢP 2: Đang xem danh sách KHO (HSPM, HRC1...)
+    else if (G_MODAL_MODE === 'WAREHOUSE') {
+        // Lấy tab đang active trong modal (biến G_CUR_ERR_TAB lưu cái này khi click tab)
+        // Mặc định nếu chưa click gì thì lấy theo tab ngoài dashboard hoặc 'ALL'
+        let currentRepo = document.querySelector('#modal-filter-tabs .mtab.active')?.dataset.key || 'ALL';
+        
+        // Gọi API mới tạo
+        window.location.href = `{{ url_for('kho2d_bp.export_warehouse_list') }}?repo=${currentRepo}`;
+    }
+    else {
+        alert("Chức năng này chưa hỗ trợ cho màn hình hiện tại!");
+    }
+}
+  init();
+</script>
+{% endblock %}

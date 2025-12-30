@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}Check LSX{% endblock %}
+
+{% block content %}
+
+<h3 class="mb-3">Tiến độ LSX</h3>
+
+<form class="d-flex mb-3" style="max-width: 600px">
+  <input type="text" class="form-control me-2" id="keyword"
+         placeholder="Tìm Order, Material, SO Mapping..."/>
+</form>
+
+<div class="d-flex mb-3 gap-2" style="max-width: 600px">
+  <select id="filter-lsx" class="form-select">
+    <option value="">-- Tất cả LSX --</option>
+    {% for lsx in lsx_list %}
+      <option value="{{ lsx.id }}">{{ lsx.name }}</option>
+    {% endfor %}
+  </select>
+  <!-- <select id="filter-customer" class="form-select">
+    <option value="">-- Tất cả Customer --</option>
+    {% for c in customer_list %}
+      <option value="{{ c }}">{{ c }}</option>
+    {% endfor %}
+  </select> -->
+  <button type="button" id="btn-reset" class="btn btn-secondary">Reset</button>
+</div>
+
+<div style="max-height:750px;overflow-y:auto">
+  <table class="table-custom" id="lsx-table">
+    <thead>
+      <tr>
+        <th>Thời gian yêu cầu</th>
+        <th>Order</th>
+        <th>Sản lượng 1A</th>
+        <th>Sản lượng 1B</th>
+        <th>MAC thép</th>
+        <th>Yêu cầu đặc biệt</th>
+        <th>Khối lượng Cuộn (Tấn)</th>
+        <th>Mục đích sử dụng</th>
+        <th>Khối lượng cuộn TB</th>
+        <th>Tổng yêu cầu</th>
+        <th>Material</th>
+        <th>SO Mapping</th>
+        <th>KHÁCH HÀNG</th>
+        <th>Mapping kho</th>
+        <th>Quantity (KG)</th>
+        <th>Tiến độ</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<style>
+.table-custom {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.table-custom th, .table-custom td {
+  border: 1px solid #ccc;
+  padding: 6px;
+  text-align: center;
+}
+.table-custom thead th {
+  position: sticky;
+  top: 0;
+  background: #212529;
+  color: #fff;
+  z-index: 10;
+}
+.progress { height:22px; border-radius:12px; overflow:hidden; background:#e9ecef; }
+.progress-bar { line-height:22px; color:#fff; font-weight:bold; text-align:center; }
+.bg-success { background:#28a745!important; }
+.bg-warning { background:#ffc107!important; color:#212529; }
+.bg-danger  { background:#dc3545!important; }
+.text-right { text-align:right; }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+const tbody = document.querySelector("#lsx-table tbody");
+const kw = document.getElementById("keyword");
+// const filterCustomer = document.getElementById("filter-customer");
+const btnReset = document.getElementById("btn-reset");
+const filterLsx = document.getElementById("filter-lsx");
+
+function getFilters() {
+  const params = new URLSearchParams(window.location.search);
+  return { keyword: kw.value.trim(), lsx_id: filterLsx.value };
+}
+function updateURL() {
+  const filters = getFilters();
+  const params = new URLSearchParams(filters);
+  window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+}
+async function fetchRows() {
+  updateURL();
+  const params = new URLSearchParams(getFilters());
+  const res = await fetch(`/lsx_search?${params}`);
+  const data = await res.json();
+  renderRows(data.rows);
+}
+
+function renderRows(rows) {
+  tbody.innerHTML = "";
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+
+    // ---- Cấp 1: Thời gian block ----
+    if (r.date_range) {
+      const td = document.createElement("td");
+      td.rowSpan = r.date_rowspan;
+      td.textContent = r.date_range;
+      tr.appendChild(td);
+    }
+
+    // ---- Cấp 2: Order + thông tin ----
+    if (r.order) {
+      const addTd = (val, rs) => {
+        const td = document.createElement("td");
+        if (rs) td.rowSpan = rs;
+        td.textContent = val ?? "";
+        return td;
+      };
+      tr.appendChild(addTd(r.order, r.order_rowspan));
+      tr.appendChild(addTd(r.prod_1a, r.order_rowspan));
+      tr.appendChild(addTd(r.prod_1b, r.order_rowspan));
+      tr.appendChild(addTd(r.macthep, r.order_rowspan));
+      tr.appendChild(addTd(r.yeucau, r.order_rowspan));
+      tr.appendChild(addTd(r.klcuon, r.order_rowspan));
+      tr.appendChild(addTd(r.mucdich, r.order_rowspan));
+      tr.appendChild(addTd(r.klcuontb, r.order_rowspan));
+      tr.appendChild(addTd(r.total_req, r.order_rowspan));
+    }
+
+    // ---- Cấp 3: TonKho ----
+    const addTdRight = (value) => {
+      const td = document.createElement("td");
+      td.textContent = value ?? "";
+      td.className = "text-right";
+      return td;
+    };
+    tr.appendChild(addTdRight(r.material));
+    const tdSO = document.createElement("td");
+    tdSO.textContent = r.so_mapping ?? "";
+    tr.appendChild(tdSO);
+    const tdCustomerName = document.createElement("td");
+    tdCustomerName.textContent = r.customer_name ?? "";
+    tr.appendChild(tdCustomerName);
+    tr.appendChild(addTdRight(r.mapping_kho));
+    tr.appendChild(addTdRight(r.qty_kg));
+
+     const tdProcess = document.createElement("td");
+    const progress = document.createElement("div");
+    progress.className = "progress position-relative";
+    progress.style.height = "22px";
+    progress.style.borderRadius = "12px";
+    progress.style.overflow = "hidden";
+
+    const bar = document.createElement("div");
+    bar.className = "progress-bar " + (r.process_color || "");
+    bar.style.width = (r.process_value || 0) + "%";
+    bar.style.height = "100%";
+    bar.style.borderRadius = "12px";
+
+    const spanText = document.createElement("span");
+    spanText.textContent = (r.process_value || 0).toFixed(1) + "%";
+    spanText.style.position = "absolute";
+    spanText.style.width = "100%";
+    spanText.style.textAlign = "center";
+    spanText.style.left = "0";
+    spanText.style.top = "0";
+    spanText.style.lineHeight = "22px";
+    spanText.style.fontWeight = "bold";
+    spanText.style.color = "#000";
+
+    progress.appendChild(bar);
+    progress.appendChild(spanText);
+    tdProcess.appendChild(progress);
+    tr.appendChild(tdProcess);
+
+    tbody.appendChild(tr);
+  });
+}
+
+
+kw.addEventListener("input", fetchRows);
+// filterCustomer.addEventListener("change", fetchRows);
+filterLsx.addEventListener("change", fetchRows);    
+btnReset.addEventListener("click", () => {
+  kw.value = "";
+  fetchRows();
+});
+
+// load lần đầu
+fetchRows();
+</script>
+
+{% endblock %}

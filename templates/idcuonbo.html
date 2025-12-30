@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% block title %}Danh sách cuộn{% endblock %}
+{% block content %}
+<div class="page-wrapper">
+<h3>Check ID cuộn</h3>
+
+<div class="d-flex flex-wrap mb-3 gap-2 justify-content-start align-items-center">
+  <input type="text" id="keyword" class="form-control" placeholder="Tìm ID Cuộn Bó, Material" style="min-width:350px; max-width:300px">
+
+  <select id="filter-trangthai" class="form-select" style="width:auto; max-width:200px">
+    <option value="">-- Tất cả trạng thái --</option>
+    {% for tt in trangthai_list %}<option value="{{ tt }}">{{ tt }}</option>{% endfor %}
+  </select>
+
+  <select id="filter-nhom" name="nhom" class="form-select" multiple="multiple" style="min-width:250px; max-width:300px">
+    {% for n in nhom_list %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+  </select>
+   <select id="filter-nhamay" class="form-select" style="width:auto; max-width:200px">
+    <option value="">-- Tất cả nhà máy --</option>
+    {% for nm in nha_may_list %}<option value="{{ nm }}">{{ nm }}</option>{% endfor %}
+  </select>
+  <select id="filter-tp2" class="form-select" style="width:auto; max-width:200px">
+    <option value="">-- Tất cả Tp loại 2 --</option>
+    {% for t in tp2_list %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+  </select>
+
+  <select id="select-limit" class="form-select" style="width:auto; max-width:150px">
+    <option value="10">10 bản ghi</option>
+    <option value="25">25 bản ghi</option>
+    <option value="50">50 bản ghi</option>
+    <option value="100" selected>100 bản ghi</option>
+  </select>
+
+  <button type="button" id="btn-reset" class="btn btn-secondary">Reset</button>
+  <button type="button" id="btn-export" class="btn btn-success">Export Excel</button>
+</div>
+<div class="table-wrapper">
+  <table class="table table-bordered table-striped" id="tau-table">
+    <thead>
+      <tr>
+        <th>STT</th> 
+        <th data-col="ID Cuộn Bó">ID Cuộn Bó <span class="sort-icon"><i class="fa fa-sort"></i></span></th>
+        <th data-col="Material Description">Material Description <span class="sort-icon"><i class="fa fa-sort"></i></span></th>
+        <th data-col="Nhóm">Nhóm</th>
+        <th data-col="NhaMay">Nhà máy</th>
+        <th data-col="Khối lượng">Khối lượng <span class="sort-icon"><i class="fa fa-sort"></i></span></th>
+        <th data-col="Ngày sản xuất">Ngày sản xuất <span class="sort-icon"><i class="fa fa-sort"></i></span></th>
+        <th data-col="TpLoai2">Tp loại 2 <span class="sort-icon"><i class="fa fa-sort"></i></span></th>
+        <th>Trạng thái</th>
+        <th data-col="SO Mapping">SO Mapping</th>
+        <th data-col="NgayDuKien">Ngày dự kiến <span class="sort-icon"><i class="fa fa-sort"></i></span></th>
+        <th>SO Mapping dự kiến</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="d-flex justify-content-between mt-2 align-items-center">
+  <div>
+    <button class="btn btn-sm btn-primary" id="prev-page">Trước</button>
+    <button class="btn btn-sm btn-primary" id="next-page">Sau</button>
+  </div>
+  <span id="page-info"></span>
+</div>
+</div>
+<style>
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  /* Giả sử <body> hoặc container cha của block này cao 100% màn hình.
+     Nếu không, bạn có thể cần dùng: height: 90vh; (hoặc 100vh)
+     tuỳ thuộc vào layout `base.html` của bạn */
+  height: calc(100vh - 100px); /* Ví dụ: 100% chiều cao trừ đi 100px của header/footer */
+  /* Hoặc đơn giản là: */
+  /* height: 100%;  */
+}
+.table-wrapper { overflow-y: auto; overflow-x: auto;flex-grow: 1; position: relative; }
+#tau-table thead th {
+  position: sticky; top: 0; background: #212529; color: #fff; z-index: 10; cursor: pointer;
+}
+.sort-icon { margin-left: 5px; }
+.table td, .table th { vertical-align: middle; text-align: center; }
+
+.select2-container .select2-selection--multiple {
+    min-height: 38px;  /* khớp Bootstrap input */
+    border: 1px solid #ced4da;
+    border-radius: .375rem;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    margin-top: 3px;
+    white-space: nowrap;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    display: flex;
+    flex-wrap: wrap;  /* cho phép xuống dòng */
+    gap: 5px;         /* khoảng cách giữa các item */
+}
+#tau-table th:first-child, 
+#tau-table td:first-child {
+  width: 60px;
+  text-align: center;
+}
+
+
+</style>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- Select2 -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+let currentPage = 1;
+let limit = parseInt($("#select-limit").val());
+let sortCol = "", sortDir = "asc";
+
+const tbody = $("#tau-table tbody");
+const keywordInput = $("#keyword");
+const filterTrangThai = $("#filter-trangthai");
+const filterNhom = $("#filter-nhom");
+const filterTp2 = $("#filter-tp2");
+const pageInfo = $("#page-info");
+const selectLimit = $("#select-limit");
+const btnReset = $("#btn-reset");
+const filterNhaMay = $("#filter-nhamay");
+
+// Debounce function
+function debounce(fn, delay) {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn(...args), delay);
+  };
+}
+
+function updateURL() {
+  const params = new URLSearchParams();
+  if (keywordInput.val()) params.set("keyword", keywordInput.val());
+  if (filterTrangThai.val()) params.set("trangthai", filterTrangThai.val());
+  if (filterTp2.val()) params.set("tp2", filterTp2.val());
+  if (filterNhaMay.val()) params.set("nha_may", filterNhaMay.val());
+  if (filterNhom.val() && filterNhom.val().length > 0) params.set("nhom", filterNhom.val().join(","));
+  params.set("page", currentPage);
+  params.set("limit", limit);
+  if (sortCol) params.set("sort_col", sortCol);
+  if (sortDir) params.set("sort_dir", sortDir);
+  history.replaceState(null, "", "?" + params.toString());
+}
+
+function restoreFiltersFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  keywordInput.val(params.get("keyword") || "");
+  filterTrangThai.val(params.get("trangthai") || "").trigger("change");
+  filterTp2.val(params.get("tp2") || "").trigger("change");
+  filterNhaMay.val(params.get("nha_may") || "").trigger("change");
+  const nhomVal = params.get("nhom");
+  if (nhomVal) filterNhom.val(nhomVal.split(",")).trigger("change");
+  currentPage = parseInt(params.get("page")) || 1;
+  limit = parseInt(params.get("limit")) || 100;
+  sortCol = params.get("sort_col") || "";
+  sortDir = params.get("sort_dir") || "asc";
+  selectLimit.val(limit);
+}
+
+function fetchRows() {
+  const params = {
+    keyword: keywordInput.val(),
+    trangthai: filterTrangThai.val(),
+    nhom: filterNhom.val() || [],
+    tp2: filterTp2.val(),
+    nha_may: filterNhaMay.val(),
+    sort_col: sortCol,
+    sort_dir: sortDir,
+    page: currentPage,
+    limit: limit,
+  };
+
+  updateURL();
+
+  tbody.html(`
+    <tr>
+      <td colspan="12" class="text-center py-3 text-muted">
+        <div class="spinner-border spinner-border-sm me-2" role="status"></div>Đang tải dữ liệu...
+      </td>
+    </tr>`);
+  $.get("/idcuonbo_search", params, function (data) {
+    tbody.empty();
+    const startIndex = (currentPage - 1) * limit;
+    data.rows.forEach((r, i) => {
+      const formatDate = d => d ? new Date(d).toLocaleDateString("vi-VN") : "";
+      const tr = $("<tr>");
+      tr.append(`<td>${startIndex + i + 1}</td>`);
+      tr.append(`<td>${r["ID Cuộn Bó"] || ""}</td>`);
+      tr.append(`<td>${r["Material Description"] || ""}</td>`);
+      tr.append(`<td>${r["Nhóm"] || ""}</td>`);
+      tr.append(`<td>${r["NhaMay"] || ""}</td>`);
+      tr.append(`<td class="text-end">${r["Khối lượng"] || ""}</td>`);
+      tr.append(`<td>${formatDate(r["Ngày sản xuất"])}</td>`);
+      tr.append(`<td>${r["TpLoai2"] || ""}</td>`);
+      tr.append(`<td>${r["TrangThai"] || ""}</td>`);
+      tr.append(`<td>${r["SO Mapping"] || 0}</td>`);
+      tr.append(`<td>${formatDate(r["NgayDuKien"])}</td>`);
+      tr.append(`<td>${r["SO Mapping dự kiến"] || 0}</td>`);
+      tbody.append(tr);
+    });
+    const totalPage = Math.ceil(data.total / limit);
+    pageInfo.text(`Trang ${currentPage} / ${totalPage}`);
+    $("#prev-page").prop("disabled", currentPage <= 1);
+    $("#next-page").prop("disabled", currentPage >= totalPage);
+  });
+}
+
+// Debounced fetch
+const fetchRowsDebounced = debounce(fetchRows, 300);
+
+// Select2
+filterNhom.select2({
+  placeholder: "-- Chọn nhóm --",
+  allowClear: true,
+  width: 'resolve'
+});
+
+// Restore filters & load first time
+restoreFiltersFromURL();
+fetchRows();
+
+// Events
+keywordInput.on("input", () => { currentPage = 1; fetchRowsDebounced(); });
+[filterTrangThai, filterNhom, filterTp2, filterNhaMay].forEach(elem => {
+  elem.on("change", () => { currentPage = 1; fetchRows(); });
+});
+selectLimit.on("change", function () {
+  limit = parseInt(this.value);
+  currentPage = 1;
+  fetchRows();
+});
+btnReset.on("click", () => {
+  keywordInput.val("");
+  filterTrangThai.val("").trigger("change");
+  filterNhom.val(null).trigger("change");
+  filterTp2.val("").trigger("change");
+  filterNhaMay.val("").trigger("change");
+  selectLimit.val("100");
+  limit = 100;
+  currentPage = 1;
+  history.replaceState(null, "", location.pathname); // reset URL
+  fetchRows();
+});
+
+// Paging
+$("#prev-page").click(() => { if (currentPage > 1) { currentPage--; fetchRows(); } });
+$("#next-page").click(() => { currentPage++; fetchRows(); });
+
+// Sorting
+$("#tau-table th[data-col]").click(function () {
+  const col = $(this).data("col");
+  if (sortCol === col) sortDir = sortDir === "asc" ? "desc" : "asc";
+  else { sortCol = col; sortDir = "asc"; }
+  $("#tau-table th .sort-icon i")
+    .removeClass("fa-sort-up fa-sort-down").addClass("fa-sort");
+  $(this).find("i").removeClass("fa-sort")
+    .addClass(sortDir === "asc" ? "fa-sort-up" : "fa-sort-down");
+  currentPage = 1;
+  fetchRows();
+});
+
+// Export Excel
+$("#btn-export").click(() => {
+    // Lấy tất cả các tham số lọc hiện tại
+    const params = new URLSearchParams({
+        keyword: keywordInput.val(),
+        trangthai: filterTrangThai.val(),
+        tp2: filterTp2.val(),
+        nha_may: filterNhaMay.val(),
+        sort_col: sortCol,
+        sort_dir: sortDir,
+    });
+
+    // Thêm các giá trị của select multiple (nhóm)
+    const nhomValues = filterNhom.val() || [];
+    nhomValues.forEach(nhom => {
+        params.append('nhom[]', nhom);
+    });
+
+    // Tạo URL và điều hướng để trình duyệt tự tải file về
+    const exportUrl = `/idcuonbo_export?${params.toString()}`;
+    window.location.href = exportUrl;
+});
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Chưa có dữ liệu{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="alert alert-warning d-flex align-items-center shadow-sm" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <div>
+            Chưa có dữ liệu nào được tải lên.
+            Vui lòng <a href="{{ url_for('upload.upload_files') }}" class="alert-link">tải lên bộ dữ liệu LSX tại đây</a>.
+        </div>
+    </div>
+</div>
+{% endblock %}

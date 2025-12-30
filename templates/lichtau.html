@@ -1,0 +1,507 @@
+{% extends "base.html" %}
+{% block title %}Lịch tàu{% endblock %}
+{% block content %}
+<div class="page-wrapper">
+<h3 style="margin-bottom: 20px">Lịch tàu</h3>
+
+<form id="searchForm" class="d-flex mb-3" style="max-width: 600px">
+  <input
+    type="text"
+    class="form-control me-2"
+    id="keyword"
+    name="keyword"
+    placeholder="Tìm Material, Sales Order..."
+    value="{{ keyword }}"
+  />
+</form>
+
+<div class="d-flex mb-3 gap-2" style="max-width: 1600px;">
+  <select id="filter-sheetmonth" class="form-select">
+    <option value="">-- Chọn Tháng --</option>
+    {% for month in sheetmonth_list %}
+    <option value="{{ month }}" {% if month==selected_month %}selected{% endif %}>{{ month }}</option>
+    {% endfor %}
+  </select>
+  <select id="filter-tau" class="form-select">
+    <option value="">Tất cả Tàu</option>
+    {% for tau in tau_list %}
+    <option value="{{ tau }}">{{ tau }}</option>
+    {% endfor %}
+  </select>
+  <select id="filter-cangxep" class="form-select">
+    <option value="">Tất cả Cảng Xếp</option>
+    {% for cangxep in cangxep_list %}
+    <option value="{{ cangxep }}">{{ cangxep }}</option>
+    {% endfor %}
+  </select>
+  <select id="filter-cangden" class="form-select">
+    <option value="">Tất cả Cảng Đến</option>
+    {% for cangden in cangden_list %}
+    <option value="{{ cangden }}">{{ cangden }}</option>
+    {% endfor %}
+  </select>
+  <select id="filter-daily" class="form-select">
+    <option value="">Tất cả Đại lý</option>
+    {% for daily in daily_list %}
+    <option value="{{ daily }}">{{ daily }}</option>
+    {% endfor %}
+  </select>
+    <select id="filter-nhamay" class="form-select">
+    <option value="">Tất cả Nhà máy</option>
+    {% for nm in nhamay_list %}
+    <option value="{{ nm }}">{{ nm }}</option>
+    {% endfor %}
+  </select>
+  <select id="filter-tau-color" class="form-select">
+    <option value="">-- Tất cả trạng thái tàu --</option>
+    {% for color in tau_color_list %}
+    <option value="{{ color }}">
+      {% if color == 'bg-success' %}Hoàn thành{% elif color == 'bg-warning' %}Chưa hoàn thành{% else %}{{ color }}{% endif %}
+    </option>
+    {% endfor %}
+  </select>
+  <button type="button" id="btn-reset" class="btn btn-secondary">Reset</button>
+</div>
+
+<div style="overflow-y: auto; overflow-x: auto;flex-grow: 1;">
+  <table class="table-custom" id="lichtau-table">
+    <thead>
+      <tr>
+        <th>Tàu</th>
+        <th>Đại lý</th>
+        <th>Cảng xếp</th>
+        <th>Cảng đến</th>
+        <th>Sales Order</th>
+        <th>Nhà máy</th>
+        <th>Định lượng</th>
+        <th>Material</th>
+        <th>Sản lượng mapping Kho</th>
+        <th>Shipped (tấn)</th>
+        <th>Quantity (tấn)</th>
+        <th>Dự đoán hoàn thành</th>
+        <th>Tiến độ</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+</div>
+<style>
+	.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  /* Giả sử <body> hoặc container cha của block này cao 100% màn hình.
+     Nếu không, bạn có thể cần dùng: height: 90vh; (hoặc 100vh)
+     tuỳ thuộc vào layout `base.html` của bạn */
+  height: calc(100vh - 100px); /* Ví dụ: 100% chiều cao trừ đi 100px của header/footer */
+  /* Hoặc đơn giản là: */
+  /* height: 100%;  */
+}
+  .table-custom { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .table-custom th, .table-custom td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+  .table-custom thead th { position: sticky; top: 0; background: #212529; color: #fff; z-index: 700; }
+  .progress { height: 22px; border-radius: 12px; overflow: hidden; background: #e9ecef; }
+  .progress-bar { line-height: 22px; color: #fff; font-weight: bold; border-radius: 12px; text-align: center; }
+  .bg-success { background: #28a745 !important; }
+  .bg-warning { background: #ffc107 !important; color: #212529; }
+  .bg-danger { background: #dc3545 !important; }
+  .text-right { text-align: right; }
+
+  /* --- CSS for Sticky Columns --- */
+  :root {
+    --thead-height: 75px; /* Chiều cao của thead */
+    --col1-width: 150px; /* Tàu */
+    --col2-width: 200px; /* Đại lý */
+    --col3-width: 150px; /* Cảng xếp */
+    --col4-width: 150px; /* Cảng đến */
+  }
+
+  /* Cố định chiều rộng cho các cột sticky */
+  .table-custom th:nth-child(1), .table-custom td.sticky-col1 { width: var(--col1-width); min-width: var(--col1-width); max-width: var(--col1-width); }
+  .table-custom th:nth-child(2), .table-custom td.sticky-col2 { width: var(--col2-width); min-width: var(--col2-width); max-width: var(--col2-width); }
+  .table-custom th:nth-child(3), .table-custom td.sticky-col3 { width: var(--col3-width); min-width: var(--col3-width); max-width: var(--col3-width); }
+  .table-custom th:nth-child(4), .table-custom td.sticky-col4 { width: var(--col4-width); min-width: var(--col4-width); max-width: var(--col4-width); }
+
+  /* Sticky cho header */
+  .table-custom thead th:nth-child(1) { position: sticky; left: 0; z-index: 650; }
+  .table-custom thead th:nth-child(2) { position: sticky; left: var(--col1-width); z-index: 650; }
+  .table-custom thead th:nth-child(3) { position: sticky; left: calc(var(--col1-width) + var(--col2-width)); z-index: 650; }
+  .table-custom thead th:nth-child(4) { position: sticky; left: calc(var(--col1-width) + var(--col2-width) + var(--col3-width)); z-index: 650; }
+
+  /* TD cho các cột sticky phải là static để rowspan hoạt động đúng */
+  .table-custom td.sticky-col {
+    position: static;
+    vertical-align: top;
+    padding: 0;
+    background: inherit; /* Ăn theo màu của TR */
+  }
+
+  /* Wrapper bên trong TD để thực hiện sticky */
+  .sticky-content {
+    position: sticky;
+    top: var(--thead-height); /* Dính ngay dưới header */
+    display: block;
+    width: 100%;
+    padding: 10px; /* Giữ lại padding gốc */
+    box-sizing: border-box;
+    z-index: 600;
+    background: inherit !important; /* Luôn ăn theo màu của TR */
+    text-align: center;
+  }
+
+  /* Offset cho từng cột */
+  .sticky-content.sticky-col1 { left: 0; }
+  .sticky-content.sticky-col2 { left: var(--col1-width); }
+  .sticky-content.sticky-col3 { left: calc(var(--col1-width) + var(--col2-width)); }
+  .sticky-content.sticky-col4 { left: calc(var(--col1-width) + var(--col2-width) + var(--col3-width)); }
+
+  /* Đường kẻ phân cách */
+  .table-custom th:nth-child(-n+4), .table-custom td.sticky-col { box-shadow: 1px 0 0 #ddd; }
+
+  /* Bôi đậm và tăng cỡ chữ cho các cột Tàu, Đại lý, Cảng xếp, Cảng đến */
+  .table-custom td.sticky-col1 .sticky-content,
+  .table-custom td.sticky-col2 .sticky-content,
+  .table-custom td.sticky-col3 .sticky-content,
+  .table-custom td.sticky-col4 .sticky-content {
+    font-weight: bold;
+    font-size: 16px; /* Tăng cỡ chữ từ 14px lên 16px */
+  }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+const tbody = document.querySelector("#lichtau-table tbody");
+const keywordInput = document.getElementById("keyword");
+const filterSheetMonth = document.getElementById("filter-sheetmonth");
+const filterTau = document.getElementById("filter-tau");
+const filterCangxep = document.getElementById("filter-cangxep");
+const filterCangden = document.getElementById("filter-cangden");
+const filterDaily = document.getElementById("filter-daily");
+const filterTauColor = document.getElementById("filter-tau-color");
+const btnReset = document.getElementById("btn-reset");
+const filterNhamay = document.getElementById("filter-nhamay");
+
+let allRows = []; // toàn bộ dữ liệu
+let groupedData = []; // nhóm theo tàu
+let currentPage = 1;
+const rowsPerPage = 10;
+
+// ✅ Thêm phần hiển thị phân trang ở dưới bảng (tự tạo)
+// const paginationDiv = document.createElement("div");
+// paginationDiv.id = "pagination";
+// paginationDiv.className = "d-flex justify-content-center align-items-center gap-2 mt-3";
+// document.querySelector("#lichtau-table").parentNode.appendChild(paginationDiv);
+let paginationDiv = document.createElement("div");
+paginationDiv.id = "pagination";
+paginationDiv.className = "d-flex justify-content-center align-items-center gap-2 mt-3";
+document.querySelector("#lichtau-table").after(paginationDiv);
+
+// ========== Lấy filter ==========
+function getFilters() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    keyword: keywordInput.value.trim(),
+    sheetmonth: filterSheetMonth.value,
+    tau: filterTau.value,
+    cangxep: filterCangxep.value,
+    cangden: filterCangden.value,
+    daily: filterDaily.value,
+    nhamay: filterNhamay.value,
+    tau_color: filterTauColor.value,
+  };
+}
+function updateURL() {
+  const filters = getFilters();
+  const params = new URLSearchParams(filters);
+  window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+}
+function restoreFiltersFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  keywordInput.value = params.get("keyword") || "";
+  filterSheetMonth.value = params.get("sheetmonth") || "";
+  filterTau.value = params.get("tau") || "";
+  filterCangxep.value = params.get("cangxep") || "";
+  filterCangden.value = params.get("cangden") || "";
+  filterDaily.value = params.get("daily") || "";
+  filterNhamay.value = params.get("nhamay") || "";
+  filterTauColor.value = params.get("tau_color") || "";
+}
+async function fetchRows(updateDropdowns = true) {
+  updateURL();
+  const params = new URLSearchParams(getFilters());
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="10" class="text-center py-3 text-muted">
+        <div class="spinner-border spinner-border-sm me-2"></div>Đang tải dữ liệu...
+      </td>
+    </tr>
+  `;
+
+  try {
+    const res = await fetch(`/lichtau_search?${params.toString()}`);
+    const data = await res.json();
+    allRows = data.rows || [];
+
+    // 🧠 Kiểm soát dropdown cập nhật
+    if (updateDropdowns === true) {
+      updateDropdownsFromData(data.rows);              // load lần đầu
+    } else if (updateDropdowns === "tau") {
+      updateTauDropdown(data.rows);                    // khi chọn dropdown khác
+    } else if (updateDropdowns === "related") {
+      updateRelatedDropdowns(data.rows);               // khi chọn tàu
+    }
+
+    prepareGroups();
+    renderPage(1);
+  } catch (err) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="10" class="text-danger text-center py-2">Lỗi tải dữ liệu</td>
+      </tr>
+    `;
+    console.error(err);
+  }
+}
+
+// ========== Cập nhật dropdown ==========
+function updateDropdownsFromData(records) {
+  const tauSet = new Set(records.map(r => r.tau).filter(Boolean));
+  const cangxepSet = new Set(records.map(r => r.cangxep).filter(Boolean));
+  const cangdenSet = new Set(records.map(r => r.cangden).filter(Boolean));
+  const dailySet = new Set(records.map(r => r.daily).filter(Boolean));
+  const nhamaySet = new Set(records.map(r => r.nhamay).filter(Boolean));
+  const tauColorSet = new Set(records.map(r => r.tau_status_color).filter(Boolean));
+
+  updateDropdown(filterTau, tauSet);
+  updateDropdown(filterCangxep, cangxepSet);
+  updateDropdown(filterCangden, cangdenSet);
+  updateDropdown(filterDaily, dailySet);
+  updateDropdown(filterNhamay, nhamaySet);
+  updateDropdown(filterTauColor, tauColorSet, true);
+}
+function updateRelatedDropdowns(records) {
+  const cangxepSet = new Set(records.map(r => r.cangxep).filter(Boolean));
+  const cangdenSet = new Set(records.map(r => r.cangden).filter(Boolean));
+  const dailySet = new Set(records.map(r => r.daily).filter(Boolean));
+  const nhamaySet = new Set(records.map(r => r.nhamay).filter(Boolean));
+  const tauColorSet = new Set(records.map(r => r.tau_status_color).filter(Boolean));
+
+  updateDropdown(filterCangxep, cangxepSet);
+  updateDropdown(filterCangden, cangdenSet);
+  updateDropdown(filterDaily, dailySet);
+  updateDropdown(filterNhamay, nhamaySet);
+  updateDropdown(filterTauColor, tauColorSet, true);
+}
+function updateTauDropdown(records) {
+  const tauSet = new Set(records.map(r => r.tau).filter(Boolean));
+  updateDropdown(filterTau, tauSet);
+}
+function updateDropdown(selectElem, valuesSet, isColor=false) {
+  const selected = selectElem.value;
+  const firstOption = selectElem.options[0];
+  selectElem.innerHTML = "";
+  selectElem.appendChild(firstOption);
+  Array.from(valuesSet).sort().forEach(v => {
+    const option = document.createElement("option");
+    option.value = v;
+    option.textContent = isColor ?
+      (v=='bg-success' ? 'Hoàn thành' : v=='bg-warning' ? 'Chưa hoàn thành' : v)
+      : v;
+    if (v === selected) option.selected = true;
+    selectElem.appendChild(option);
+  });
+}
+
+// ========== Nhóm dữ liệu theo tàu ==========
+function prepareGroups() {
+  groupedData = [];
+  let group = [];
+  let currentTau = null;
+
+  allRows.forEach(r => {
+    if (r.print_tau) {
+      if (group.length) groupedData.push(group);
+      group = [];
+      currentTau = r.tau;
+    }
+    group.push(r);
+  });
+  if (group.length) groupedData.push(group);
+}
+
+// ========== Render 1 trang ==========
+function renderPage(page) {
+  currentPage = page;
+  const start = (page - 1) * rowsPerPage;
+  const end = start + rowsPerPage;
+  const visibleGroups = groupedData.slice(start, end);
+  const visibleRows = visibleGroups.flat();
+  renderRows(visibleRows);
+  renderPagination();
+setTimeout(() => {
+  const table = document.querySelector("#lichtau-table");
+  if (table) {
+    const container = table.closest(".table-responsive") || table.parentElement;
+    if (container) container.scrollTop = 0;
+  }
+}, 100);
+}
+
+// ========== Render bảng ==========
+function renderRows(rows) {
+  tbody.innerHTML = "";
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+
+    if (r.print_tau) {
+      // Cột Tàu, Đại lý, Cảng xếp, Cảng đến
+      const stickyCols = ["tau", "daily", "cangxep", "cangden"];
+      stickyCols.forEach((k, index) => {
+        const td = document.createElement("td");
+        td.rowSpan = r.tau_rowspan || 1;
+        td.classList.add("sticky-col", `sticky-col${index + 1}`);
+        
+        const wrapper = document.createElement("div");
+        wrapper.className = `sticky-content sticky-col${index + 1}`;
+        wrapper.textContent = r[k] || "";
+        
+        td.appendChild(wrapper);
+        
+        // Tô màu cho cả cột Tàu (cả td và wrapper)
+        if (k === "tau" && r.tau_status_color) {
+          td.classList.add(r.tau_status_color);
+        }
+        tr.appendChild(td);
+      });
+    }
+
+    if (r.print_so) {
+      // Cột Sales Order
+      const td_so = document.createElement("td");
+      td_so.rowSpan = r.so_rowspan || 1;
+      td_so.textContent = r.so || "";
+      tr.appendChild(td_so);
+
+      // Các cột không sticky còn lại
+      const td_nm = document.createElement("td");
+      td_nm.rowSpan = r.so_rowspan || 1;
+      td_nm.textContent = r.nhamay || "";
+      tr.appendChild(td_nm);
+
+      const td_dinh = document.createElement("td");
+      td_dinh.rowSpan = r.so_rowspan || 1;
+      td_dinh.textContent = r.dinh_luong || "";
+      tr.appendChild(td_dinh);
+    }
+
+    ["material","mapping_kho","shipped_qty","qty","Dự_Đoán_Hoàn_Thành"].forEach(k => {
+  const td = document.createElement("td");
+  if (k === "Dự_Đoán_Hoàn_Thành") {
+  const value = r[k] || "";
+  td.textContent = value;
+  td.className = "text-left italic";
+
+  const hasDate = /\d{4}-\d{2}-\d{2}/.test(value); // có ngày không
+  const hasFraction = /\d+\/\d+/.test(value);      // có dạng 24/44 không
+
+  if (value.includes("Đang có") && !hasFraction && !hasDate) {
+    // Có hàng đủ (ví dụ: "Đang có 30T chưa map")
+    td.style.color = "#28a745"; // xanh lá
+  } 
+  else if (hasFraction || (value.includes("Đang có") && hasFraction) || (hasFraction && hasDate)) {
+    // Có dạng tỷ lệ hoặc có cả tỷ lệ + ngày ("24/44 - 2025-10-26")
+    td.style.color = "#fd7e14"; // cam
+  } 
+  else if (hasDate && !hasFraction) {
+    // Chỉ có ngày (ví dụ "2025-10-26")
+    td.style.color = "#28a745"; // xanh lá
+  } 
+  else {
+    // Thiếu toàn bộ, rỗng, hoặc không nhận dạng được
+    td.style.color = "#dc3545"; // đỏ
+  }
+} else {
+    td.textContent = r[k]?.toLocaleString?.("vi-VN") || "";
+    if (["mapping_kho","shipped_qty","qty"].includes(k)) td.className = "text-right";
+  }
+  tr.appendChild(td);
+});
+
+    const tdProcess = document.createElement("td");
+    const progress = document.createElement("div");
+    progress.className = "progress position-relative";
+    const bar = document.createElement("div");
+    bar.className = "progress-bar " + (r.process_color || "");
+    bar.style.width = (r.process_value || 0) + "%";
+    const spanText = document.createElement("span");
+    spanText.textContent = (r.process_value || 0).toFixed(1) + "%";
+    spanText.style.position = "absolute";
+    spanText.style.width = "100%";
+    spanText.style.textAlign = "center";
+    spanText.style.lineHeight = "22px";
+    spanText.style.fontWeight = "bold";
+    spanText.style.color = "#000";
+    progress.appendChild(bar);
+    progress.appendChild(spanText);
+    tdProcess.appendChild(progress);
+    tr.appendChild(tdProcess);
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ========== Render pagination ==========
+function renderPagination() {
+  paginationDiv.innerHTML = "";
+  const totalPages = Math.ceil(groupedData.length / rowsPerPage);
+  if (totalPages <= 1) return;
+
+  const btnPrev = document.createElement("button");
+  btnPrev.textContent = "«";
+  btnPrev.className = "btn btn-outline-primary btn-sm";
+  btnPrev.disabled = currentPage === 1;
+  btnPrev.onclick = () => renderPage(currentPage - 1);
+  paginationDiv.appendChild(btnPrev);
+
+  const span = document.createElement("span");
+  span.textContent = `Trang ${currentPage}/${totalPages}`;
+  paginationDiv.appendChild(span);
+
+  const btnNext = document.createElement("button");
+  btnNext.textContent = "»";
+  btnNext.className = "btn btn-outline-primary btn-sm";
+  btnNext.disabled = currentPage === totalPages;
+  btnNext.onclick = () => renderPage(currentPage + 1);
+  paginationDiv.appendChild(btnNext);
+}
+function debounce(func, delay) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => func.apply(this, args), delay);
+  };
+}
+const fetchRowsDebounced = debounce(fetchRows, 300);
+// ========== Event listeners ==========
+[
+  filterCangxep, filterCangden, filterDaily, filterNhamay, filterTauColor
+].forEach(elem => elem.addEventListener("change", () => fetchRows("tau")));
+
+filterTau.addEventListener("change", () => fetchRows("related")); // 👈 khi chọn tàu
+filterSheetMonth.addEventListener("change", () => fetchRows(true));
+keywordInput.addEventListener("input", () => fetchRowsDebounced(true));
+btnReset.addEventListener("click", () => {
+  keywordInput.value = "";
+  filterTau.value = "";
+  filterCangxep.value = "";
+  filterCangden.value = "";
+  filterDaily.value = "";
+  filterNhamay.value = "";
+  filterTauColor.value = "";
+  fetchRows(true);
+});
+restoreFiltersFromURL();
+// ========== Load lần đầu ==========
+fetchRows(true);
+</script>
+{% endblock %}

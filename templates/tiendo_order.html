@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}CheckOrder{% endblock %}
+{% block content %}
+<div class="page-wrapper">
+<h3 style="margin-bottom: 20px">Check Order</h3>
+
+<form id="searchForm" class="d-flex mb-3" style="max-width: 1000px">
+  <input
+    type="text"
+    class="form-control me-2"
+    id="keyword"
+    name="keyword"
+    placeholder="Tìm Order, Material, SO Mapping và nhiều SO cách nhau bằng dấu ','"
+    value="{{ filter_kw }}"
+  />
+</form>
+
+<div class="d-flex mb-3 gap-2" style="max-width: 1500px;">
+  <select id="filter-nhamay" class="form-select">
+    <option value="">Tất cả Nhà máy</option>
+    {% for nm in nha_may_list %}
+    <option value="{{ nm }}" {% if nm==selected_nhamay %}selected{% endif %}>{{ nm }}</option>
+    {% endfor %}
+  </select>
+  <select id="filter-process" class="form-select">
+    <option value="">Tất cả tiến độ</option>
+    {% for pc in process_color_list %}
+    <option value="{{ pc }}" {% if pc==selected_process_color %}selected{% endif %}>{{ pc }}</option>
+    {% endfor %}
+</select>
+  <button type="button" id="btn-reset" class="btn btn-secondary">Reset</button>
+</div>
+
+<div style="overflow-y: auto; overflow-x: auto;flex-grow: 1;">
+  <table class="table-custom" id="tonkho-table">
+    <thead>
+      <tr>
+        <th>Order</th>
+        <th>Nhà máy</th>
+        <th>Material</th>
+        <th>Tồn kho chưa Mapping SO</th>
+        <th>Tồn kho Mapping SO</th>
+        <th>Tổng tồn kho</th>
+        <th>Tổng Loại 1</th>
+        <th>Tổng Loại 2</th>
+        <th>Số lượng chờ nhập kho</th>
+        <th>Material Description</th>
+        <th>SO Mapping</th>
+        <!-- <th>Customer</th> -->
+        <th>SL Mapping kho</th>
+        <th>Shipped Qty (KG)</th>
+        <th>Quantity (KG)</th>
+        <th>Tiến độ</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+</div>
+<style>
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 100px);
+}
+.table-custom { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table-custom th, .table-custom td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+.table-custom thead th { position: sticky; top: 0; background: #212529; color: #fff; z-index: 10; }
+.progress { height: 22px; border-radius: 12px; overflow: hidden; background: #e9ecef; }
+.progress-bar { line-height: 22px; color: #fff; font-weight: bold; border-radius: 12px; text-align: center; }
+.bg-success { background: #28a745 !important; }
+.bg-warning { background: #ffc107 !important; color: #212529; }
+.bg-danger { background: #dc3545 !important; }
+.text-right { text-align: right; }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+const tbody = document.querySelector("#tonkho-table tbody");
+const keywordInput = document.getElementById("keyword");
+const filterNhamay = document.getElementById("filter-nhamay");
+const filterProcess = document.getElementById("filter-process");
+const btnReset = document.getElementById("btn-reset");
+
+function getFilters() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    keyword: keywordInput.value.trim(),
+    nhamay: filterNhamay.value,
+    process_color: filterProcess.value
+  };
+}
+function updateURL() {
+  const filters = getFilters();
+  const params = new URLSearchParams(filters);
+  window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+}
+async function fetchRows() {
+  updateURL();
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="15" class="text-center py-3 text-muted">
+        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+        Đang tải dữ liệu...
+      </td>
+    </tr>`;
+  const params = new URLSearchParams(getFilters());
+  const res = await fetch(`/tonkho_search?${params.toString()}`);
+  const data = await res.json();
+  renderRows(data.rows);
+}
+
+function renderRows(rows){
+  tbody.innerHTML = "";
+  rows.forEach(r=>{
+    const tr = document.createElement("tr");
+
+    // Các cột cha
+    if(r.order){
+      ["order","nha_may","material","tonkho_chua_map","tonkho_map","tong_tonkho","tong_loai1","tong_loai2","cho_nhapkho"].forEach(k=>{
+        const td = document.createElement("td");
+        td.rowSpan = r.order_rowspan || 1;
+        td.textContent = r[k] ?? "";
+        if(["tonkho_chua_map","tonkho_map","tong_tonkho","tong_loai1","tong_loai2","cho_nhapkho"].includes(k)){
+          td.className="text-right";
+          if(r[k] != null) td.textContent = r[k].toLocaleString("vi-VN");
+        }
+        tr.appendChild(td);
+      });
+    }
+
+    // Cột con: Material Description
+    const tdDesc = document.createElement("td");
+    tdDesc.textContent = r.material_desc ?? "";
+    tr.appendChild(tdDesc);
+
+    // Các cột con còn lại: SO Mapping
+    ["so_mapping","sl_mapping_kho","shipped_qty","qty"].forEach(k=>{
+      const td = document.createElement("td");
+      td.textContent = r[k] != null ? (["sl_mapping_kho","shipped_qty","qty"].includes(k) ? r[k].toLocaleString("vi-VN") : r[k]) : "";
+      if(["sl_mapping_kho","shipped_qty","qty"].includes(k)) td.className="text-right";
+      tr.appendChild(td);
+    });
+
+    // Progress
+    const tdProcess = document.createElement("td");
+    const progress = document.createElement("div");
+    progress.className = "progress position-relative";
+    progress.style.height = "22px";
+    progress.style.borderRadius = "12px";
+
+    const bar = document.createElement("div");
+    bar.className = "progress-bar "+(r.process_color||"");
+    bar.style.width = (r.process_value||0)+"%";
+    bar.style.height = "100%";
+
+    const spanText = document.createElement("span");
+    spanText.textContent = (r.process_value||0).toFixed(1)+"%";
+    spanText.style.position="absolute";
+    spanText.style.width="100%";
+    spanText.style.textAlign="center";
+    spanText.style.left="0";
+    spanText.style.top="0";
+    spanText.style.lineHeight="22px";
+    spanText.style.fontWeight="bold";
+    spanText.style.color="#000";
+
+    progress.appendChild(bar);
+    progress.appendChild(spanText);
+    tdProcess.appendChild(progress);
+    tr.appendChild(tdProcess);
+
+    tbody.appendChild(tr);
+  });
+}
+
+// Event listeners
+filterNhamay.addEventListener("change", fetchRows);
+filterProcess.addEventListener("change", fetchRows);
+keywordInput.addEventListener("input", fetchRows);
+
+btnReset.addEventListener("click", ()=>{
+  keywordInput.value = "";
+  filterNhamay.value = "";
+  filterProcess.value = "";
+  fetchRows();
+});
+
+// Load lần đầu
+fetchRows();
+</script>
+{% endblock %}

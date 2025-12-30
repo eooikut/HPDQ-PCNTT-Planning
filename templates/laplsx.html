@@ -1,0 +1,639 @@
+{% extends 'base.html' %}
+{% block title %}Chi Tiết Lệnh Sản Xuất{% endblock %}
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet">
+<style>
+    /* --- BẮT ĐẦU KHỐI CSS NÂNG CẤP GIAO DIỆN --- */
+
+    /* Container chính cho bảng, tạo hiệu ứng card */
+    #data-grid-container {
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        overflow: hidden; /* Đảm bảo bo góc được áp dụng cho bảng bên trong */
+        border: 1px solid #dee2e6;
+    }
+    .data-warning {
+    background: #fff3cd !important; /* Màu vàng nhạt (màu warning của Bootstrap) */
+    color: #664d03 !important;
+    }
+    /* Font chữ và kích thước chung */
+    .handsontable {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-size: 14px;
+    }
+
+    /* Header của bảng */
+    .handsontable th {
+        background-color: #e9f2ff; /* Nền xanh dương nhạt */
+        color: #0a58ca; /* Chữ màu xanh đậm */
+        font-weight: bold; /* Tăng độ đậm của chữ */
+        text-align: center !important;
+        padding: 12px 8px;
+        border-bottom: 2px solid #dee2e6 !important;
+        border-right: 1px solid #dee2e6 !important;
+        transition: background-color 0.2s ease-in-out; /* Thêm hiệu ứng chuyển đổi */
+    }
+    .handsontable th:hover {
+        background-color: #dbe8ff; /* Màu nền đậm hơn một chút khi di chuột vào */
+    }
+
+    /* Màu nền xen kẽ cho các dòng */
+    .handsontable .htCore tbody tr:nth-child(even) > td {
+        background-color: #f9f9f9;
+    }
+    .handsontable .htCore tbody tr:nth-child(odd) > td {
+        background-color: #ffffff;
+    }
+
+    /* Style cho các ô dữ liệu */
+    .handsontable td {
+        padding: 8px;
+        vertical-align: middle;
+        border-right: 1px solid #e9ecef;
+        border-bottom: 1px solid #e9ecef;
+        transition: background-color 0.2s ease;
+    }
+
+    /* Tô sáng dòng và cột đang được chọn */
+    .handsontable .ht__highlight {
+        background-color: #e9f2ff !important;
+    }
+
+    /* Style cho ô đã được chỉnh sửa (dirty) */
+    .handsontable .htDirty {
+        background-color: #fffbe6 !important; /* Màu vàng nhạt */
+        border-left: 3px solid #ffc107; /* Thêm viền trái màu vàng */
+    }
+
+    /* Style cho ô chỉ đọc (read-only) */
+    .data-readonly { background: #f1f3f5 !important; color: #6c757d !important; font-style: italic; }
+
+    /* --- BẮT ĐẦU KHỐI CSS CHO BỘ LỌC VÀ GIAO DIỆN NÂNG CAO --- */
+
+    /* Icon mũi tên cho menu lọc */
+    .handsontable .htDropdownMenu {
+        color: #adb5bd; /* Màu xám nhạt */
+        transition: color 0.2s ease-in-out;
+    }
+    .handsontable th:hover .htDropdownMenu {
+        color: #0d6efd; /* Màu xanh dương khi di chuột vào header */
+    }
+
+    /* Giao diện của menu lọc */
+    .htFiltersMenu {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+        margin-top: 5px;
+    }
+    .htFiltersMenu .htFiltersMenuLabel {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        font-weight: 600;
+    }
+    .htFiltersMenu .htUIButton {
+        border-radius: 4px;
+    }
+
+    /* Tùy chỉnh thanh cuộn (scrollbar) cho đẹp hơn */
+    .handsontable .wtHider::-webkit-scrollbar { width: 8px; height: 8px; }
+    .handsontable .wtHider::-webkit-scrollbar-track { background: #f1f1f1; }
+    .handsontable .wtHider::-webkit-scrollbar-thumb {
+        background: #ced4da;
+        border-radius: 4px;
+    }
+    .handsontable .wtHider::-webkit-scrollbar-thumb:hover { background: #adb5bd; }
+
+    /* --- KẾT THÚC KHỐI CSS NÂNG CAO --- */
+    /* --- KẾT THÚC KHỐI CSS NÂNG CẤP --- */
+</style>
+
+<h2>Lập lệnh sản xuất</h2>
+<p id="page-description">
+    Bảng đang ở chế độ "Chỉ xem". Nhấn "Chỉnh sửa" để bật/tắt chế độ nhập liệu.
+    Khi không có dữ liệu, bạn có thể nhấn "Chỉnh sửa" để bắt đầu thêm dòng mới.
+</p>
+
+<div style="margin-top: 15px; margin-bottom: 20px;">
+    <button id="edit-toggle-button" class="btn btn-primary">
+        <i class="fas fa-edit"></i> Chỉnh sửa
+    </button>
+    <button id="save-button" class="btn btn-success" style="display: none; margin-left: 10px;">
+        <i class="fas fa-save"></i> Lưu Dữ liệu
+    </button>
+    <button id="sort-button" class="btn btn-outline-secondary" style="display: none; margin-left: 10px;">
+        <i class="fas fa-sort-amount-down"></i> Sắp xếp Dữ liệu
+    </button>
+    <!-- <button id="add-row-button" class="btn btn-outline-primary" style="display: none; margin-left: 10px;">
+        <i class="fas fa-plus"></i> Thêm Dòng Mới
+    </button> -->
+    <button id="delete-all-button" class="btn btn-danger" style="display: none; margin-left: 10px;">
+        <i class="fas fa-trash-alt"></i> Xóa Toàn Bộ
+    </button>
+    <button id="export-template-button" class="btn btn-info" style="margin-left: 10px;">
+        <i class="fas fa-file-excel"></i> Xuất Lệnh sản xuất
+    </button>
+    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#importModal" style="margin-left: 10px;">
+        <i class="fas fa-file-import"></i> Import Excel
+    </button>
+</div>
+
+<div id="data-grid-container">
+    <div id="data-grid"></div>
+</div>
+
+<!-- Modal Import Excel -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importModalLabel"><i class="fas fa-file-import me-2"></i>Import Đơn Hàng từ Excel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="donhang_input_file" class="form-label fw-bold">
+                            <i class="fas fa-file-invoice me-2 text-primary"></i>Chọn file Đơn Hàng (Input)
+                        </label>
+                        <input type="file" id="donhang_input_file" name="donhang_input_file" class="form-control" accept=".xlsx" required>
+                        <div class="form-text">Tải lên file <code>input.xlsx</code> (sheet 'ĐƠN HÀNG') để xử lý.</div>
+                    </div>
+                    <div class="alert alert-warning mt-3" role="alert" style="font-size: 0.9rem;">
+                        <i class="fas fa-exclamation-triangle me-2"></i><strong>Lưu ý quan trọng:</strong>
+                        Thao tác này sẽ <strong>xóa toàn bộ dữ liệu hiện có</strong> và thay thế bằng dữ liệu từ file Excel.
+                    </div>
+                    <div id="import-status" class="mt-3"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="submit" form="importForm" id="import-submit-button" class="btn btn-primary">
+                    <i class="fas fa-upload me-2"></i>Bắt đầu Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let hot; 
+    let isEditMode = false;
+    let originalData = []; // Biến lưu data gốc để "Hủy"
+
+    // Lấy các DOM element
+    const container = document.getElementById('data-grid');
+    const editToggleButton = document.getElementById('edit-toggle-button');
+    const saveButton = document.getElementById('save-button');
+    const sortButton = document.getElementById('sort-button');
+    // const addRowButton = document.getElementById('add-row-button');
+    const deleteAllButton = document.getElementById('delete-all-button');
+    const exportTemplateButton = document.getElementById('export-template-button');
+    let isRecalculating = false; // Cờ để tránh vòng lặp vô tận
+
+    // --- HÀM TIỆN ÍCH: CẬP NHẬT SỐ THỨ TỰ ---
+    function updateRowNumbers() {
+        if (!hot) return;
+        const rowCount = hot.countRows();
+        const changes = [];
+        for (let i = 0; i < rowCount; i++) {
+            // Cột 'STT' là cột thứ 2 (chỉ số 1)
+            // Giá trị mới là vị trí dòng (i) + 1
+            changes.push([i, 1, i + 1]);
+        }
+        // Sử dụng setDataAtCell để cập nhật nhiều ô cùng lúc mà không trigger hook liên tục
+        // Tham số 'source' là 'updateRowNumbers' để tránh vòng lặp vô tận nếu cần
+        hot.setDataAtCell(changes, null, null, 'updateRowNumbers');
+    }
+
+    // --- HÀM TIỆN ÍCH: TÍNH TOÁN LẠI DUNG SAI & SL YÊU CẦU ---
+    // Tái tạo logic từ XuLyDuLieuNhapVao.py để tính toán real-time
+    function parseKL_Cuon(klCuonStr) {
+        if (!klCuonStr || typeof klCuonStr !== 'string') return NaN;
+
+        const s_value = klCuonStr.trim();
+        // Tìm dải số "min-max"
+        const rangeMatch = s_value.match(/(\d+)\s*-\s*(\d+)/);
+        if (rangeMatch) {
+            const num1 = parseInt(rangeMatch[1], 10);
+            const num2 = parseInt(rangeMatch[2], 10);
+            const cw_max = Math.max(num1, num2);
+            return cw_max - 0.5;
+        }
+
+        // Nếu không có dải, tìm số đơn lẻ đầu tiên
+        const singleNumMatch = s_value.match(/\d+/);
+        if (singleNumMatch) {
+            const num = parseInt(singleNumMatch[0], 10);
+            return num - 0.5;
+        }
+
+        return NaN;
+    }
+
+    function recalculateRow(rowIndex) {
+        if (isRecalculating) return; // Ngăn vòng lặp
+
+        const rowData = hot.getSourceDataAtRow(rowIndex);
+        
+        const sanLuong1A = parseFloat(rowData.SanLuong_1A) || 0;
+        const sanLuong1B = parseFloat(rowData.SanLuong_1B) || 0;
+        const klCuonStr = rowData.KL_Cuon;
+
+        const tong_san_luong = sanLuong1A + sanLuong1B;
+        const avg_kl_cuon = parseKL_Cuon(klCuonStr);
+
+        let sanLuongYeuCauCuon = 0;
+        let dungSaiStr = "± 0";
+
+        if (!isNaN(avg_kl_cuon) && avg_kl_cuon > 0) {
+            const sanLuongYeucauFloat = tong_san_luong / avg_kl_cuon;
+            sanLuongYeuCauCuon = Math.round(sanLuongYeucauFloat);
+
+            const base_dung_sai_float = 0.1 * sanLuongYeucauFloat;
+            let adjusted_dung_sai_float = (tong_san_luong > 2000) ? (base_dung_sai_float / 2) : base_dung_sai_float;
+            
+            const dung_sai_int = Math.round(adjusted_dung_sai_float);
+            dungSaiStr = `± ${dung_sai_int}`;
+        }
+
+        // Cập nhật dữ liệu vào bảng
+        isRecalculating = true;
+        hot.setDataAtRowProp([
+            [rowIndex, 'SanLuong_YeuCau_Cuon', sanLuongYeuCauCuon],
+            [rowIndex, 'DungSai', dungSaiStr]
+        ], 'recalculate');
+        
+        setTimeout(() => { isRecalculating = false; }, 0);
+    }
+
+    // 4. CẤU HÌNH HANDSONTABLE (RẤT QUAN TRỌNG)
+    function initializeHandsontable(data) {
+        hot = new Handsontable(container, {
+            data: data,
+            
+            // Tiêu đề cột (phải khớp với file Excel)
+            colHeaders: [
+                'ID', 'TT', 'Thời gian SX', 'Kích cỡ', 'Mác thép', 'S.Lượng 1A', 'S.Lượng 1B', 
+                'SL Y/C (cuộn)', 'Dung sai', 'GHC (Re)', 'GHB (Rm)', 'Giãn dài (El)', 'Độ cứng',
+                'Mác phôi', 'Kích thước phôi', 'Yêu cầu đặc biệt', 'Số Order', 'Số lô (Batch)',
+                'KL Cuộn', 'Mục đích', 'Khách hàng'
+            ],
+            
+            // Ánh xạ data (phải khớp với tên cột SQL/JSON từ API)
+            columns: [
+                { data: 'ID', readOnly: true }, // Cột 0
+                { data: 'STT', type: 'numeric' }, // Cột 1 - Bỏ readOnly để cập nhật sau khi sort
+                { data: 'ThoiGianSX', type: 'text' },
+                { data: 'KichCo', type: 'text' },
+                { data: 'MacThep', type: 'text' },
+                { data: 'SanLuong_1A', type: 'numeric', numericFormat: { pattern: '0,0' } },
+                { data: 'SanLuong_1B', type: 'numeric', numericFormat: { pattern: '0,0' } },
+                { data: 'SanLuong_YeuCau_Cuon', type: 'numeric', numericFormat: { pattern: '0,0' }, readOnly: true }, // Vẫn khóa, nhưng giá trị sẽ được JS cập nhật
+                { data: 'DungSai', type: 'text', readOnly: true }, // Vẫn khóa, nhưng giá trị sẽ được JS cập nhật
+                { data: 'CoTinh_GHC', type: 'text' },
+                { data: 'CoTinh_GHB', type: 'text' },
+                { data: 'CoTinh_GianDai', type: 'text' },
+                { data: 'CoTinh_DoCung', type: 'text' },
+                { data: 'Phoi_MacPhoi', type: 'text' },
+                { data: 'Phoi_KichThuoc', type: 'text' },
+                { data: 'YeuCauDacBiet', type: 'text' },
+                { data: 'OrderNumber', type: 'numeric' },
+                { data: 'Batch', type: 'numeric' },
+                { data: 'KL_Cuon', type: 'text' },
+                { data: 'MucDichSuDung', type: 'text' },
+                { data: 'KhachHang', type: 'text' },
+                { data: 'DotSX', type: 'text' } ,
+                { data: 'HasWarning'}// Thêm cột DotSX để dùng khi export
+            ],
+            
+            // Cấu hình ẩn cột ID (vẫn lấy data nhưng không hiển thị)
+            hiddenColumns: {
+                columns: [0, 21 , 22], // Ẩn cột 0 (ID) và cột 21 (DotSX)
+                indicators: false
+            },
+
+            // Logic khóa/mở ô
+            cells: function (row, col, prop) {
+                const cellProperties = {};
+                // Dùng "this.instance" thay vì "hot"
+                const rowData = this.instance.getSourceDataAtRow(row); 
+
+                // 1. Ưu tiên cao nhất: Tô màu cảnh báo
+                if (rowData && rowData.HasWarning) {
+                    cellProperties.className = 'data-warning';
+                }
+
+                // 2. Xét ReadOnly (Thêm 'HasWarning' vào đây)
+                if (prop === 'ID' || prop === 'SanLuong_YeuCau_Cuon' || prop === 'DungSai' || prop === 'STT' || prop === 'HasWarning') {
+                    cellProperties.readOnly = true;
+                } else {
+                    cellProperties.readOnly = !isEditMode;
+                }
+                
+                // 3. Tô màu ReadOnly (CHỈ KHI nó chưa được tô màu warning)
+                if (cellProperties.readOnly && !cellProperties.className) {
+                    // Chỉ thêm class 'data-readonly' nếu nó chưa có class 'data-warning'
+                    cellProperties.className = 'data-readonly';
+                }
+                
+                return cellProperties;
+            },
+            
+            // Các cài đặt khác
+            rowHeaders: false,
+            // selectionMode: 'row',        // Đổi chế độ chọn từ 'cell' (mặc định) sang 'row'
+            // currentRowClassName: 'ht-current-row',
+            // --- GIẢI PHÁP: Tắt hoàn toàn sắp xếp phía client ---
+            // Việc sắp xếp đã được thực hiện ở server. Tắt tính năng này
+            // để đảm bảo thứ tự dữ liệu luôn đúng và không bị người dùng thay đổi.
+            columnSorting: false,
+            filters: true,
+            dropdownMenu: true, // Bật lại icon menu lọc trên header
+            // Bật menu chuột phải (chỉ hoạt động khi isEditMode = true)
+            contextMenu: {
+                items: {
+                    "row_above": { name: 'Chèn dòng phía trên' },
+                    "row_below": { name: 'Chèn dòng phía dưới' },
+                    "remove_row": { name: 'Xóa dòng đã chọn' },
+                    "---------": {},
+                    "undo": { name: 'Hoàn tác' },
+                    "redo": { name: 'Làm lại' }
+                }
+            },
+            width: '100%',
+            height: 'auto',
+            colWidths: [0.1, 40, 100, 100, 100, 80, 80, 80, 60, 80, 80, 80, 80, 100, 100, 150, 100, 100, 80, 120, 120, 0.1,0.1], // Cột 0 (ID) và 21 (DotSX) siêu nhỏ
+            licenseKey: 'non-commercial-and-evaluation',
+            // Vô hiệu hóa context menu khi không ở chế độ chỉnh sửa
+            beforeContextMenuShow: function(e) { if (!isEditMode) { e.stopImmediatePropagation(); } }
+            ,
+            // --- HOOKS: TỰ ĐỘNG CẬP NHẬT SỐ THỨ TỰ ---
+            afterCreateRow: function(index, amount) {
+                updateRowNumbers();
+                // Tính toán cho dòng mới được tạo
+                for (let i = 0; i < amount; i++) {
+                    recalculateRow(index + i);
+                }
+            },
+            afterRemoveRow: function(index, amount) {
+                updateRowNumbers();
+            },
+            // --- HOOKS: TỰ ĐỘNG TÍNH TOÁN LẠI DỮ LIỆU KHI CHỈNH SỬA ---
+            afterChange: function(changes, source) {
+                if (['edit', 'paste'].includes(source) && !isRecalculating) {
+                    const affectedRows = new Set(changes.map(change => change[0]));
+                    affectedRows.forEach(rowIndex => recalculateRow(rowIndex));
+                }
+            }
+        });
+    }
+
+    // 5. LOGIC TẢI TRANG: Tải dữ liệu từ server
+    document.addEventListener('DOMContentLoaded', () => {
+        fetch('/api/get-lsx-data')
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                // Lưu trạng thái gốc (có thể là mảng rỗng hoặc mảng có dữ liệu)
+                originalData = JSON.parse(JSON.stringify(data)); 
+                initializeHandsontable(data); // Khởi tạo bảng với dữ liệu gốc
+                setupButtons(); 
+            })
+            .catch(error => {
+                console.error('Lỗi khi tải dữ liệu:', error);
+                container.innerHTML = `<div class='alert alert-danger'>Không thể tải dữ liệu từ server. ${error.message}</div>`;
+            });
+    });
+
+    // 6. LOGIC CÁC NÚT BẤM (Gán sau khi 'hot' đã được tạo)
+    function setupButtons() {
+        if (!hot) return;
+
+        // Nút Chỉnh sửa / Hủy
+        editToggleButton.addEventListener('click', () => {
+            isEditMode = !isEditMode; 
+            if (isEditMode) {
+                editToggleButton.innerHTML = '<i class="fas fa-times"></i> Trở về';
+                editToggleButton.classList.replace('btn-primary', 'btn-warning');
+                saveButton.style.display = 'inline-block';
+                sortButton.style.display = 'inline-block';
+                // addRowButton.style.display = 'inline-block';
+                deleteAllButton.style.display = 'inline-block';
+                exportTemplateButton.style.display = 'none'; // Ẩn nút xuất
+            } else {
+                editToggleButton.innerHTML = '<i class="fas fa-edit"></i> Chỉnh sửa';
+                editToggleButton.classList.replace('btn-warning', 'btn-primary');
+                saveButton.style.display = 'none';
+                sortButton.style.display = 'none';
+                // addRowButton.style.display = 'none';
+                deleteAllButton.style.display = 'none';
+                exportTemplateButton.style.display = 'inline-block'; // Hiện lại nút xuất
+                hot.loadData(originalData); // Tải lại data gốc khi Hủy
+            }
+            hot.render();
+        });
+
+        // Nút Lưu
+        saveButton.addEventListener('click', () => {
+            const dataToSave = hot.getSourceData();
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+            saveButton.disabled = true;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            fetch('/api/save-lsx-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json','X-CSRFToken': csrfToken },
+                body: JSON.stringify(dataToSave)
+            })
+            .then(res => res.json())
+            .then(result => {
+                alert(result.message);
+                if (result.status === 'success') {
+                    // Chuyển hướng về trang danh sách sau khi lưu thành công
+                    window.location.href = "{{ url_for('lsx.lap_lsx') }}";
+                }
+            })
+            .catch(err => alert('Lỗi: ' + err.message))
+            .finally(() => {
+                saveButton.innerHTML = '<i class="fas fa-save"></i> Lưu Dữ liệu';
+                saveButton.disabled = false;
+            });
+        });
+        
+        // --- HÀM XUẤT FILE EXCEL (TÁCH RIÊNG ĐỂ TÁI SỬ DỤNG) ---
+        function exportData(dataToExport, buttonElement) {
+            const originalButtonHTML = buttonElement.innerHTML;
+            buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+            buttonElement.disabled = true;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            fetch('/api/export-with-template', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json','X-CSRFToken': csrfToken },
+                body: JSON.stringify(dataToExport)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.message || 'Lỗi server') });
+                }
+                // Lấy tên file từ header Content-Disposition nếu có, nếu không thì dùng tên mặc định
+                const disposition = response.headers.get('Content-Disposition');
+                let filename = "LSX_Export.xlsx";
+                if (disposition && disposition.indexOf('attachment') !== -1) {
+                    const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                    const matches = filenameRegex.exec(disposition);
+                    if (matches != null && matches[1]) {
+                        filename = matches[1].replace(/['"]/g, '');
+                    }
+                }
+                return response.blob().then(blob => ({ blob, filename }));
+            })
+            .then(({ blob, filename }) => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none'; a.href = url; a.download = filename;
+                document.body.appendChild(a); a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(err => alert('Lỗi khi xuất file: ' + err.message))
+            .finally(() => {
+                buttonElement.innerHTML = originalButtonHTML;
+                buttonElement.disabled = false;
+            });
+        }
+
+        // Nút Xuất Template (không sắp xếp)
+        exportTemplateButton.addEventListener('click', () => {
+            const dataToExport = hot.getSourceData(); // Lấy data dạng object để có key 'DotSX'
+            exportData(dataToExport, exportTemplateButton);
+        });
+
+        // --- LOGIC NÚT MỚI: SẮP XẾP DỮ LIỆU TRÊN BẢNG ---
+        sortButton.addEventListener('click', () => {
+            const dataToSort = hot.getSourceData();
+
+            // Hàm helper để parse cột 'KichCo' (ví dụ: '2.3x1230X')
+            function parseKichCo(kichCoStr) {
+                if (typeof kichCoStr !== 'string' || !kichCoStr) return { doDay: 0, khoRong: 0 };
+                const parts = kichCoStr.toLowerCase().split('x');
+                const doDay = parseFloat(parts[0]) || 0;
+                let khoRong = 0;
+                if (parts.length > 1) {
+                    const khoRongMatch = parts[1].match(/\d+/);
+                    khoRong = khoRongMatch ? parseInt(khoRongMatch[0], 10) : 0;
+                }
+                return { doDay, khoRong };
+            }
+
+            // Sắp xếp dữ liệu
+            dataToSort.sort((a, b) => {
+                const a_parsed = parseKichCo(a.KichCo);
+                const b_parsed = parseKichCo(b.KichCo);
+                if (b_parsed.khoRong !== a_parsed.khoRong) return b_parsed.khoRong - a_parsed.khoRong;
+                return b_parsed.doDay - a_parsed.doDay;
+            });
+
+            // Cập nhật lại bảng với dữ liệu đã được sắp xếp
+            hot.loadData(dataToSort); // Tải lại dữ liệu sẽ tự động render
+            updateRowNumbers(); // Gọi hàm để đánh lại số thứ tự
+            alert('Đã sắp xếp dữ liệu. Nhấn "Lưu" để ghi lại thay đổi.');
+        });
+
+        // --- LOGIC NÚT XÓA TOÀN BỘ ---
+        deleteAllButton.addEventListener('click', () => {
+        if (confirm('BẠN CÓ CHẮC CHẮN MUỐN XÓA TOÀN BỘ DỮ LIỆU KHÔNG?\n\nHành động này không thể hoàn tác!')) {
+            deleteAllButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
+            deleteAllButton.disabled = true;
+
+            // 🚀 THÊM DÒNG NÀY: Lấy token ngay trước khi gọi fetch
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+            fetch('/api/clear-lsx-data', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken // Giờ biến này đã được định nghĩa
+                },
+            })
+            .then(res => {
+                // Thêm bước kiểm tra response.ok
+                if (!res.ok) {
+                    return res.json().then(err => { throw new Error(err.message || `Lỗi ${res.status}`) });
+                }
+                return res.json();
+            })
+            .then(result => {
+                alert(result.message);
+                if (result.status === 'success') {
+                    hot.loadData([]); // Xóa dữ liệu trên bảng
+                    originalData = []; // Xóa dữ liệu gốc
+                }
+            })
+            .catch(err => alert('Lỗi khi xóa: ' + err.message)) // Sẽ bắt được lỗi (kể cả lỗi 400)
+            .finally(() => {
+                deleteAllButton.innerHTML = '<i class="fas fa-trash-alt"></i> Xóa Toàn Bộ';
+                deleteAllButton.disabled = false;
+            });
+        }
+    });
+
+        // --- LOGIC CHO MODAL IMPORT EXCEL ---
+        const importForm = document.getElementById('importForm');
+        const importSubmitButton = document.getElementById('import-submit-button');
+        const importModal = new bootstrap.Modal(document.getElementById('importModal'));
+        const importStatus = document.getElementById('import-status');
+        let tempFilenameForImport = null; // Biến lưu tên file tạm
+
+        // 1. Xử lý khi nhấn nút "Bắt đầu Import"
+        importForm.addEventListener('submit', function(event) {
+            event.preventDefault(); // Ngăn form submit theo cách truyền thống
+
+            const formData = new FormData(this);
+            const fileInput = document.getElementById('donhang_input_file');
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert("Vui lòng chọn một file.");
+                return;
+            }
+
+            importSubmitButton.disabled = true;
+            importSubmitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tải lên...';
+            importStatus.innerHTML = `<div class="alert alert-info">Đang xử lý file, vui lòng chờ...</div>`;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            // Gửi file trực tiếp để import (không qua bước preview nữa)
+            fetch('/api/import-don-hang', {
+                method: 'POST',
+                headers: {
+                'X-CSRFToken': csrfToken 
+            },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    importModal.hide(); // Đóng modal
+                    window.location.reload(); // Tải lại trang để thấy dữ liệu mới
+                } else {
+                    // Nếu có lỗi từ server, hiển thị nó
+                    throw new Error(result.message || 'Có lỗi xảy ra từ server.');
+                }
+            })
+            .catch(error => {
+                importStatus.innerHTML = `<div class="alert alert-danger">Lỗi: ${error.message}</div>`;
+            })
+            .finally(() => { // Luôn reset nút bấm
+                importSubmitButton.disabled = false;
+                importSubmitButton.innerHTML = '<i class="fas fa-upload me-2"></i>Bắt đầu Import';
+            });
+        });
+
+        // Đã loại bỏ hàm displayPreview và logic liên quan đến nút "Xác nhận"
+    }
+
+</script>
+
+{% endblock %}

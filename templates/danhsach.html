@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Danh sách LSX{% endblock %}
+
+{% block content %}
+<h3>📂 Danh sách LSX</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <!-- <th>ID</th> -->
+            <th>Tên</th>
+            <th>Ngày tải lên</th>
+            <th>Hành động</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for entry in datasets %}
+        <tr>
+            <!-- <td>{{ entry.id }}</td> -->
+            <td>{{ entry.name }}</td>
+            <td>{{ entry.uploaded_at }}</td>
+            <td>
+                <a href="{{ url_for('lsx.xem_thong_tin_lsx', lsx_id=entry.id) }}" class="btn btn-sm btn-primary">👁 Xem</a>
+                <a href="{{ url_for('lsx.edit_lsx', lsx_id=entry.id) }}" class="btn btn-sm btn-warning">✏️ Sửa</a>
+                <form action="{{ url_for('lsx.delete_lsx', lsx_id=entry.id) }}" method="post" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Xóa LSX này?')">🗑 Xóa</button>
+                </form>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

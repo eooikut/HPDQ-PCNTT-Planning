@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Sửa người dùng{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0"><i class="fas fa-user-edit me-2"></i>Sửa thông tin người dùng: {{ user.username }}</h4>
+  </div>
+  <div class="card-body">
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <div class="mb-3">
+        <label for="username" class="form-label">Tài khoản</label>
+        <input type="text" class="form-control" id="username" value="{{ user.username }}" readonly>
+      </div>
+      <div class="mb-3">
+        <label for="full_name" class="form-label">Họ và tên</label>
+        <input type="text" class="form-control" id="full_name" name="full_name" value="{{ user.full_name }}" required>
+      </div>
+      <div class="mb-3">
+        <label for="role" class="form-label">Quyền</label>
+        <select class="form-select" id="role" name="role" {% if user.id == session.user_id %}disabled{% endif %}>
+          <option value="user" {% if user.role == 'user' %}selected{% endif %}>User</option>
+          <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="status" class="form-label">Trạng thái</label>
+        <select class="form-select" id="status" name="status" {% if user.id == session.user_id %}disabled{% endif %}>
+          <option value="1" {% if user.status == 1 %}selected{% endif %}>Đang hoạt động</option>
+          <option value="0" {% if user.status == 0 %}selected{% endif %}>Vô hiệu hóa</option>
+        </select>
+      </div>
+
+      <hr>
+      <div id="permissions-section">
+        <h5>Quyền chi tiết (chỉ áp dụng cho vai trò "User")</h5>
+        <p class="text-muted small">Khi chọn vai trò "Admin", các quyền này sẽ tự động bị vô hiệu hóa vì Admin đã có tất cả các quyền.</p>
+        <div class="row">
+          {% for p in all_permissions %}
+          <div class="col-md-4">
+            <div class="form-check form-switch">
+              <input 
+                class="form-check-input" 
+                type="checkbox" 
+                role="switch" 
+                id="perm_{{ p.name }}" 
+                name="permissions" 
+                value="{{ p.name }}"
+                {% if p.name in user_permissions %}checked{% endif %}>
+              <label class="form-check-label" for="perm_{{ p.name }}">{{ p.description }}</label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <hr>
+
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <a href="{{ url_for('user.list_users') }}" class="btn btn-secondary"><i class="fas fa-times me-1"></i> Hủy</a>
+        <a href="{{ url_for('user.reset_password', id=user.id) }}" class="btn btn-warning">
+            <i class="fas fa-key me-1"></i> Đặt lại mật khẩu
+        </a>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Lưu thay đổi</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('role');
+    const permissionsSection = document.getElementById('permissions-section');
+
+    function togglePermissions() {
+        const isAdmin = roleSelect.value === 'admin';
+        permissionsSection.style.display = isAdmin ? 'none' : 'block';
+    }
+
+    roleSelect.addEventListener('change', togglePermissions);
+    togglePermissions(); // Chạy lần đầu khi tải trang
+});
+</script>
+
+{% endblock %}

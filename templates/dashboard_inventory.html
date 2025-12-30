@@ -1,0 +1,1292 @@
+{% extends "base.html" %}
+{% block title %}Chi tiết Tồn Kho & Sales Order{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 border-bottom pb-2">
+        <div>
+            <h5 class="text-primary fw-bold mb-1">Top Mác thép hiện tại</h5>
+            <span id="top5-subtitle" class="badge bg-light text-dark border border-secondary fw-normal">
+                Đang tải dữ liệu...
+            </span>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
+            <select id="filter-factory" class="form-select form-select-sm shadow-sm" style="width: 110px; font-weight: 500;">
+                <option value="all">Tất cả NM</option>
+                <option value="HRC1">HRC1</option>
+                <option value="HRC2">HRC2</option>
+            </select>
+
+            <div class="input-group input-group-sm" style="width: 250px;">
+                <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                <input type="text" id="filter-mac-thep" class="form-control" placeholder="Tìm Mác thép..." autocomplete="off">
+            </div>
+
+            <button id="reset-tree-view" class="btn btn-sm btn-secondary shadow-sm">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="top-5-chart-container" style="width: 100%; height: 400px;">
+        <div class="d-flex h-100 justify-content-center align-items-center text-muted">Đang tải...</div>
+    </div>
+</div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="row h-100">
+                <div class="col-12 mb-3"> <div class="card shadow-sm h-100">
+                        <div class="card-body p-2">
+                            <h6 class="text-muted small fw-bold text-center">Trạng thái Cuộn</h6>
+                            <div id="status-pie-chart-container" style="width: 100%; height: 200px;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12"> <div class="card shadow-sm h-100">
+                        <div class="card-body p-2">
+                            <h6 class="text-muted small fw-bold text-center">Trạng thái SO</h6>
+                            <div id="so-pie-chart-container" style="width: 100%; height: 200px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light"><h6 class="mb-0 fw-bold">Cấu trúc Kho (Phân rã chi tiết)</h6></div>
+                <div class="card-body p-0">
+                    <div id="echarts-tree-container" style="width: 100%; height: 600px; overflow: hidden;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light"><h6 class="mb-0 fw-bold">Chi tiết Sales Order (Theo lọc)</h6></div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="height: 600px;">
+                        <table class="table table-sm table-hover table-bordered mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th style="width: 50px;">STT</th> <th>SO</th>
+                                    <th>Material</th>
+                                    <th>Định Lượng</th>
+                                    <th>Tiến độ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="so-details-tbody">
+                                <tr><td colspan="4" class="text-center p-3">Chọn node trên cây để xem.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between">
+                    <h6 class="mb-0 fw-bold">Danh sách Cuộn chi tiết</h6>
+                    <span id="page-info" class="small text-muted"></span>
+                </div>
+                <div class="card-body p-0">
+                     <div class="table-responsive" style="height: 400px;">
+                        <table class="table table-sm table-striped table-hover mb-0">
+                            <thead class="table-dark sticky-top">
+                                <tr><th>STT</th><th>ID Cuộn</th><th>Material</th><th>Nhóm</th><th>Nhà máy</th><th>KL (kg)</th><th>Vị trí</th><th>Trạng thái</th><th>Mapping</th></tr>
+                            </thead>
+                            <tbody id="coil-details-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="p-2 d-flex justify-content-end bg-light border-top">
+                         <button class="btn btn-sm btn-outline-secondary me-1" id="btn-prev">Trước</button>
+                         <button class="btn btn-sm btn-outline-secondary" id="btn-next">Sau</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+/* Copy CSS cũ của bạn cho Tree và Table vào đây */
+#echarts-tree-container { background: linear-gradient(90deg, #f8f9fa 0%, #ffffff 100%); }
+/* ... */
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script>
+    // --- KHAI BÁO BIẾN ---
+    const apiUrl = "{{ url_for('dashboard_so_bp.get_inventory_api') }}";
+    let allCoils = [], inventoryCoils = [], allSoDetailsCategorized = [], echartsFullData = {};
+    let currentFilteredCoils = [], currentFilteredSOs = [];
+    let myChart = null;  
+    // UI Elements
+    const treeContainer = document.getElementById('echarts-tree-container');
+    const coilTbody = document.getElementById('coil-details-tbody');
+    const soTbody = document.getElementById('so-details-tbody');
+    const filterInput = document.getElementById('filter-mac-thep');
+
+    // Chart instances
+    const statusPieChartContainer = document.getElementById('status-pie-chart-container');
+    const soPieChartContainer = document.getElementById('so-pie-chart-container');
+    const top5ChartContainer = document.getElementById('top-5-chart-container');
+    const chartContainer = document.getElementById('echarts-tree-container');
+    let treeChart = null, top5Chart = null, statusPieChart = null, soPieChart = null;
+    const filterMacThepEl = document.getElementById('filter-mac-thep'); 
+    // Pagination
+    let currentPage = 1; const rowsPerPage = 20; let currentTableData = [];
+
+    // Filter Logic
+    let globalStatusFilter = null;
+    let suitableWidthSet = new Set(), suitableThicknessSet = new Set();
+    const NHOM_PRIORITY = ['C', 'C1', 'C2','D','D1','D2', 'ZH', 'ZX', 'ZR'];
+    function getNhomSortScore(nhom) {
+        const index = NHOM_PRIORITY.indexOf(nhom);
+        if (index === -1) return Infinity; 
+        return index; 
+    }
+
+function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
+    }
+    function categorizeSOData(soList) {
+        return soList.map(so => {
+            const yeuCauKg = so['Quantity (KG)'] || 0;
+            const tienDo = so['Process'] || 0;
+            const yeuCauTan = yeuCauKg / 1000;
+            
+            let status = 'Chưa hoàn thành';
+            
+            if (yeuCauTan <= 100 && tienDo > 80) {
+                status = 'Hoàn thành';
+            } else if (yeuCauTan > 100 && tienDo > 90) {
+                status = 'Hoàn thành';
+            }
+            
+            return {
+                ...so, // Giữ lại tất cả các thuộc tính gốc
+                calculated_status: status,
+                // THÊM CÁC TRƯỜNG LỌC TƯƠNG TỰ CUỘN VÀO SO
+                kho_rong_group: so['kho_rong_group'] || 'Không xác định', // Đảm bảo trường này tồn tại
+                chieu_day_group: so['chieu_day_group'] || 'Không xác định', // Đảm bảo trường này tồn tại
+                'Nhóm': so['Nhóm'] || 'Không xác định' // Đảm bảo trường Nhóm tồn tại
+            };
+        });
+    }
+    function initEChartsTree(dataNodes) {
+    isZoomedIn = (dataNodes.length === 1 && dataNodes[0].id && !dataNodes[0].id.startsWith('$'));
+    
+    // --- [ĐOẠN CODE MỚI: TỰ ĐỘNG TÍNH CHIỀU CAO DỰA TRÊN SỐ LƯỢNG NODE] ---
+    // 1. Đếm số lượng node con ở cấp 1 (để biết cần bao nhiêu dòng)
+    let childCount = 0;
+    if (dataNodes && dataNodes.length > 0 && dataNodes[0].children) {
+        childCount = dataNodes[0].children.length;
+    }
+
+    // 2. Cấu hình khoảng cách bạn muốn
+    const pixelsPerNode = 40; // Khoảng cách giữa các node (Tăng số này nếu muốn xa hơn nữa)
+    const minHeight = 600;    // Chiều cao tối thiểu mặc định
+
+    // 3. Tính chiều cao thực tế cần thiết
+    // Nếu có 50 node -> Cao = 50 * 40 = 2000px
+    const autoHeight = Math.max(minHeight, childCount * pixelsPerNode);
+
+    // 4. Áp dụng chiều cao mới cho thẻ div chứa biểu đồ
+    chartContainer.style.height = `${autoHeight}px`;
+    // ----------------------------------------------------------------------
+
+    // Sau khi set height xong mới khởi tạo ECharts
+    if (myChart) myChart.dispose();
+    myChart = echarts.init(chartContainer);
+
+    let currentHighlightedPathIds = []; 
+    
+    // Giữ hàm helper này
+    function isVirtualRoot(id) {
+        if (!id) return false;
+        return id === '$search_root' || id === '$status_root' || id === '$all_items_root';
+    }
+
+    const option = {
+        tooltip: {
+            trigger: 'item', triggerOn: 'mousemove',
+            backgroundColor: '#fff', borderColor: '#ccc',
+            textStyle: { color: '#333' },
+            formatter: function (params) {
+                let html = `<b>${params.data.name}</b><br>${params.data.value.toLocaleString('vi-VN')} cuộn`;
+                if (params.data.so_count && params.data.so_count > 0)
+                    html += `<br>${params.data.so_count} SO`;
+                return html;
+            }
+        },
+        series: [{
+            type: 'tree', 
+            data: dataNodes,
+            
+            // --- CẤU HÌNH VỊ TRÍ VẼ ---
+            // Để top/bottom rộng ra một chút để node đầu/cuối không bị sát mép
+            top: '50px',   
+            bottom: '50px',
+            left: '10%',
+            right: '20%',
+            
+            orient: 'LR', 
+            symbol: 'emptyCircle', // Đổi sang hình tròn rỗng cho thoáng
+            symbolSize: 7,         // Kích thước chấm tròn
+            
+            roam: false, // Tắt roam (zoom/pan) để tránh người dùng cuộn lung tung khi trang đã dài
+            expandAndCollapse: true,
+            initialTreeDepth: 1, 
+            
+            // Làm đường nối cong mềm mại hơn
+            edgeShape: 'curve', 
+            lineStyle: { color: '#d0d0d0', width: 1, curveness: 0.5 },
+            
+            label: {
+                verticalAlign: 'middle',
+                backgroundColor: '#fff', borderColor: '#dee2e6',
+                borderWidth: 1, borderRadius: 4,
+                padding: [4, 8], // Tăng padding cho đẹp
+                color: '#333', fontSize: 12,
+                
+                position: function (params) {
+                    const isLeaf = !params.data.children || params.data.children.length === 0;
+                    return isLeaf ? 'right' : 'left';
+                },
+                align: function (params) {
+                    const isLeaf = !params.data.children || params.data.children.length === 0;
+                    return isLeaf ? 'left' : 'right';
+                },
+                formatter: function (params) {
+                    let str = `{name|${params.data.name}}\n{val|${params.data.value.toLocaleString('vi-VN')} cuộn}`;
+                    return str;
+                },
+                // Định dạng Rich Text để làm đẹp chữ
+                rich: {
+                    name: { fontWeight: 'bold', fontSize: 13, padding: [0, 0, 2, 0] },
+                    val: { color: '#666', fontSize: 11 }
+                }
+            },
+            
+            emphasis: {
+                focus: 'ancestor',
+                label: {
+                    backgroundColor: '#fff3cd', 
+                    borderColor: '#ffc107'
+                },
+                lineStyle: { color: '#ffc107', width: 2 }
+            },
+            
+            animationDuration: 450,
+            animationDurationUpdate: 700
+        }]
+    };
+
+    myChart.setOption(option);
+
+    // --- GIỮ NGUYÊN CÁC SỰ KIỆN CLICK CŨ CỦA BẠN ---
+    myChart.on('click', function (params) {
+        // ... (Code xử lý click giữ nguyên như cũ) ...
+        params.event.stop();
+        if (!params.data || !params.data.id) return; 
+        if (isVirtualRoot(params.data.id)) return;
+
+        let baseCoils = inventoryCoils;
+        let baseSOs = allSoDetailsCategorized;
+        if (globalStatusFilter) {
+            baseCoils = allCoils.filter(c => c['TrangThai'] === globalStatusFilter);
+            const allowedMacThep = new Set(baseCoils.map(c => c['Mác thép']));
+            baseSOs = allSoDetailsCategorized.filter(so => allowedMacThep.has(so['Mác thép']));
+        }
+        const isMacThepNode = params.data.filterParams && 
+                              params.data.filterParams.mac_thep && 
+                              !params.data.filterParams.type;
+        
+        const isMultiNodeView = dataNodes.length > 1 || (dataNodes.length === 1 && isVirtualRoot(dataNodes[0].id));
+
+        if (isMacThepNode && isMultiNodeView) {
+            initEChartsTree([params.data]); 
+            const filters = params.data.filterParams || {};
+            const currentMacThep = filters.mac_thep;
+            filterAndRenderTables(filters, baseCoils, baseSOs);
+            const coilsToShow = baseCoils.filter(c => c['Mác thép'] === currentMacThep);
+            updateStatusPieChart(coilsToShow, params.data.name);
+            const soMatchingFilter = baseSOs.filter(s => s['Mác thép'] === currentMacThep);
+            const soKeysFromCoils = new Set();
+            coilsToShow.forEach(c => {
+                const matDesc = c['Material Description'];
+                if (!matDesc) return;
+                const soMap = c['SO Mapping'];
+                if (soMap && soMap !== '0' && soMap !== 0) {
+                    soKeysFromCoils.add(`${soMap}_${matDesc}`);
+                }
+                const soDuKien = c['SO Mapping dự kiến'];
+                if (soDuKien && soDuKien !== '0' && soDuKien !== 0) {
+                    soKeysFromCoils.add(`${soDuKien}_${matDesc}`);
+                }
+            });
+            const combinedSoMap = new Map();
+            soMatchingFilter.forEach(so => {
+                const key = `${so['SO Mapping']}_${so['Material Description']}`;
+                combinedSoMap.set(key, so);
+            });
+            soKeysFromCoils.forEach(key => {
+                if (!combinedSoMap.has(key)) {
+                    const matchingSO = baseSOs.find(so => `${so['SO Mapping']}_${so['Material Description']}` === key);
+                    if (matchingSO) combinedSoMap.set(key, matchingSO);
+                }
+            });
+            const soToShow = Array.from(combinedSoMap.values());
+            updateSoPieChart(soToShow, params.data.name);
+            return;
+        }
+        
+        const pathInfo = params.treePathInfo || [];
+        if (currentHighlightedPathIds.length > 0) {
+            currentHighlightedPathIds.forEach(id => myChart.dispatchAction({ type: 'downplay', seriesIndex: 0, id: id }));
+            currentHighlightedPathIds = []; 
+        }
+        pathInfo.forEach(p => {
+            if (p.data && p.data.id) {
+                myChart.dispatchAction({ type: 'highlight', seriesIndex: 0, id: p.data.id });
+                currentHighlightedPathIds.push(p.data.id); 
+            }
+        });
+
+        const filters = params.data.filterParams || {};
+        filterAndRenderTables(filters, baseCoils, baseSOs);
+        const currentMacThep = filters.mac_thep;
+        if (currentMacThep) {
+            let coilsToShow = baseCoils.filter(c => c['Mác thép'] === currentMacThep);
+            if (filters.type === 'width' && filters.value)
+                coilsToShow = coilsToShow.filter(c => c['kho_rong_group'] === filters.value);
+            if (filters.type === 'thickness' && filters.value)
+                coilsToShow = coilsToShow.filter(c => c['chieu_day_group'] === filters.value);
+            if (filters.nhom)
+                coilsToShow = coilsToShow.filter(c => c['Nhóm'] === filters.nhom);
+            updateStatusPieChart(coilsToShow, `${params.data.name}`);
+            let soMatchingFilter = baseSOs.filter(s => s['Mác thép'] === currentMacThep);
+            if (filters.type === 'width' && filters.value)
+                soMatchingFilter = soMatchingFilter.filter(s => s['kho_rong_group'] === filters.value);
+            if (filters.type === 'thickness' && filters.value)
+                soMatchingFilter = soMatchingFilter.filter(s => s['chieu_day_group'] === filters.value);
+            if (filters.nhom)
+                soMatchingFilter = soMatchingFilter.filter(s => s['Nhóm'] === filters.nhom);
+            const soKeysFromCoils = new Set();
+            coilsToShow.forEach(c => {
+                const matDesc = c['Material Description'];
+                if (!matDesc) return;
+                const soMap = c['SO Mapping'];
+                if (soMap && soMap !== '0' && soMap !== 0) {
+                    soKeysFromCoils.add(`${soMap}_${matDesc}`);
+                }
+                const soDuKien = c['SO Mapping dự kiến'];
+                if (soDuKien && soDuKien !== '0' && soDuKien !== 0) {
+                    soKeysFromCoils.add(`${soDuKien}_${matDesc}`);
+                }
+            });
+            const combinedSoMap = new Map();
+            soMatchingFilter.forEach(so => {
+                const key = `${so['SO Mapping']}_${so['Material Description']}`;
+                combinedSoMap.set(key, so);
+            });
+            soKeysFromCoils.forEach(key => {
+                if (!combinedSoMap.has(key)) {
+                    const matchingSO = baseSOs.find(so => `${so['SO Mapping']}_${so['Material Description']}` === key);
+                    if (matchingSO) combinedSoMap.set(key, matchingSO);
+                }
+            });
+            const soToShow = Array.from(combinedSoMap.values());
+            updateSoPieChart(soToShow, `${params.data.name}`);
+        }
+    });
+
+    myChart.getZr().on('click', function (event) {
+        if (!event.target) {
+            if (currentHighlightedPathIds.length > 0) {
+                currentHighlightedPathIds.forEach(id => myChart.dispatchAction({ type: 'downplay', seriesIndex: 0, id: id }));
+                currentHighlightedPathIds = [];
+            }
+            let baseCoils = inventoryCoils;
+            let baseSOs = allSoDetailsCategorized;
+             if (globalStatusFilter) {
+                 baseCoils = allCoils.filter(c => c['TrangThai'] === globalStatusFilter);
+                 const allowedMacThep = new Set(baseCoils.map(c => c['Mác thép']));
+                 baseSOs = allSoDetailsCategorized.filter(so => allowedMacThep.has(so['Mác thép']));
+            }
+            filterAndRenderTables({}, baseCoils, baseSOs); 
+        }
+    });
+}
+function buildTreeData(coils) {
+        // 1. Khởi tạo object chứa dữ liệu gom nhóm
+        const grouped = {};
+
+        coils.forEach(c => {
+            const m = c['Mác thép'];
+            const w = c['kho_rong_group'];
+            const t = c['chieu_day_group']; // Lấy nhóm chiều dày
+            const n = c['Nhóm'];
+
+            // Tạo node gốc cho Mác thép nếu chưa có
+            if (!grouped[m]) {
+                grouped[m] = { total: 0, widths: {}, thicknesses: {} };
+            }
+            grouped[m].total++;
+
+            // A. GOM NHÓM THEO KHỔ RỘNG
+            if (!grouped[m].widths[w]) grouped[m].widths[w] = { total: 0, nhoms: {} };
+            grouped[m].widths[w].total++;
+            if (!grouped[m].widths[w].nhoms[n]) grouped[m].widths[w].nhoms[n] = 0;
+            grouped[m].widths[w].nhoms[n]++;
+
+            // B. GOM NHÓM THEO CHIỀU DÀY (Đã bổ sung phần này)
+            if (!grouped[m].thicknesses[t]) grouped[m].thicknesses[t] = { total: 0, nhoms: {} };
+            grouped[m].thicknesses[t].total++;
+            if (!grouped[m].thicknesses[t].nhoms[n]) grouped[m].thicknesses[t].nhoms[n] = 0;
+            grouped[m].thicknesses[t].nhoms[n]++;
+        });
+
+        // 2. Chuyển đổi sang cấu trúc Node của ECharts
+        return Object.keys(grouped).map(mac => {
+            
+            // Xử lý nhánh con: KHỔ RỘNG
+            const widthChildren = Object.keys(grouped[mac].widths).sort().map(width => ({
+                name: width,
+                value: grouped[mac].widths[width].total,
+                id: `$${mac}_w_${width}`,
+                filterParams: { mac_thep: mac, type: 'width', value: width },
+                children: Object.keys(grouped[mac].widths[width].nhoms)
+                    .sort((a, b) => getNhomSortScore(a) - getNhomSortScore(b))
+                    .map(nhom => ({
+                        name: nhom,
+                        value: grouped[mac].widths[width].nhoms[nhom],
+                        id: `$${mac}_w_${width}_n_${nhom}`,
+                        filterParams: { mac_thep: mac, type: 'width', value: width, nhom: nhom }
+                    }))
+            }));
+
+            // Xử lý nhánh con: CHIỀU DÀY
+            const thicknessChildren = Object.keys(grouped[mac].thicknesses)
+                // Sắp xếp chiều dày từ bé đến lớn (dùng parseFloat vì tên là string "1.2-1.5")
+                .sort((a, b) => parseFloat(a) - parseFloat(b))
+                .map(thick => ({
+                    name: thick + " mm",
+                    value: grouped[mac].thicknesses[thick].total,
+                    id: `$${mac}_t_${thick}`,
+                    filterParams: { mac_thep: mac, type: 'thickness', value: thick },
+                    children: Object.keys(grouped[mac].thicknesses[thick].nhoms)
+                        .sort((a, b) => getNhomSortScore(a) - getNhomSortScore(b))
+                        .map(nhom => ({
+                            name: nhom,
+                            value: grouped[mac].thicknesses[thick].nhoms[nhom],
+                            id: `$${mac}_t_${thick}_n_${nhom}`,
+                            filterParams: { mac_thep: mac, type: 'thickness', value: thick, nhom: nhom }
+                        }))
+                }));
+
+            // Trả về Node Mác thép chứa 2 nhánh con lớn
+            return {
+                name: mac,
+                value: grouped[mac].total,
+                id: `$${mac}`,
+                filterParams: { mac_thep: mac },
+                children: [
+                    {
+                        name: "Theo Khổ Rộng",
+                        id: `$${mac}_width_root`,
+                        children: widthChildren,
+                        value: grouped[mac].total
+                    },
+                    {
+                        name: "Theo Chiều Dày",
+                        id: `$${mac}_thickness_root`,
+                        children: thicknessChildren,
+                        value: grouped[mac].total
+                    }
+                ]
+            };
+        }).sort((a, b) => b.value - a.value);
+    }
+function transformDataForECharts(tree) {
+        let macThepNodes = [];
+        const macTheps = Object.keys(tree); 
+        for (const macThep of macTheps) {
+            const branches = tree[macThep];
+            const macThepTotal = branches._total_coils || 0;
+            const macThepSO = branches._total_so || 0; 
+            const macThepParams = { mac_thep: macThep };
+            let branchNodes = [];
+            let widthParentNode = { 
+                id: `$${macThep}_width_root`, name: "Theo Khổ Rộng", 
+                value: macThepTotal, so_count: macThepSO,
+                filterParams: macThepParams, children: [] 
+            };
+            const khoRongs = Object.keys(branches.by_width).filter(k => k.startsWith('_') === false).sort();
+            for (const khoRong of khoRongs) {
+                const khoRongData = branches.by_width[khoRong];
+                const khoRongTotal = khoRongData._total_coils || 0;
+                let nhomNodes = [];
+                const nhoms = Object.keys(khoRongData).filter(k => k.startsWith('_') === false);
+                nhoms.sort((a, b) => getNhomSortScore(a) - getNhomSortScore(b));
+                for (const nhom of nhoms) {
+                    const key_width = `${macThep}_${khoRong}_${nhom}`;
+                    const nodeStyle = suitableWidthSet.has(key_width) ? { backgroundColor: '#d1e7dd', borderColor: '#198754' } : {};
+                    nhomNodes.push({
+                        id: `$${macThep}_khorong_${khoRong}_${nhom}`, name: nhom,
+                        value: khoRongData[nhom].coil_count || 0,
+                        so_count: khoRongData[nhom].so_count || 0, 
+                        filterParams: { mac_thep: macThep, type: 'width', value: khoRong, nhom: nhom },
+                        label: nodeStyle
+                    });
+                }
+                widthParentNode.children.push({
+                    id: `$${macThep}_width_${khoRong}`, name: khoRong,
+                    value: khoRongTotal, so_count: khoRongData._total_so || 0, 
+                    children: nhomNodes,
+                    filterParams: { mac_thep: macThep, type: 'width', value: khoRong }
+                });
+            }
+            if(widthParentNode.children.length > 0) branchNodes.push(widthParentNode);
+            let thicknessParentNode = { 
+                id: `$${macThep}_thickness_root`, name: "Theo Chiều Dày", 
+                value: macThepTotal, so_count: macThepSO,
+                filterParams: macThepParams, children: [] 
+            };
+            const chieuDays = Object.keys(branches.by_thickness).filter(k => k.startsWith('_') === false).sort((a,b) => parseFloat(a) - parseFloat(b));
+            for (const chieuDay of chieuDays) {
+                const chieuDayData = branches.by_thickness[chieuDay];
+                const chieuDayTotal = chieuDayData._total_coils || 0;
+                let nhomNodes = [];
+                const nhoms = Object.keys(chieuDayData).filter(k => k.startsWith('_') === false);
+                nhoms.sort((a, b) => getNhomSortScore(a) - getNhomSortScore(b));
+                for (const nhom of nhoms) {
+                    const key_thickness = `${macThep}_${chieuDay}_${nhom}`;
+                    const nodeStyle = suitableThicknessSet.has(key_thickness) ? { backgroundColor: '#d1e7dd', borderColor: '#198754' } : {};
+                    nhomNodes.push({
+                        id: `$${macThep}_thickness_${chieuDay}_${nhom}`, name: nhom,
+                        value: chieuDayData[nhom].coil_count || 0,
+                        so_count: chieuDayData[nhom].so_count || 0, 
+                        filterParams: { mac_thep: macThep, type: 'thickness', value: chieuDay, nhom: nhom },
+                        label: nodeStyle
+                    });
+                }
+                thicknessParentNode.children.push({
+                    id: `$${macThep}_thickness_${chieuDay}`, name: chieuDay + " mm",
+                    value: chieuDayTotal, so_count: chieuDayData._total_so || 0, 
+                    children: nhomNodes,
+                    filterParams: { mac_thep: macThep, type: 'thickness', value: chieuDay }
+                });
+            }
+            if(thicknessParentNode.children.length > 0) branchNodes.push(thicknessParentNode);
+            
+            macThepNodes.push({
+                id: `$${macThep}`, name: macThep,
+                value: macThepTotal,
+                so_count: macThepSO, 
+                children: branchNodes, filterParams: macThepParams
+            });
+        }
+        macThepNodes.sort((a, b) => b.value - a.value);
+        return {
+            id: '$root', name: "Toàn bộ kho",
+            value: macThepNodes.reduce((sum, node) => sum + node.value, 0),
+            so_count: macThepNodes.reduce((sum, node) => sum + (node.so_count || 0), 0),
+            filterParams: {}, 
+            children: macThepNodes
+        };
+    }
+    function calculateTop5(coils) { // (Nếu bạn đang đặt tên là calculateTop8 thì giữ nguyên tên đó)
+    const counts = {};
+    const weights = {}; 
+    
+    // 1. Tính toán số lượng và khối lượng
+    for (const coil of coils) {
+        const macThep = coil['Mác thép'] || 'N/A';
+        const khoiLuong = parseFloat(coil['Khối lượng'] || 0);
+
+        counts[macThep] = (counts[macThep] || 0) + 1;
+        weights[macThep] = (weights[macThep] || 0) + khoiLuong;
+    }
+
+    // 2. Sắp xếp
+    const sorted = Object.entries(counts).sort(([, a], [, b]) => b - a);
+
+    // 3. Lấy Top 8 (hoặc 5 tùy bạn chỉnh)
+    const topList = sorted.slice(0, 8).map(([name, value]) => ({ 
+        name, 
+        value,
+        totalWeight: weights[name] / 1000 
+    }));
+
+    // 4. Xử lý phần "Các loại khác"
+    const others = sorted.slice(8);
+    if (others.length > 0) {
+        const othersCount = others.reduce((sum, [, val]) => sum + val, 0);
+        let othersWeight = 0;
+        
+        // Tính tổng khối lượng cho thanh "Các loại khác"
+        others.forEach(([name]) => {
+            othersWeight += (weights[name] || 0);
+        });
+
+        topList.push({
+            name: `Các loại khác (${others.length} mác)`,
+            value: othersCount,
+            totalWeight: othersWeight / 1000,
+            isOther: true,
+            
+            // --- [SỬA TẠI ĐÂY: THÊM SỐ TẤN VÀO DANH SÁCH CHI TIẾT] ---
+            detailList: others.map(([n, v]) => {
+                // Lấy khối lượng riêng của từng mác thép con
+                const w = weights[n] || 0;
+                // Đổi sang Tấn và format đẹp
+                const ton = Math.round(w / 1000).toLocaleString('vi-VN');
+                
+                // Kết quả: "Q355B: 61 (1.230 Tấn)"
+                return `${n}: <b>${v}</b> <span style="color:#666; font-size:0.9em">(${ton} Tấn)</span>`;
+            }).join('<br/>')
+            // ---------------------------------------------------------
+        });
+    }
+
+    return topList;
+}
+function initTop5Chart(data) {
+    if (top5Chart) top5Chart.dispose();
+    
+    if (data.length === 0) {
+         top5ChartContainer.innerHTML = `<div class="d-flex h-100 justify-content-center align-items-center text-muted p-2">Không có dữ liệu.</div>`;
+        return;
+    }
+
+    top5Chart = echarts.init(top5ChartContainer);
+    
+    const option = {
+        // Cấu hình Tooltip để khi rê vào "Các loại khác" sẽ thấy danh sách
+        tooltip: { 
+            trigger: 'item', // Đổi thành item để bắt riêng lẻ từng thanh
+            formatter: function(params) {
+                // Nếu là thanh "Các loại khác", hiện danh sách chi tiết
+                if (params.data.isOther) {
+                    // Chỉ hiện 10 dòng đầu nếu quá dài
+                    return `<b>${params.name}</b>: ${params.value.toLocaleString('vi-VN')} cuộn<br/><hr style="margin:5px 0"/>${params.data.detailList}`;
+                }
+                // Các thanh bình thường
+                return `${params.marker} <b>${params.name}</b>: ${params.value.toLocaleString('vi-VN')} cuộn`;
+            }
+        },
+        grid: { 
+            left: '1%',    // Sát lề trái
+            right: '15%',  // Chừa chỗ cho số liệu bên phải
+            top: '10px',   // Sát mép trên
+            bottom: '0%',  // Sát mép dưới (QUAN TRỌNG)
+            containLabel: true 
+        },
+        xAxis: { 
+            type: 'value', 
+            boundaryGap: [0, 0.01],
+            axisLabel: { show: false }, 
+            splitLine: { show: false }
+        },
+        yAxis: {
+            type: 'category',
+            data: data.map(item => item.name).reverse(),
+            // Tăng độ rộng trục Y để chứa tên dài nếu cần
+            axisLabel: { fontSize: 11, interval: 0, fontWeight: 'bold', width: 110, overflow: 'truncate' }
+        },
+        series: [{
+            name: 'Số cuộn', 
+            type: 'bar',
+            // 1. CẬP NHẬT DỮ LIỆU ĐẦU VÀO (Thêm totalWeight)
+            data: data.map(item => ({
+                value: item.value,
+                totalWeight: item.totalWeight, // <--- Truyền thêm cái này
+                isOther: item.isOther,
+                detailList: item.detailList,
+                itemStyle: { 
+                    color: item.isOther ? '#adb5bd' : '#0d6efd', 
+                    borderRadius: [0, 4, 4, 0] 
+                }
+            })).reverse(),
+            
+            barWidth: '65%',       
+            barCategoryGap: '15%', 
+            
+            label: {
+                show: true,
+                position: 'right', // Hiển thị bên phải thanh
+                valueAnimation: true,
+                color: '#333',
+                fontWeight: 'bold',
+                fontSize: 13,
+                fontFamily: 'Arial, sans-serif',
+                
+                // 2. FORMATTER MỚI: Hiển thị cả Cuộn và Tấn
+                formatter: function(params) {
+                    const cuon = params.value.toLocaleString('vi-VN');
+                    // Làm tròn số Tấn (không lấy số lẻ thập phân cho gọn)
+                    const tan = Math.round(params.data.totalWeight).toLocaleString('vi-VN');
+                    
+                    return `${cuon} cuộn (${tan} Tấn)`;
+                }
+            }
+        }],
+        animationDuration: 450
+    };
+    
+    top5Chart.setOption(option);
+
+    // Giữ nguyên sự kiện Click (nhưng chặn click vào Other nếu muốn)
+    top5Chart.on('click', function(params) {
+        if (params.data.isOther) return; // Không lọc khi click vào "Các loại khác"
+        
+        if (params.name) {
+            filterMacThepEl.value = params.name;
+            globalStatusFilter = null;
+            if (statusPieChart) statusPieChart.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+            applyFiltersAndRedraw('top5_click');
+        }
+    });
+}
+function initStatusPieChart() {
+        if (statusPieChart && !statusPieChart.isDisposed()) statusPieChart.dispose();
+        if (!statusPieChartContainer) return; 
+        statusPieChart = echarts.init(statusPieChartContainer);
+        const option = {
+            title: {
+                text: '', 
+                subtext: 'Toàn bộ',
+                left: 'center', top: '2%',
+                textStyle: { fontSize: 16 }, subtextStyle: { fontSize: 12 }
+            },
+            tooltip: { trigger: 'item', formatter: '{b} <br/>{c} cuộn ({d}%)' },
+            legend: {
+                orient: 'horizontal', bottom: '2%',
+                left: 'center', type: 'scroll'
+            },
+            series: [{
+                name: 'Trạng thái', type: 'pie',
+                radius: ['40%', '65%'], center: ['50%', '50%'], 
+                data: [], 
+                emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' } },
+                label: { formatter: '{d}%', position: 'inside', color: '#000', fontSize: 12 }
+            }],
+        };
+        statusPieChart.setOption(option);
+        statusPieChart.on('click', function(params) {
+            if (!params.data) return;
+            
+            const clickedStatus = params.name;
+
+            // Toggle (Bật/Tắt) filter
+            if (globalStatusFilter === clickedStatus) {
+                globalStatusFilter = null; // Bỏ chọn
+                statusPieChart.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+            } else {
+                globalStatusFilter = clickedStatus; // Chọn mới
+                // Highlight miếng bánh được chọn
+                statusPieChart.dispatchAction({ type: 'downplay', seriesIndex: 0 }); // Reset trước
+                statusPieChart.dispatchAction({ type: 'highlight', seriesIndex: 0, dataIndex: params.dataIndex });
+            }
+
+            // Gọi hàm trung tâm để vẽ lại tất cả (Top 5, Tree, Table...)
+            applyFiltersAndRedraw('pie_click');
+        });
+
+        statusPieChart.getZr().on('click', function (event) {
+            if (!event.target && globalStatusFilter && !isZoomedIn) {
+                 globalStatusFilter = null;
+                 statusPieChart.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+                 applyFiltersAndRedraw('pie_deselect_blank');
+            }
+        });
+    }
+// --- CÁC HÀM CÒN THIẾU (CẦN BỔ SUNG) ---
+
+// 1. Hàm tìm kiếm Node trên cây
+// --- CÁC HÀM CÒN THIẾU (CẦN BỔ SUNG ĐỂ TREE CLICK & TABLE HOẠT ĐỘNG) ---
+
+// 1. Hàm tìm kiếm Node (Hỗ trợ Search)
+function getMatchingNodes(nodes, query) {
+    if (!nodes) return [];
+    return nodes.filter(node => node.name.toLowerCase().includes(query));
+}
+
+// 2. Hàm trung tâm: Lọc và Vẽ lại Bảng + Pie Chart khi click Tree
+function filterAndRenderTables(filters, baseCoils = allCoils, baseSOs = allSoDetailsCategorized) {
+    let coilsToShow = [];
+    
+    // A. Lọc danh sách Cuộn theo filters (Mác thép, Khổ, Dày, Nhóm)
+    if (!filters || !filters.mac_thep) {
+        coilsToShow = baseCoils; 
+    } else {
+        coilsToShow = baseCoils.filter(c => c['Mác thép'] === filters.mac_thep);
+        if (filters.type === 'width' && filters.value)
+            coilsToShow = coilsToShow.filter(c => c['kho_rong_group'] === filters.value);
+        if (filters.type === 'thickness' && filters.value)
+            coilsToShow = coilsToShow.filter(c => c['chieu_day_group'] === filters.value);
+        if (filters.nhom)
+            coilsToShow = coilsToShow.filter(c => c['Nhóm'] === filters.nhom);
+    }
+
+    // Sắp xếp ưu tiên theo Nhóm
+    coilsToShow.sort((a, b) => getNhomSortScore(a['Nhóm']) - getNhomSortScore(b['Nhóm']));
+    
+    // B. Lọc danh sách SO tương ứng
+    let soMatchingFilter = [];
+    
+    // B1. Lấy SO khớp với filter của Tree
+    if (filters && filters.mac_thep) { 
+        soMatchingFilter = baseSOs.filter(s => s['Mác thép'] === filters.mac_thep);
+        if (filters.type === 'width' && filters.value)
+            soMatchingFilter = soMatchingFilter.filter(s => s['kho_rong_group'] === filters.value);
+        if (filters.type === 'thickness' && filters.value)
+            soMatchingFilter = soMatchingFilter.filter(s => s['chieu_day_group'] === filters.value);
+        if (filters.nhom)
+            soMatchingFilter = soMatchingFilter.filter(s => s['Nhóm'] === filters.nhom);
+    } else {
+        soMatchingFilter = baseSOs;
+    }
+    
+    // B2. Lấy thêm các SO được mapping trực tiếp trong các cuộn đang hiển thị (để không bị sót)
+    const soKeysFromCoils = new Set();
+    for (const coil of coilsToShow) {
+        const matDesc = coil['Material Description'];
+        if (!matDesc) continue;
+        const soMap = coil['SO Mapping'];
+        if (soMap && soMap !== 0 && soMap !== '0') soKeysFromCoils.add(`${soMap}_${matDesc}`);
+        const soDuKien = coil['SO Mapping dự kiến'];
+        if (soDuKien && soDuKien !== 0 && soDuKien !== '0') soKeysFromCoils.add(`${soDuKien}_${matDesc}`);
+    }
+    
+    // B3. Gộp danh sách SO
+    const combinedSoMap = new Map();
+    soMatchingFilter.forEach(so => {
+        const key = `${so['SO Mapping']}_${so['Material Description']}`; 
+        combinedSoMap.set(key, so);
+    });
+    soKeysFromCoils.forEach(key => {
+        if (!combinedSoMap.has(key)) {
+            const matchingSO = baseSOs.find(so => `${so['SO Mapping']}_${so['Material Description']}` === key);
+            if (matchingSO) combinedSoMap.set(key, matchingSO);
+        }
+    });
+
+    // C. Render lại giao diện
+    currentPage = 1; // Reset về trang 1 khi lọc mới
+    
+    // Render bảng Cuộn (Hàm này sẽ cập nhật currentTableData và sửa lỗi phân trang)
+    renderCoilTable(coilsToShow); 
+    
+    // Render bảng SO
+    renderSOTable(Array.from(combinedSoMap.values())); 
+    
+    // Cập nhật Pie Charts theo dữ liệu vừa lọc
+    const title = filters && filters.mac_thep ? filters.mac_thep : "Đang lọc";
+    updateStatusPieChart(coilsToShow, title);
+    updateSoPieChart(Array.from(combinedSoMap.values()), title);
+}
+
+function updateStatusPieChart(coils, titleScope) {
+        if (!statusPieChartContainer) return;
+        const colorMap = {
+            'Chờ nhập kho': '#fdc500',         
+            'Nhập kho chưa mapping': '#0d6efd', 
+            'Nhập kho đã mapping': '#198754',  
+            'Không xác định': '#ccc'         
+        };
+        const counts = {};
+        for (const coil of coils) {
+            const status = coil['TrangThai'] || 'Không xác định';
+            if (status === 'Đã bán') continue;
+            counts[status] = (counts[status] || 0) + 1;
+        }
+
+        const pieData = Object.keys(counts).map(name => ({ 
+            name: name, 
+            value: counts[name],
+            itemStyle: { 
+                color: colorMap[name] || colorMap['Không xác định'] 
+            }
+        }));
+        
+        pieData.sort((a, b) => {
+             const order = { 'Chờ nhập kho': 1, 'Nhập kho chưa mapping': 2, 'Nhập kho đã mapping': 3 };
+            return (order[a.name] || 99) - (order[b.name] || 99);
+        });
+
+        if (coils.length === 0) {
+            if (statusPieChart && !statusPieChart.isDisposed()) statusPieChart.dispose();
+            statusPieChartContainer.innerHTML = `<div class="d-flex h-100 justify-content-center align-items-center text-muted">Không có dữ liệu.</div>`;
+        } else {
+            if (!statusPieChart || statusPieChart.isDisposed()) {
+                 statusPieChart = echarts.init(statusPieChartContainer);
+                 initStatusPieChart(); 
+            }
+            statusPieChart.setOption({
+                title: { subtext: `${titleScope} (${coils.length.toLocaleString('vi-VN')} cuộn)` },
+                series: [{ data: pieData }]
+            });
+        }
+    }
+    function initSoPieChart() {
+        if (soPieChart && !soPieChart.isDisposed()) soPieChart.dispose();
+        if (!soPieChartContainer) return;
+        soPieChart = echarts.init(soPieChartContainer);
+        const option = {
+            title: {
+                text: '', 
+                subtext: 'Toàn bộ',
+                left: 'center', top: '2%',
+                textStyle: { fontSize: 16 }, subtextStyle: { fontSize: 12 }
+            },
+            tooltip: { trigger: 'item', formatter: '{b} <br/>{c} SO ({d}%)' },
+            legend: {
+                orient: 'horizontal', bottom: '2%',
+                left: 'center', type: 'scroll'
+            },
+            series: [{
+                name: 'Trạng thái SO', type: 'pie',
+                radius: ['40%', '65%'], center: ['50%', '50%'],
+                data: [], 
+                emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' } },
+                label: { formatter: '{d}%', position: 'inside', color: '#000', fontSize: 12 }
+            }],
+        };
+        soPieChart.setOption(option);
+    }
+
+function updateSoPieChart(categorizedSoList, titleScope) {
+        if (!soPieChartContainer) return;
+        const colorMap = {
+            'Hoàn thành': '#198754',     
+            'Chưa hoàn thành': '#ffc107' 
+        };
+        const counts = { 'Hoàn thành': 0, 'Chưa hoàn thành': 0 };
+        for (const so of categorizedSoList) {
+            counts[so.calculated_status]++;
+        }
+
+        const pieData = [
+            { 
+                name: 'Hoàn thành', 
+                value: counts['Hoàn thành'],
+                itemStyle: { color: colorMap['Hoàn thành'] }
+            },
+            { 
+                name: 'Chưa hoàn thành', 
+                value: counts['Chưa hoàn thành'],
+                itemStyle: { color: colorMap['Chưa hoàn thành'] }
+            }
+        ];
+
+        if (categorizedSoList.length === 0) {
+            if (soPieChart && !soPieChart.isDisposed()) soPieChart.dispose();
+            soPieChartContainer.innerHTML = `<div class="d-flex h-100 justify-content-center align-items-center text-muted">Không có dữ liệu SO.</div>`;
+        } else {
+            if (!soPieChart || soPieChart.isDisposed()) {
+                 soPieChart = echarts.init(soPieChartContainer);
+                 initSoPieChart(); 
+            }
+            soPieChart.setOption({
+                title: { subtext: `${titleScope} (${categorizedSoList.length.toLocaleString('vi-VN')} SO)` },
+                series: [{ data: pieData }]
+            });
+        }
+    }
+function renderCoilTable(coils) {
+    // 1. Cập nhật dữ liệu toàn cục cho bảng
+    currentTableData = coils || [];
+
+    const tbody = document.getElementById('coil-details-tbody');
+    const pageInfo = document.getElementById('page-info');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+
+    if (!tbody) return;
+
+    // Trường hợp không có dữ liệu
+    if (currentTableData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-4">Không tìm thấy cuộn nào phù hợp.</td></tr>';
+        pageInfo.innerText = '0 kết quả';
+        btnPrev.disabled = true;
+        btnNext.disabled = true;
+        return;
+    }
+
+    // 2. Tính toán chỉ số cắt mảng (Pagination Logic)
+    const totalPages = Math.ceil(currentTableData.length / rowsPerPage);
+    
+    // Đảm bảo currentPage hợp lệ
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = Math.min(startIndex + rowsPerPage, currentTableData.length);
+    
+    // Cắt mảng dữ liệu chỉ lấy phần cần hiển thị
+    const coilsOnPage = currentTableData.slice(startIndex, endIndex);
+
+    // 3. Render HTML (Chỉ render 20 dòng)
+    let html = '';
+    coilsOnPage.forEach((coil, index) => { 
+        // Tính số thứ tự thực tế (cộng dồn các trang trước)
+        const realSTT = startIndex + index + 1;
+
+        const { 'Mác thép': coilMacThep, 'Nhóm': coilNhom, kho_rong_group: coilWidthGroup, chieu_day_group: coilThicknessGroup } = coil;
+        
+        // Logic tô màu (giữ nguyên)
+        const key_width = `${coilMacThep}_${coilWidthGroup}_${coilNhom}`;
+        const key_thickness = `${coilMacThep}_${coilThicknessGroup}_${coilNhom}`;
+        const isSuitable = suitableWidthSet.has(key_width) || suitableThicknessSet.has(key_thickness);
+        const trClass = isSuitable ? 'table-success' : ''; 
+
+        html += `<tr class="${trClass}">
+            <td>${realSTT}</td> 
+            <td>${coil['ID Cuộn Bó'] || ''}</td>
+            <td>${coil['Material Description'] || ''}</td>
+            <td>${coil['Nhóm'] || ''}</td>
+            <td>${coil['NhaMay'] || ''}</td>
+            <td>${(coil['Khối lượng'] || 0).toLocaleString('vi-VN')}</td>
+            <td>${coil['Vị trí'] || ''}</td>
+            <td>${coil['TrangThai'] || ''}</td>
+            <td>${coil['SO Mapping'] || (coil['SO Mapping dự kiến'] ? `${coil['SO Mapping dự kiến']} (Dự kiến)` : '0')}</td>
+        </tr>`;
+    });
+    
+    tbody.innerHTML = html;
+
+    // 4. Cập nhật thông tin trang và nút bấm
+    pageInfo.innerText = `Hiển thị ${startIndex + 1}-${endIndex} trên tổng ${currentTableData.length} cuộn`;
+    
+    btnPrev.disabled = (currentPage === 1);
+    btnNext.disabled = (currentPage === totalPages);
+}
+
+
+function resetTables() {
+        if(coilTbody) coilTbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-4">Vui lòng chọn Mác thép.</td></tr>';
+        if(soTbody) soTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted p-4">Vui lòng chọn Mác thép.</td></tr>';
+    }
+function renderSOTable(soDetails) { 
+        if (!soTbody) return;
+        if (soDetails.length === 0) {
+            soTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted p-4">Không tìm thấy SO nào phù hợp.</td></tr>';
+            return;
+        }
+        let html = '';
+        soDetails.forEach((soData, index) => { 
+            const khoiLuongGiao = (soData['Shipped Quantity (KG)'] || 0) + (soData['SL Mapping kho'] || 0);
+            const khoiLuongYeuCau = soData['Quantity (KG)'] || 0;
+            const formattedGiao = Math.round(khoiLuongGiao / 1000).toLocaleString('vi-VN');
+            const formattedYeuCau = (khoiLuongYeuCau > 0) 
+                ? Math.round(khoiLuongYeuCau / 1000).toLocaleString('vi-VN') 
+                : 'N/A';
+            
+            html += `<tr>
+                <td>${index + 1}</td> <td>${soData['SO Mapping']}</td>
+                <td>${soData['Material Description'] || ''}</td> 
+                <td>${formattedGiao} / ${formattedYeuCau}</td>
+                <td>${(soData['Process'] || 0).toFixed(1)}%</td>
+            </tr>`;
+        });
+        soTbody.innerHTML = html;
+    }
+    function changePage(direction) {
+        currentPage += direction;
+        renderCoilTable(currentTableData);
+    }
+function applyFiltersAndRedraw(source = 'unknown') {
+    const query = filterInput.value.trim().toLowerCase();
+    // Lấy giá trị nhà máy đang chọn
+    const factoryVal = document.getElementById('filter-factory').value;
+
+    // --- 1. Lọc cấp 1: Theo Mác thép (Search) ---
+    let coilsByGrade = inventoryCoils;
+    let sosByGrade = allSoDetailsCategorized;
+
+    if (query) {
+        const matchingNodes = getMatchingNodes(echartsFullData.children, query);
+        const validMacThepSet = new Set(matchingNodes.map(node => node.name));
+        
+        coilsByGrade = inventoryCoils.filter(c => validMacThepSet.has(c['Mác thép']));
+        sosByGrade = allSoDetailsCategorized.filter(s => validMacThepSet.has(s['Mác thép']));
+    }
+    
+    // --- 2. Lọc cấp 2: Theo Nhà máy (MỚI) ---
+    if (factoryVal !== 'all') {
+        // Lưu ý: Kiểm tra đúng tên trường trong API (thường là 'NhaMay' hoặc 'Factory')
+        coilsByGrade = coilsByGrade.filter(c => (c['NhaMay'] || c['Factory']) === factoryVal);
+        // SO không nhất thiết phải lọc theo nhà máy ở đây nếu bạn muốn nhìn tổng quan nhu cầu,
+        // nhưng nếu muốn đồng bộ thì bỏ comment dòng dưới:
+        // sosByGrade = sosByGrade.filter(s => (s['Factory'] || '') === factoryVal);
+    }
+
+    // --- 3. Lọc cấp 3: Theo Trạng thái (Pie Chart Click) ---
+    let coilsFinal = coilsByGrade;
+    if (globalStatusFilter) {
+        coilsFinal = coilsByGrade.filter(c => c['TrangThai'] === globalStatusFilter);
+    }
+
+    // --- 4. Cập nhật Tree View ---
+    const treeNodes = buildTreeData(coilsFinal); 
+    let rootName = "Toàn bộ kho";
+    if (factoryVal !== 'all') rootName = `NM: ${factoryVal}`; // Cập nhật tên gốc cây
+    if (query) rootName += ` | Tìm: "${query}"`;
+    if (globalStatusFilter) rootName += ` + ${globalStatusFilter}`;
+
+    const rootNode = { 
+        id: '$root', 
+        name: rootName, 
+        value: coilsFinal.length, 
+        children: treeNodes 
+    };
+
+    if (treeNodes.length === 0) {
+         initEChartsTree([]);
+         if (chartContainer) chartContainer.innerHTML = `<div class="d-flex h-100 justify-content-center align-items-center text-muted">Không tìm thấy dữ liệu phù hợp.</div>`;
+    } else {
+         initEChartsTree([rootNode]);
+    }
+
+    // --- 5. Cập nhật Pie Charts & Top 5 ---
+    updateStatusPieChart(coilsByGrade, query || (factoryVal !== 'all' ? factoryVal : "Toàn bộ kho")); 
+    updateSoPieChart(sosByGrade, query || "Toàn bộ kho");
+    
+    const top5Data = calculateTop5(coilsFinal);
+    initTop5Chart(top5Data);
+
+    // --- 6. [MỚI] Cập nhật Tiêu đề Tổng số lượng & Tấn ---
+    const subtitleEl = document.getElementById('top5-subtitle');
+    if (subtitleEl) {
+        // Tính tổng số lượng
+        const totalCount = coilsFinal.length.toLocaleString('vi-VN');
+        
+        // Tính tổng khối lượng (Kg -> Tấn)
+        const totalWeightKg = coilsFinal.reduce((sum, item) => sum + (parseFloat(item['Khối lượng']) || 0), 0);
+        const totalTon = Math.round(totalWeightKg / 1000).toLocaleString('vi-VN');
+
+        // Hiển thị: Tổng: 7.237 cuộn (145.000 Tấn)
+        subtitleEl.innerHTML = `Tổng: <b>${totalCount}</b> cuộn <span class="mx-1">|</span> <b>${totalTon}</b> Tấn`;
+    }
+
+    // --- 7. Render lại bảng chi tiết ---
+    currentPage = 1;
+    renderCoilTable(coilsFinal);
+    renderSOTable(sosByGrade); 
+}
+async function initializeData() {
+    try {
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        // Data Setup
+        allCoils = data.coils || [];
+        // Lọc bỏ đã bán ngay từ đầu cho inventory (dù API đã lọc, lọc thêm ở FE cũng ko sao cho chắc)
+        inventoryCoils = allCoils.filter(c => c['TrangThai'] !== 'Đã bán');
+        allSoDetailsCategorized = categorizeSOData(data.so_details || []);
+        echartsFullData = transformDataForECharts(data.tree);
+
+        // --- [BỔ SUNG LOGIC TẠO SET ĐỂ TÔ MÀU] ---
+        suitableWidthSet = new Set();
+        suitableThicknessSet = new Set();
+        
+        // Duyệt qua danh sách SO để xác định các nhóm ưu tiên (tô màu xanh)
+        for (const so of allSoDetailsCategorized) {
+            const macThep = so['Mác thép'];
+            const nhomString = so['Nhóm']; 
+            const widthGroup = so['kho_rong_group'];
+            const thicknessGroup = so['chieu_day_group'];
+            
+            if (!macThep || !nhomString) continue;
+            
+            // Xử lý trường hợp 1 SO có nhiều nhóm (VD: "C, C1")
+            const nhomArray = nhomString.split(',').map(n => n.trim());
+            
+            for (const singleNhom of nhomArray) {
+                if (singleNhom) { 
+                    if (widthGroup && widthGroup !== 'Không xác định' && widthGroup !== 'Ngoài khoảng')
+                        suitableWidthSet.add(`${macThep}_${widthGroup}_${singleNhom}`);
+                    
+                    if (thicknessGroup && thicknessGroup !== 'Không xác định' && thicknessGroup !== 'Ngoài khoảng')
+                        suitableThicknessSet.add(`${macThep}_${thicknessGroup}_${singleNhom}`);
+                }
+            }
+        }
+        // -----------------------------------------
+
+        // Render Initial
+        initStatusPieChart();
+        initSoPieChart();
+        applyFiltersAndRedraw('initial_load');
+
+        // Listeners
+        document.getElementById('btn-prev').addEventListener('click', () => changePage(-1));
+        document.getElementById('btn-next').addEventListener('click', () => changePage(1));
+        filterInput.addEventListener('input', debounce(() => applyFiltersAndRedraw('search'), 300));
+        document.getElementById('reset-tree-view').addEventListener('click', () => {
+            filterInput.value = '';
+            globalStatusFilter = null;
+            applyFiltersAndRedraw('reset');
+        });
+
+    } catch (e) { console.error(e); }
+}
+document.addEventListener('DOMContentLoaded', function() {
+    
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const resetBtn = document.getElementById('reset-tree-view');
+    const filterInp = document.getElementById('filter-mac-thep');
+    
+    // --- [MỚI] ---
+    const filterFactory = document.getElementById('filter-factory');
+    if (filterFactory) {
+        filterFactory.addEventListener('change', () => {
+            // Khi đổi nhà máy -> Vẽ lại tất cả
+            applyFiltersAndRedraw('factory_change');
+        });
+    }
+    // -------------
+
+    if (btnPrev) btnPrev.addEventListener('click', () => changePage(-1));
+    if (btnNext) btnNext.addEventListener('click', () => changePage(1));
+    
+    if (filterInp) {
+        filterInp.addEventListener('input', debounce(() => applyFiltersAndRedraw('search'), 300));
+    }
+    
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            if (filterInp) filterInp.value = '';
+            // Reset cả dropdown nhà máy về 'all' nếu muốn
+            if (filterFactory) filterFactory.value = 'all'; 
+            
+            globalStatusFilter = null;
+            applyFiltersAndRedraw('reset');
+        });
+    }
+
+    initializeData();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,558 @@
+{% extends "base.html" %} {% block title %}Tiến độ SO theo khách hàng{% endblock
+%} {% block content %}
+<div class="page-wrapper">
+<h3 style="margin-bottom: 20px">Check KHÁCH HÀNG</h3>
+
+<form class="d-flex mb-3" style="max-width: 600px">
+  <input
+    type="text"
+    class="form-control me-2"
+    id="keyword"
+    placeholder="Tìm SO Mapping hoặc Material..."
+  />
+</form>
+
+<div class="d-flex mb-3 gap-2 align-items-end" style="max-width: 1500px">
+  <select id="filter-customer" class="form-select" style="width:auto; max-width:400px" >
+    <option value="">-- Tất cả Customer --</option>
+    {% for c in customer_list %}
+    <option value="{{ c }}">{{ c }}</option>
+    {% endfor %}
+  </select>
+  <select id="filter-factory" class="form-select" style="width:auto; max-width:400px">
+    <option value="">-- Tất cả Nhà máy--</option>
+    {% for f in factory_list %}
+    <option value="{{ f }}">{{ f }}</option>
+    {% endfor %}
+  </select>
+  <select id="filter-process" class="form-select" style="width:auto; max-width:400px">
+    <option value="">-- Tất cả Process --</option>
+    {% for color, name in process_list %}
+    <option value="{{ color }}">{{ name }}</option>
+    {% endfor %}
+  </select>
+  <button type="button" id="btn-reset" class="btn btn-secondary">Reset</button>
+  <button type="button" id="btn-export" class="btn btn-success" style="padding: 6px 12px;width: 120px">Export Excel</button>
+</div>
+<div id="summary-card" class="card mb-3 shadow-sm" style="display: none; background-color: #f8f9fa;">
+    <div class="card-body py-2">
+        <h6 class="card-title text-primary mb-3">
+            <i class="fas fa-chart-pie me-2"></i>Tổng hợp dữ liệu <span id="summary-customer-name" class="fw-bold text-dark"></span>
+        </h6>
+        <div class="row text-center" style="font-size: 0.95rem;">
+            <div class="col-md-3 col-6 mb-2">
+                <div class="text-muted small text-uppercase fw-bold">Tổng Đơn Hàng</div>
+                <div class="fw-bold fs-5 text-primary" id="sum-total-qty">0 Tấn</div>
+            </div>
+            
+            <div class="col-md-3 col-6 mb-2 border-start">
+                <div class="text-muted small text-uppercase fw-bold">Tổng Shipped</div>
+                <div class="fw-bold fs-6 text-success" id="sum-shipped">0 / 0 (0%)</div>
+            </div>
+
+            <div class="col-md-3 col-6 mb-2 border-start">
+                <div class="text-muted small text-uppercase fw-bold">Tổng Mapping Kho</div>
+                <div class="fw-bold fs-6 text-info" id="sum-mapping">0 / 0 (0%)</div>
+            </div>
+
+            <div class="col-md-3 col-6 mb-2 border-start">
+                <div class="text-muted small text-uppercase fw-bold">Chưa Sản Xuất</div>
+                <div class="fw-bold fs-6 text-danger" id="sum-unproduced">0 / 0 (0%)</div>
+            </div>
+        </div>
+    </div>
+</div>
+<div style="overflow-y: auto; overflow-x: auto;flex-grow: 1;">
+  <table class="table-custom" id="khachhang-table">
+    <thead>
+      <tr>
+        <th>Mã KH</th>
+        <th>Tên Khách Hàng</th>
+        <th>Sales Order</th>
+        <th>Nhà máy</th>
+        <th>Ngày yêu cầu</th>
+        <th>Material</th>
+        <th>Mapping kho</th>
+        <th>Shipped</th>
+        <th>Quantity</th>
+        <th>Tiến độ</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+</div>
+<style>
+	.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  /* Giả sử <body> hoặc container cha của block này cao 100% màn hình.
+     Nếu không, bạn có thể cần dùng: height: 90vh; (hoặc 100vh)
+     tuỳ thuộc vào layout `base.html` của bạn */
+  height: calc(100vh - 100px); /* Ví dụ: 100% chiều cao trừ đi 100px của header/footer */
+  /* Hoặc đơn giản là: */
+  /* height: 100%;  */
+}
+  /* ====== Table base ====== */
+  .table-custom {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+
+    /* TÙY CHỈNH */
+    --thead-height: 48px; /* chỉnh nếu header cao hơn */
+    --col1-width: 120px; /* chỉnh theo layout thực tế */
+  }
+
+  /* chung cho th/td */
+  .table-custom th,
+  .table-custom td {
+    border: 1px solid #ccc;
+    padding: 10px;
+    text-align: center;
+  }
+
+  /* ====== Sticky THEAD ====== */
+  .table-custom thead th {
+    position: sticky;
+    top: 0;
+    background: #212529;
+    color: #fff;
+    z-index: 700; /* very high so header always above everything */
+  }
+
+  /* ====== Left columns sizing ====== */
+  /* đảm bảo td cột 1 cố định width để tính left cho cột 2 đúng */
+  .table-custom th:first-child,
+  .table-custom td.customer-cell {
+    width: var(--col1-width);
+    min-width: var(--col1-width);
+    max-width: var(--col1-width);
+    box-sizing: border-box;
+  }
+
+  /* ====== Header sticky ngang cho 2 cột đầu ====== */
+  .table-custom th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 650;
+    background: #212529;
+    color: #fff;
+  }
+  .table-custom th:nth-child(2) {
+    position: sticky;
+    left: calc(var(--col1-width));
+    z-index: 650;
+    background: #212529;
+    color: #fff;
+  }
+
+  /* ====== IMPORTANT: td không ustawion top (static) để tránh ôm rowspan ====== */
+  .table-custom td.customer-cell,
+  .table-custom td.customer-name {
+    position: static; /* keep td static to avoid row-span sticky issues */
+    vertical-align: top;
+    text-align: left;
+    padding-left: 8px;
+    background: inherit; /* inherit group background */
+  }
+
+  /* ====== sticky inner wrapper: will stick under the thead ====== */
+  .sticky-content {
+    position: sticky;
+    top: var(--thead-height); /* dính ngay dưới header */
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    z-index: 600; /* < thead (700) so header stays above */
+    padding: 0;
+    margin: 0;
+    background: inherit !important; /* ăn màu nhóm */
+  }
+
+  /* offsets for the inner sticky wrapper so it matches left positions */
+  .sticky-col1 {
+    left: 0;
+  }
+  .sticky-col2 {
+    left: calc(var(--col1-width));
+  }
+
+  /* box shadow line between sticky columns and rest of table */
+  .table-custom th:first-child,
+  .table-custom th:nth-child(2),
+  .table-custom td.customer-cell,
+  .table-custom td.customer-name {
+    box-shadow: 1px 0 0 #ddd;
+  }
+
+  /* ====== Progress bar (kept) ====== */
+  .progress {
+    height: 22px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #e9ecef;
+  }
+  .progress-bar {
+    line-height: 22px;
+    color: #fff;
+    font-weight: bold;
+    border-radius: 12px;
+    text-align: center;
+  }
+
+  /* Text helper */
+  .text-right {
+    text-align: right;
+  }
+  .customer-name {
+    font-weight: bold;
+    font-size: 16px;
+  }
+
+  /* ====== group background (renderRows sẽ gán class group-odd/group-even cho tr) ====== */
+  .group-odd td {
+    background-color: #f6f6f6;
+  }
+  .group-even td {
+    background-color: #ffffff;
+  }
+
+  /* ensure sticky inner wrapper shows group bg */
+  .table-custom td.customer-cell .sticky-content,
+  .table-custom td.customer-name .sticky-content {
+    background-color: inherit !important;
+  }
+
+  /* thick bottom border for separation (applied to the td elements for the group) */
+  .table-custom td.customer-border {
+    border-bottom: 2px solid #000 !important;
+  }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+  const tbody = document.querySelector("#khachhang-table tbody");
+  const kw = document.getElementById("keyword");
+  const filterCustomer = document.getElementById("filter-customer");
+  const btnReset = document.getElementById("btn-reset");
+  const filterProcess = document.getElementById("filter-process");
+  const filterFactory = document.getElementById("filter-factory");
+
+  // Div phân trang
+  let paginationDiv = document.createElement("div");
+  paginationDiv.id = "pagination";
+  paginationDiv.className =
+    "d-flex justify-content-center align-items-center gap-2 mt-3";
+  document.querySelector("#khachhang-table").after(paginationDiv);
+
+  let currentController = null;
+  let allGroups = [];
+  let currentPage = 1;
+  const pageSize = 10; // số customer mỗi trang
+
+  // ===============================
+  // 🔹 Lấy bộ lọc hiện tại
+  // ===============================
+  function getFilters() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      keyword: kw.value.trim(),
+      customer: filterCustomer.value,
+      process_color: filterProcess.value,
+      factory: filterFactory.value,
+    };
+  }
+function updateURL() {
+  const filters = getFilters();
+  const params = new URLSearchParams(filters);
+  window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+}
+  // ===============================
+  // 🔹 Gọi API lấy dữ liệu
+  // ===============================
+  async function fetchRows() {
+    
+    if (currentController) currentController.abort();
+    currentController = new AbortController();
+    updateURL();
+    const params = new URLSearchParams(getFilters());
+
+    tbody.innerHTML = `
+      <tr><td colspan="10" class="text-center py-3 text-muted">
+        <div class="spinner-border spinner-border-sm me-2"></div>Đang tải dữ liệu...
+      </td></tr>
+    `;
+
+    try {
+      const res = await fetch(`/tiendo_search?${params.toString()}`, {
+        signal: currentController.signal,
+      });
+      const data = await res.json();
+      const selectedCustomer = document.getElementById("filter-customer").value;
+      renderSummary(data.summary, selectedCustomer);
+      prepareGroups(data.rows);
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        tbody.innerHTML = `<tr><td colspan="10" class="text-danger text-center py-2">Lỗi tải dữ liệu</td></tr>`;
+        console.error(err);
+      }
+    }
+  }
+
+  // ===============================
+  // 🔹 Gom nhóm theo customer
+  // ===============================
+  function prepareGroups(rows) {
+    let lastCustomer = null;
+    let currentGroup = [];
+    let groups = [];
+
+    rows.forEach((r) => {
+      if (r.customer_num && r.customer_num !== lastCustomer) {
+        if (currentGroup.length > 0) groups.push(currentGroup);
+        currentGroup = [];
+        lastCustomer = r.customer_num;
+      }
+      currentGroup.push(r);
+    });
+    if (currentGroup.length > 0) groups.push(currentGroup);
+
+    allGroups = groups;
+    currentPage = 1;
+    renderPage(currentPage);
+  }
+function renderSummary(summary, customerName) {
+    const card = document.getElementById("summary-card");
+    
+    if (!summary || summary.count == 0) {
+        card.style.display = "none";
+        return;
+    }
+    
+    card.style.display = "block";
+    
+    // Cập nhật tên khách hàng
+    const nameEl = document.getElementById("summary-customer-name");
+    nameEl.textContent = customerName ? `: ${customerName}` : "";
+
+    // Gán giá trị mới đã format từ server
+    document.getElementById("sum-total-qty").textContent = summary.total_qty_display;
+    document.getElementById("sum-shipped").textContent = summary.shipped_display;
+    document.getElementById("sum-mapping").textContent = summary.mapping_display;
+    document.getElementById("sum-unproduced").textContent = summary.unproduced_display;
+}
+  // ===============================
+  // 🔹 Render 1 trang dữ liệu
+  // ===============================
+  function renderPage(page) {
+    tbody.innerHTML = "";
+    const totalPages = Math.ceil(allGroups.length / pageSize);
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const pageGroups = allGroups.slice(start, end);
+
+    let groupIndex = start;
+    const custNumTdByCustomer = {};
+    const custNameTdByCustomer = {};
+
+    pageGroups.forEach((group) => {
+      groupIndex++;
+      group.forEach((r) => {
+        const tr = document.createElement("tr");
+        tr.classList.add(groupIndex % 2 === 1 ? "group-odd" : "group-even");
+
+        // Customer cột đầu tiên (chỉ ở dòng đầu nhóm)
+        if (r.customer_num) {
+          const tdCNum = document.createElement("td");
+          tdCNum.rowSpan = r.cust_rowspan || 1;
+          tdCNum.classList.add("customer-cell");
+          const wrapNum = document.createElement("div");
+          wrapNum.className = "sticky-content sticky-col1";
+          wrapNum.textContent = r.customer_num;
+          tdCNum.appendChild(wrapNum);
+          tr.appendChild(tdCNum);
+
+          const tdCName = document.createElement("td");
+          tdCName.rowSpan = r.cust_rowspan || 1;
+          tdCName.classList.add("customer-name");
+          const wrapName = document.createElement("div");
+          wrapName.className = "sticky-content sticky-col2";
+          wrapName.textContent = r.customer_name;
+          tdCName.appendChild(wrapName);
+          tr.appendChild(tdCName);
+
+          custNumTdByCustomer[r.customer_num] = tdCNum;
+          custNameTdByCustomer[r.customer_num] = tdCName;
+        }
+
+        // SO, Factory, ReqDate
+        if (r.so_mapping) {
+          const tdSo = document.createElement("td");
+          tdSo.rowSpan = r.so_rowspan || 1;
+          tdSo.textContent = r.so_mapping;
+          tr.appendChild(tdSo);
+
+          const tdFactory = document.createElement("td");
+          tdFactory.rowSpan = r.so_rowspan || 1;
+          tdFactory.textContent = r.factory || "";
+          tr.appendChild(tdFactory);
+
+          const tdReq = document.createElement("td");
+          tdReq.rowSpan = r.so_rowspan || 1;
+          tdReq.textContent = r.req_date || "";
+          tr.appendChild(tdReq);
+        }
+
+        // Material
+        const tdMat = document.createElement("td");
+        tdMat.textContent = r.material || "";
+        tr.appendChild(tdMat);
+
+        // Mapping kho
+        const tdMapping = document.createElement("td");
+        tdMapping.textContent = r.mapping_kho ?? "";
+        tdMapping.className = "text-right";
+        tr.appendChild(tdMapping);
+
+        // Shipped + Qty
+        ["shipped_qty", "qty"].forEach((k) => {
+          const td = document.createElement("td");
+          td.textContent = r[k] || "";
+          td.className = "text-right";
+          tr.appendChild(td);
+        });
+
+        // Tiến độ
+        const tdProcess = document.createElement("td");
+        const progress = document.createElement("div");
+        progress.className = "progress position-relative";
+        const bar = document.createElement("div");
+        bar.className = "progress-bar " + (r.process_color || "");
+        bar.style.width = (r.process_value || 0) + "%";
+        const spanText = document.createElement("span");
+        spanText.textContent = (r.process_value || 0).toFixed(1) + "%";
+        spanText.style.position = "absolute";
+        spanText.style.width = "100%";
+        spanText.style.textAlign = "center";
+        spanText.style.fontWeight = "bold";
+        progress.appendChild(bar);
+        progress.appendChild(spanText);
+        tdProcess.appendChild(progress);
+        tr.appendChild(tdProcess);
+
+        // Border cuối nhóm
+        if (r.is_last_row_of_customer) {
+          const tdNum = custNumTdByCustomer[r.customer_num];
+          const tdName = custNameTdByCustomer[r.customer_num];
+          if (tdNum) tdNum.classList.add("customer-border");
+          if (tdName) tdName.classList.add("customer-border");
+        }
+
+        tbody.appendChild(tr);
+      });
+    });
+
+    renderPagination(page, totalPages);
+setTimeout(() => {
+  const table = document.querySelector("#khachhang-table");
+  if (table) {
+    const container = table.closest(".table-responsive") || table.parentElement;
+    if (container) container.scrollTop = 0;
+  }
+}, 100);
+  }
+
+  // ===============================
+  // 🔹 Render pagination control
+  // ===============================
+  function renderPagination(page, totalPages) {
+    paginationDiv.innerHTML = "";
+
+    if (totalPages <= 1) {
+      paginationDiv.style.display = "none";
+      return;
+    }
+    paginationDiv.style.display = "flex";
+
+    const prev = document.createElement("button");
+    prev.className = "btn btn-sm btn-outline-secondary";
+    prev.textContent = "«";
+    prev.disabled = page === 1;
+    prev.onclick = () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderPage(currentPage);
+      }
+    };
+    paginationDiv.appendChild(prev);
+
+    const span = document.createElement("span");
+    span.textContent = `Trang ${page}/${totalPages}`;
+    paginationDiv.appendChild(span);
+
+    const next = document.createElement("button");
+    next.className = "btn btn-sm btn-outline-secondary";
+    next.textContent = "»";
+    next.disabled = page === totalPages;
+    next.onclick = () => {
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderPage(currentPage);
+      }
+    };
+    paginationDiv.appendChild(next);
+  }
+
+  // ===============================
+  // 🔹 Debounce & Events
+  // ===============================
+  function debounce(fn, delay) {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => fn.apply(this, args), delay);
+    };
+  }
+  const debouncedFetch = debounce(fetchRows, 500);
+
+  filterProcess.addEventListener("change", fetchRows);
+  filterCustomer.addEventListener("change", fetchRows);
+  filterFactory.addEventListener("change", fetchRows);
+  kw.addEventListener("input", debouncedFetch);
+
+  btnReset.addEventListener("click", () => {
+    kw.value = "";
+    filterCustomer.value = "";
+    filterProcess.value = "";
+    filterFactory.value = "";
+    fetchRows();
+  });
+  function restoreFiltersFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("keyword")) kw.value = params.get("keyword");
+  if (params.has("customer")) filterCustomer.value = params.get("customer");
+  if (params.has("process_color")) filterProcess.value = params.get("process_color");
+  if (params.has("factory")) filterFactory.value = params.get("factory");
+  }
+  // ===============================
+  // 🔹 Khởi chạy ban đầu
+  // ===============================
+  restoreFiltersFromURL()
+  fetchRows();
+// --- EXPORT EXCEL ---
+$("#btn-export").on("click", function() {
+    // SỬA LẠI CHO ĐÚNG CÁC BIẾN ĐÃ ĐỊNH NGHĨA
+    const params = new URLSearchParams({
+        keyword: kw.value,                 // Dùng kw.value
+        customer: filterCustomer.value,    // Dùng .value
+        process_color: filterProcess.value,// Dùng .value
+        factory: filterFactory.value       // Dùng .value
+    });
+
+    // Tạo URL và điều hướng để trình duyệt tự tải file về
+    const exportUrl = `/export_khachhang?${params.toString()}`;
+    window.location.href = exportUrl;
+});
+</script>
+{% endblock %}

@@ -1,0 +1,72 @@
+.table-custom {
+    border-collapse: collapse; /* Đảm bảo các border của ô nối liền */
+    width: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+
+#lichtau-table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #212529; /* giữ màu nền */
+    color: #fff;
+    z-index: 10; /* đảm bảo nằm trên các ô tbody */
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.table-custom th, .table-custom td {
+    padding: 12px 15px;
+    text-align: center;
+    border: 1px solid #ccc; /* Thêm border cho từng ô */
+}
+
+
+.table-custom tbody {
+    display: block;
+    max-height: 700px;
+    overflow-y: auto;
+}
+.table-custom tbody tr:nth-child(odd) {
+    background-color: #f9f9f9;
+}
+
+.table-custom tbody tr:hover {
+    background-color: #d9edf7;
+    transition: background-color 0.3s ease;
+}
+
+.table-custom td.text-right {
+    text-align: center;
+}
+
+.table-custom td.text-center {
+    text-align: center;
+}
+
+/* Progress bar đẹp */
+.progress {
+    background-color: #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    height: 22px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.progress-bar {
+    text-align: center;
+    color: #fff;
+    font-weight: bold;
+    line-height: 22px;
+    transition: width 0.5s ease;
+    border-radius: 12px;
+}
+
+/* Process color */
+.bg-success { background-color: #28a745 !important; }
+.bg-warning { background-color: #ffc107 !important; color: #212529; }
+.bg-danger  { background-color: #dc3545 !important; }

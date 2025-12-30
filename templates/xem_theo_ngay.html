@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %} Xem trạng thái theo ngày{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tien_do_order.css') }}">
+
+<button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#chartModal">
+    <i class="fas fa-chart-line me-2"></i>Xem biểu đồ sản xuất (Yêu cầu với Thực tế)
+</button>
+<div class="modal fade" id="chartModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">📊 Biểu đồ Yêu cầu với Thực tế</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Hai ô tổng -->
+                <div class="d-flex justify-content-center gap-4 mb-3">
+                    <div class="rounded-circle border border-primary d-flex flex-column justify-content-center align-items-center"
+                        style="width: 140px; height: 140px; background-color: #f8f9fa;">
+                        <span class="fw-bold text-primary">Yêu cầu</span>
+                        <span class="fs-5 text-dark">{{ "{:,.0f}".format(total_required or 0) }}</span>
+                    </div>
+
+                    <div class="rounded-circle border border-danger d-flex flex-column justify-content-center align-items-center"
+                        style="width: 140px; height: 140px; background-color: #f8f9fa;">
+                        <span class="fw-bold text-danger">Thực tế</span>
+                        <span class="fs-5 text-dark">{{ "{:,.0f}".format(total_actual or 0) }}</span>
+                    </div>
+                </div>
+
+                <canvas id="lineChart" height="120" height: 306px; width: 765px></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Container cho chart -->
+<div id="chartContainer" style="display:none;">
+    <canvas id="lineChart" height="120"></canvas>
+</div>
+
+<div class="container-fluid px-3 py-3">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-3">
+            {% if not has_data %}
+            <div class="alert alert-warning d-flex align-items-center shadow-sm" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <div>
+                    Chưa có dữ liệu nào được tải lên.
+                    Vui lòng <a href="{{ url_for('upload.upload_files') }}" class="alert-link">tải lên bộ dữ liệu LSX
+                        tại đây</a>.
+                </div>
+            </div>
+            {% else %}
+            <!-- Form chọn LSX và khoảng ngày -->
+            <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                <form method="GET" action="{{ url_for('home.xem_theo_ngay') }}"
+                    class="d-flex flex-wrap align-items-center gap-3">
+                    <label for="lsx_id" class="form-label fw-bold mb-0">Chọn LSX:</label>
+                    <select id="lsx_id" name="lsx_id" class="form-select w-auto">
+                        {% for lsx in lsx_list %}
+                        <option value="{{ lsx.id }}" {% if selected_lsx==lsx.id %}selected{% endif %}>{{ lsx.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+
+                    <label for="start_date">Từ ngày:</label>
+                    <input type="date" name="start_date" id="start_date" value="{{ start_date or '' }}">
+
+                    <label for="end_date">Đến ngày:</label>
+                    <input type="date" name="end_date" id="end_date" value="{{ end_date or '' }}">
+
+                    <button type="submit" class="btn btn-success"><i class="fas fa-eye me-2"></i>Xem</button>
+                </form>
+
+                <a href="{{ url_for('report.tien_do_order') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-chart-line me-2"></i>Xem tiến độ tổng Order
+                </a>
+            </div>
+
+            {% if rows_by_day %}
+            <div style="max-height:750px; overflow:auto;">
+                <table id="thatThoatTable" class="table table-striped table-bordered table-hover">
+                    <thead class="table-dark text-center">
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Order</th>
+                            <th>SL Trung bình/ngày (kg)</th>
+                            <th>SL Thực tế/ngày (kg)</th>
+                            <th>Trạng thái</th>
+                            <th>Tổng thất thoát ngày</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for day in rows_by_day %}
+                        {% set n_orders = day['Orders']|length %}
+                        {% for order in day['Orders'] %}
+                        <tr>
+                            {% if loop.first %}
+                            <td rowspan="{{ n_orders }}">{{ day['Ngày'] }}</td>
+                            {% endif %}
+                            <td class="text-center">{{ order['Order'] }}</td>
+                            <td class="text-center">{{ "{:,.0f}".format(order['SL trung bình/ngày']) }}</td>
+                            <td class="text-center">{{ "{:,.0f}".format(order['Sản lượng thực tế']) }}</td>
+                            <td class="text-center">
+                                {% if "Thất thoát" in order['Trạng thái'] %}
+                                <span class="badge bg-danger">{{ order['Trạng thái'] }}</span>
+                                {% elif "Vượt" in order['Trạng thái'] %}
+                                <span class="badge bg-success">{{ order['Trạng thái'] }}</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">{{ order['Trạng thái'] }}</span>
+                                {% endif %}
+                            </td>
+                            {% if loop.first %}
+                            <td class="text-center" rowspan="{{ n_orders }}">{{ "{:,.0f}".format(day['Tổng thất thoát'])
+                                }}</td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-secondary d-flex align-items-center shadow-sm mt-3" role="alert">
+                <i class="fas fa-ban me-2"></i>
+                Không có dữ liệu cho khoảng thời gian đã chọn
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<script>
+    const ctx = document.getElementById('lineChart');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            datasets: {{ chart_datasets | default([]) | tojson }}
+        },
+        options: {
+        responsive: true,
+        plugins: {
+            title: {
+                display: true,
+                text: 'So sánh sản lượng yêu cầu và thực tế (KG)'
+            }
+        },
+        scales: {
+            x: {
+                type: 'time',
+                time: { unit: 'day' },
+                title: { display: true, text: 'Ngày' }
+            },
+            y: {
+                title: { display: true, text: 'Sản lượng (KG)' }
+            }
+        }
+    }
+    });
+
+    // Toggle chart hiển thị / ẩn
+    document.getElementById("btnToggleChart").addEventListener("click", () => {
+        const chartDiv = document.getElementById("chartContainer");
+        chartDiv.style.display = (chartDiv.style.display === "none") ? "block" : "none";
+    });
+</script>
+
+<style>
+
+    #thatThoatTable thead th {
+    position: sticky;
+    top: 0; /* dính ở đầu bảng */
+    background-color: #212529; /* giữ màu nền */
+    color: #fff;
+    z-index: 10; /* đảm bảo hiển thị trên các td */
+}
+
+</style>
+{% endblock %}

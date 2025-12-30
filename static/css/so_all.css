@@ -1,0 +1,64 @@
+
+    
+    #order1-table thead th {
+        position: sticky;
+        top: 0;
+        background: #212529;
+        color: #fff;
+        z-index: 10;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+        margin-bottom: 1rem;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #d6e9f9;
+    }
+
+    #order1-table th,
+    #order1-table td {
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .progress {
+        border-radius: 8px;
+        overflow: hidden;
+        background-color: #e9ecef;
+    }
+
+    .progress-bar {
+        font-size: 12px;
+        text-align: center;
+    }
+
+    #customer-filter-container {
+        box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.2);
+        border-radius: 6px;
+    }
+
+    .select2-container .select2-selection--multiple {
+        min-height: 38px;
+        width: 240px;
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+        font-size: 14px;
+    }
+
+    /* Đồng bộ màu chữ trong dropdown */
+    #customer-filter,
+    #customer-filter option,
+    .select2-container--default .select2-results__option {
+        background-color: #f9f9f9 !important;
+        color: #333 !important;
+        font-size: 14px;
+        width: 240px;
+    }
+
+    /* Hover option */
+    .select2-container--default .select2-results__option--highlighted {
+        background-color: #e6f0ff !important;
+        color: #000 !important;
+    }

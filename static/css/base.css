@@ -1,0 +1,144 @@
+body {
+    font-family: "Segoe UI", sans-serif;
+    background-color: #f5f6f8;
+}
+
+/* Sidebar */
+.sidebar {
+    height: 100vh;
+    width: 240px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background-color: #fff;
+    border-right: 1px solid #ddd;
+    padding-top: 1rem;
+    overflow-y: auto;
+    transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+    width: 70px;
+}
+
+.sidebar .logo {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.sidebar .logo img {
+    width: 140px;
+    /* Luôn giữ nguyên */
+}
+
+.sidebar h6 {
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #003366;
+    margin: 1rem 0 0.5rem 1rem;
+    text-transform: uppercase;
+}
+
+.sidebar.collapsed h6 {
+    display: none;
+}
+
+.sidebar a {
+    display: flex;
+    align-items: center;
+    padding: 8px 20px;
+    color: #333;
+    text-decoration: none;
+    font-size: 0.9rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.sidebar a i {
+    width: 20px;
+    margin-right: 8px;
+    color: #003366;
+    text-align: center;
+}
+
+.sidebar a span {
+    transition: opacity 0.3s;
+}
+
+.sidebar.collapsed a span {
+    display: none;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+    background-color: #e6f0ff;
+    color: #003366;
+}
+
+/* Nội dung chính */
+.main-content {
+    margin-left: 240px;
+    padding: 20px;
+    transition: margin-left 0.3s ease;
+}
+
+.main-content.collapsed {
+    margin-left: 70px;
+}
+
+/* Toggle button */
+.sidebar-toggle {
+    position: fixed;
+    top: 10px;
+    left: 250px;
+    z-index: 1100;
+    transition: left 0.3s ease;
+}
+
+.sidebar.collapsed+.sidebar-toggle {
+    left: 80px;
+}
+
+/* Toast góc trên phải */
+#toast-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1060;
+}
+
+.toast {
+    min-width: 250px;
+}
+
+/* Tooltip custom */
+.tooltip-inner {
+    background-color: #003366;
+    color: #fff;
+    font-size: 0.8rem;
+    padding: 5px 10px;
+    border-radius: 6px;
+}
+
+.tooltip.bs-tooltip-auto[data-popper-placement^=right] .tooltip-arrow::before {
+    border-right-color: #003366;
+}
+
+body {
+    padding-top: 60px;
+    /* chiều cao navbar */
+}
+
+/* Nếu sidebar cũng cần dịch xuống */
+.sidebar {
+    top: 60px;
+    /* bằng với padding-top body */
+    height: calc(100vh - 60px);
+    /* tính lại chiều cao */
+}
+#flash-toast-container {
+    position: fixed;
+    top: 1rem;       /* cách trên 1rem */
+    right: 1rem;     /* cách phải 1rem */
+    z-index: 1080;   /* cao hơn navbar */
+}

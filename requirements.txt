@@ -1,0 +1,12 @@
+APScheduler==3.11.0
+Flask==3.1.2
+flask_wtf==1.2.2
+numpy==2.3.4
+openpyxl==3.1.5
+pandas==2.3.3
+python-dotenv==1.2.1
+python_dateutil==2.9.0.post0
+pywin32==311
+SQLAlchemy==2.0.44
+Werkzeug==3.1.3
+pyodbc
