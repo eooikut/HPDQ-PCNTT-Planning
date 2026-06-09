@@ -160,7 +160,7 @@
                     <div>
                         <p class="mb-1 text-muted small text-uppercase fw-bold">Tổng Đơn Hàng</p>
                         <h5 class="mb-0 text-dark fw-bold">
-                            {{ "{:,.0f}".format(results | sum(attribute='Đơn hàng nhập vào')) | replace(',', '.') }} <small class="fs-6 fw-normal text-muted">kg</small>
+                            {{ "{:,.0f}".format(results | sum(attribute='Đơn hàng nhập vào')) | replace(',', '.') }} <small class="fs-6 fw-normal text-muted">Tấn</small>
                         </h5>
                     </div>
                     <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3"><i class="fas fa-box-open fa-lg"></i></div>
@@ -173,7 +173,7 @@
                     <div>
                         <p class="mb-1 text-success small text-uppercase fw-bold">Tổng Chốt Sản Xuất</p>
                         <h5 class="mb-0 text-success fw-bold">
-                            {{ "{:,.0f}".format(results | sum(attribute='Chốt (Sản xuất)')) | replace(',', '.') }} <small class="fs-6 fw-normal">kg</small>
+                            {{ "{:,.0f}".format(results | sum(attribute='Chốt (Sản xuất)')) | replace(',', '.') }} <small class="fs-6 fw-normal">Tấn</small>
                         </h5>
                     </div>
                     <div class="bg-success text-white rounded-circle p-3 shadow"><i class="fas fa-check fa-lg"></i></div>
@@ -188,7 +188,7 @@
                     <div>
                         <p class="mb-1 text-muted small text-uppercase fw-bold">Chênh lệch (Dư)</p>
                         <h5 class="mb-0 {{ 'text-danger' if diff > 0 else 'text-muted' }} fw-bold">
-                            +{{ "{:,.0f}".format(diff) | replace(',', '.') }} <small class="fs-6 fw-normal">kg</small>
+                            +{{ "{:,.0f}".format(diff) | replace(',', '.') }} <small class="fs-6 fw-normal">Tấn</small>
                         </h5>
                     </div>
                     <div class="bg-secondary bg-opacity-10 text-secondary rounded-circle p-3"><i class="fas fa-chart-line fa-lg"></i></div>

@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, jsonify
 from auth.decorator import permission_required
 from db import engine
 from extensions import cache
-
+from sqlalchemy import text
 # Tạo Blueprint
 dashboard_so_bp = Blueprint("dashboard_so_bp", __name__, template_folder='../templates')
 
@@ -296,11 +296,11 @@ def get_inventory_api():
                                 ISNULL(so_detail.[SO_Mapping], 0) AS [SO Mapping dự kiến],
                                 s.[NhaMay],
                                 2 AS NguonDuLieu 
-                            FROM sanluong s
-                            LEFT JOIN tbl_SO_Allocation_Detail so_detail ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
+                            FROM sanluong s WITH (NOLOCK)
+                            LEFT JOIN tbl_SO_Allocation_Detail so_detail WITH (NOLOCK) ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
                             WHERE s.[ID Cuộn Bó] IS NOT NULL AND s.[ID Cuộn Bó] <> ''
                               AND (s.[Đã nhập kho] = 'No' OR s.[Đã nhập kho] IS NULL)
-                              AND NOT EXISTS (SELECT 1 FROM kho k WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó])
+                              AND NOT EXISTS (SELECT 1 FROM kho k WITH (NOLOCK) WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó])
 
                             UNION ALL
 
@@ -325,8 +325,8 @@ def get_inventory_api():
                                     ELSE N'Khác'
                                 END AS NhaMay,
                                 1 AS NguonDuLieu
-                            FROM kho k
-                            LEFT JOIN tbl_SO_Allocation_Detail so_detail ON k.[ID Cuộn Bó] = so_detail.[Roll_ID]
+                            FROM kho k WITH (NOLOCK)
+                            LEFT JOIN tbl_SO_Allocation_Detail so_detail WITH (NOLOCK) ON k.[ID Cuộn Bó] = so_detail.[Roll_ID]
             ),
 
             /* --- BƯỚC LỌC TRÙNG (QUAN TRỌNG NHẤT) --- */
@@ -353,7 +353,7 @@ def get_inventory_api():
                     SELECT [Material], [Sales Document], [Material Description],
                     [Shipped Quantity (KG)], [Quantity (KG)],
                     RTRIM(CASE WHEN RIGHT([Material Description], 3) = ' II' THEN LEFT([Material Description], LEN([Material Description]) - 3) ELSE [Material Description] END) AS CleanDesc
-                    FROM so
+                    FROM so WITH (NOLOCK)
                 ),
                 so_with_mac_thep AS (
                     SELECT *, CASE WHEN CHARINDEX(' ', REVERSE(CleanDesc)) = 0 THEN CleanDesc ELSE REVERSE(LEFT(REVERSE(CleanDesc), CHARINDEX(' ', REVERSE(CleanDesc)) - 1)) END AS [Mác thép]
@@ -361,16 +361,16 @@ def get_inventory_api():
                 ),
                 kho_clean AS (
                     SELECT [Order], [Material], [SO Mapping], [Material Description], [Khối lượng]
-                    FROM kho WHERE [SO Mapping] IS NOT NULL AND [SO Mapping] <> '0'
+                    FROM kho WITH (NOLOCK) WHERE [SO Mapping] IS NOT NULL AND [SO Mapping] <> '0'
                 ),
                 SO_Request_Representative AS (
                     SELECT [SO Mapping], [NHÓM] AS Representative_NHOM, ROW_NUMBER() OVER(PARTITION BY [SO Mapping] ORDER BY [Material description] ASC) as rn
-                    FROM dbo.so_request WHERE [NHÓM] IS NOT NULL 
+                    FROM dbo.so_request WITH (NOLOCK) WHERE [NHÓM] IS NOT NULL 
                 ),
                 so_request_complete AS (
                     SELECT s.[Material Description], s.[Sales Document], COALESCE(sr_direct.[NHÓM], sr_rep.Representative_NHOM) AS [NHÓM]
                     FROM (SELECT DISTINCT [Sales Document], [Material Description] FROM so_with_mac_thep) s
-                    LEFT JOIN dbo.so_request sr_direct ON s.[Sales Document] = sr_direct.[SO Mapping] AND s.[Material Description] = sr_direct.[Material description]
+                    LEFT JOIN dbo.so_request  sr_direct WITH (NOLOCK) ON s.[Sales Document] = sr_direct.[SO Mapping] AND s.[Material Description] = sr_direct.[Material description]
                     LEFT JOIN SO_Request_Representative sr_rep ON s.[Sales Document] = sr_rep.[SO Mapping] AND sr_rep.rn = 1
                 ),
                 base AS (
@@ -494,59 +494,75 @@ def load_actual_data_from_csv():
         print(f"Lỗi đọc CSV: {e}")
         return pd.DataFrame()
 
+# --- TRONG FILE: dashboardso.py ---
+
 def calculate_cpk_summary_v2(df_coils):
     summary_data = []
-    
-    # BƯỚC 1: LỌC DỮ LIỆU CƠ BẢN (Loại bỏ Null và số 0)
+    if 'NgayDuKien' in df_coils.columns:
+         df_coils = df_coils.sort_values(by=['Ngày sản xuất', 'ID Cuộn Bó'])
+
     df_clean = df_coils.dropna(subset=['DoDayThucTe']).copy()
     df_clean['DoDayThucTe'] = pd.to_numeric(df_clean['DoDayThucTe'], errors='coerce')
     df_clean = df_clean[df_clean['DoDayThucTe'] > 0.1]
     
     if df_clean.empty: return []
 
-    grouped = df_clean.groupby('chieu_day')
-
+    grouped = df_clean.groupby('chieu_day', sort=False)
+    
     for nominal_thick, group in grouped:
         if len(group) < 5: continue 
         
-        # Lấy thông số chuẩn (LSL, USL, Target)
+        # Lấy Target chuẩn cho nhóm này
         lsl, usl, target = get_specs_thickness(group, nominal_thick)
         if lsl is None: continue
 
-        actual_vals = group['DoDayThucTe'].tolist()
+        actual_vals = group['DoDayThucTe'].values
+        
+        epsilon = 1e-6 
+        
+        is_fake_default = np.abs(actual_vals - target) < epsilon
+
+        real_data_mask = ~is_fake_default
+        actual_vals = actual_vals[real_data_mask]
+        
+        if len(actual_vals) < 5: continue
+        
+        # ==============================================================================
+        
         total_count = len(actual_vals)
 
-        # --- BƯỚC 2: TÁCH PHẾ PHẨM (SCRAP SEPARATION) ---
-        # Quy định: Lệch quá 0.5mm so với chuẩn là Phế phẩm/Hàng setup
+        # --- LỌC NGOẠI LAI (Outliers) > 0.5mm (Như cũ) ---
         limit_scrap = 0.5
+        good_mask = np.abs(actual_vals - target) <= limit_scrap
+        good_vals = actual_vals[good_mask]
         
-        # Tách dữ liệu
-        good_vals = [x for x in actual_vals if abs(x - target) <= limit_scrap]
         scrap_count = total_count - len(good_vals)
         scrap_rate = (scrap_count / total_count) * 100 if total_count > 0 else 0
         
-        # Nếu sau khi lọc hết sạch dữ liệu tốt thì bỏ qua nhóm này
         if len(good_vals) < 3: continue
 
-        # --- BƯỚC 3: TÍNH CPK TRÊN DỮ LIỆU TỐT ---
-        mu = np.mean(good_vals)
-        sigma = np.std(good_vals)
-        
-        # Bảo vệ Sigma tối thiểu
-        MIN_SIGMA_THRESHOLD = 0.01 
-        calc_sigma = max(sigma, MIN_SIGMA_THRESHOLD)
+        mean = np.mean(good_vals)
 
-        cpu = (usl - mu) / (3 * calc_sigma)
-        cpl = (mu - lsl) / (3 * calc_sigma)
-        cpk = min(cpu, cpl)
+        # --- TÍNH TOÁN CPK (Moving Range) ---
+        mr_series = np.abs(np.diff(good_vals))
+        mr_bar = np.mean(mr_series)
+        d2 = 1.128
+        sigma_within = mr_bar / d2
         
+        # Ngưỡng bảo vệ
+        if sigma_within < 0.01: sigma_within = 0.01 
+
+        cpu = (usl - mean) / (3 * sigma_within)
+        cpl = (mean - lsl) / (3 * sigma_within)
+        cpk = min(cpu, cpl)
+
         summary_data.append({
             "thickness": float(nominal_thick),
             "cpk": round(cpk, 2),
-            "count": len(good_vals),      # Số lượng cuộn đạt dùng tính CPK
-            "scrap_count": scrap_count,   # Số lượng cuộn lỗi
-            "scrap_rate": round(scrap_rate, 2), # Tỷ lệ lỗi (%)
-            "mean_actual": round(mu, 3)
+            "count": len(good_vals),
+            "scrap_count": scrap_count,
+            "scrap_rate": round(scrap_rate, 2),
+            "mean_actual": round(mean, 3)
         })
 
     summary_data.sort(key=lambda x: x['thickness'])
@@ -574,12 +590,12 @@ def get_capacity_api():
                     0 AS [SO Mapping],
                     ISNULL(so_detail.[SO_Mapping], 0) AS [SO Mapping dự kiến],
                     s.[NhaMay]
-                FROM sanluong s
-                LEFT JOIN tbl_SO_Allocation_Detail so_detail ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
+                FROM sanluong s WITH (NOLOCK)
+                LEFT JOIN tbl_SO_Allocation_Detail so_detail WITH (NOLOCK) ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
                 WHERE
                     s.[ID Cuộn Bó] IS NOT NULL AND s.[ID Cuộn Bó] <> ''
                     AND (s.[Đã nhập kho] = 'No' OR s.[Đã nhập kho] IS NULL) -- Điều kiện chưa nhập
-                    AND NOT EXISTS (SELECT 1 FROM kho k WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó])
+                    AND NOT EXISTS (SELECT 1 FROM kho k WITH (NOLOCK) WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó])
 
                 UNION ALL
 
@@ -603,8 +619,8 @@ def get_capacity_api():
                         WHEN k.[Plant] = 1600 THEN N'HRC2'
                         ELSE N'Khác'
                     END AS NhaMay
-                FROM kho k
-                LEFT JOIN tbl_SO_Allocation_Detail so_detail ON k.[ID Cuộn Bó] = so_detail.[Roll_ID]
+                FROM kho k WITH (NOLOCK)
+                LEFT JOIN tbl_SO_Allocation_Detail so_detail WITH (NOLOCK) ON k.[ID Cuộn Bó] = so_detail.[Roll_ID]
 
                 UNION ALL
 
@@ -618,12 +634,12 @@ def get_capacity_api():
                     0 AS [SO Mapping],
                     ISNULL(so_detail.[SO_Mapping], 0) AS [SO Mapping dự kiến],
                     s.[NhaMay]
-                FROM sanluong s
-                LEFT JOIN tbl_SO_Allocation_Detail so_detail ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
+                FROM sanluong s WITH (NOLOCK)
+                LEFT JOIN tbl_SO_Allocation_Detail so_detail WITH (NOLOCK) ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
                 WHERE
                     s.[ID Cuộn Bó] IS NOT NULL AND s.[ID Cuộn Bó] <> ''
                     AND s.[Đã nhập kho] = 'Yes' -- Lấy các cuộn ĐÃ nhập kho (ngược với khối 1)
-                    AND NOT EXISTS (SELECT 1 FROM kho k WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó]) -- Nhưng hiện KHÔNG còn trong kho (ngược với khối 2)
+                    AND NOT EXISTS (SELECT 1 FROM kho k WITH (NOLOCK) WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó]) -- Nhưng hiện KHÔNG còn trong kho (ngược với khối 2)
                 )
                 SELECT 
                 [ID Cuộn Bó], 
@@ -654,7 +670,7 @@ def get_capacity_api():
                 SELECT [Material Description], [Quantity (KG)], [Document Date],
                 CASE WHEN [Factory] LIKE N'%Hòa Phát Dung Quất 2%' THEN 'HRC2' ELSE 'HRC1' END AS [Factory],
                 [Sales Document], [Material]
-                FROM so
+                FROM so WITH (NOLOCK)
             """
             so_df = pd.read_sql(sql_so_full, conn)
 
@@ -759,3 +775,140 @@ def get_capacity_api():
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
+# [THÊM VÀO CUỐI FILE dashboardso.py]
+from flask import request
+
+# [CẬP NHẬT dashboardso.py]
+# Thêm import nếu chưa có
+
+
+@dashboard_so_bp.route('/api/calculate-adhoc-cpk', methods=['POST'])
+def calculate_adhoc_cpk():
+    try:
+        data = request.json
+        factory = data.get('factory')
+        grade = data.get('grade')
+        items = data.get('items', [])
+
+        if not items or not factory or not grade:
+            return jsonify({'status': 'error', 'msg': 'Thiếu thông tin đầu vào'})
+
+        # 1. Load data đo thực tế
+        df_actual = load_actual_data_from_csv()
+        if df_actual.empty:
+            return jsonify({'status': 'ok', 'results': [{'cpk': None, 'msg': 'Thiếu file CSV'}] * len(items)})
+
+        # 2. Query Lịch sử (Giữ nguyên logic query của bạn)
+        sql = """
+            WITH CleanData AS (
+                SELECT 
+                    [ID Cuộn Bó], 
+                    [Material Description],
+                    RTRIM(CASE 
+                        WHEN RIGHT([Material Description], 3) = ' II' THEN LEFT([Material Description], LEN([Material Description]) - 3) 
+                        ELSE [Material Description] 
+                    END) AS CleanDesc
+                FROM sanluong WITH (NOLOCK)
+                WHERE [NhaMay] = :factory 
+                  AND [Ngày sản xuất] >= DATEADD(MONTH, -6, GETDATE())
+                  AND [Material Description] IS NOT NULL
+            ),
+            ParsedData AS (
+                SELECT 
+                    [ID Cuộn Bó], 
+                    [Material Description],
+                    CASE 
+                        WHEN CHARINDEX(' ', REVERSE(CleanDesc)) = 0 THEN CleanDesc 
+                        ELSE REVERSE(LEFT(REVERSE(CleanDesc), CHARINDEX(' ', REVERSE(CleanDesc)) - 1)) 
+                    END AS ParsedGrade
+                FROM CleanData
+            )
+            SELECT [ID Cuộn Bó], [Material Description]
+            FROM ParsedData
+            WHERE ParsedGrade = :grade
+        """
+        
+        with engine.connect() as conn:
+            df_hist = pd.read_sql(text(sql), conn, params={'factory': factory, 'grade': grade})
+
+        if df_hist.empty:
+             return jsonify({'status': 'ok', 'results': [{'cpk': None, 'msg': 'Không có lịch sử SX mác này'}] * len(items)})
+
+        # 3. Merge & Clean Data
+        df_hist['ID Cuộn Bó'] = df_hist['ID Cuộn Bó'].astype(str).str.strip()
+        
+        # Merge dữ liệu
+        df_merged = pd.merge(df_hist, df_actual, on='ID Cuộn Bó', how='inner')
+        
+        # --- [FIX LỖI QUAN TRỌNG TẠI ĐÂY] ---
+        if df_merged.empty:
+            return jsonify({'status': 'ok', 'results': [{'cpk': None, 'msg': 'Có SX nhưng chưa có dữ liệu đo (CSV)'}] * len(items)})
+            
+        # Parse kích thước an toàn hơn bằng cách tạo DataFrame riêng rồi concat
+        parsed_data = df_merged['Material Description'].apply(lambda x: pd.Series(parse_material_desc(x)))
+        parsed_data.columns = ['h_thick', 'h_width']
+        df_merged = pd.concat([df_merged, parsed_data], axis=1)
+
+        # Chuyển đổi kiểu dữ liệu
+        df_merged['h_thick'] = pd.to_numeric(df_merged['h_thick'], errors='coerce')
+        df_merged['h_width'] = pd.to_numeric(df_merged['h_width'], errors='coerce')
+
+        results = []
+        
+        # 4. Tính toán Simulation (Giữ nguyên logic Monte Carlo)
+        for item in items:
+            try:
+                t_target = float(item['thick'])
+                w_target = float(item['width'])
+                mass_input = float(item.get('mass', 0))
+                
+                subset = df_merged[
+                    (df_merged['h_thick'] >= t_target - 0.15) & 
+                    (df_merged['h_thick'] <= t_target + 0.15) &
+                    (df_merged['h_width'] >= w_target - 100) &
+                    (df_merged['h_width'] <= w_target + 100)
+                ]
+
+                if len(subset) < 5:
+                    results.append({'cpk': None, 'msg': f'Mẫu quá ít ({len(subset)})'})
+                    continue
+
+                vals = subset['DoDayThucTe'].dropna().values
+                hist_mean = np.mean(vals)
+                hist_std = np.std(vals)
+                lsl, usl, _ = get_specs_thickness(subset, t_target)
+                
+                if hist_std == 0 or lsl is None:
+                    results.append({'cpk': None, 'msg': 'Lỗi thống kê'})
+                    continue
+
+                # Monte Carlo Simulation
+                simulated_vals = np.random.normal(hist_mean, hist_std, 5000)
+                sim_mean = np.mean(simulated_vals)
+                sim_std = np.std(simulated_vals)
+
+                cpu = (usl - sim_mean) / (3 * sim_std)
+                cpl = (sim_mean - lsl) / (3 * sim_std)
+                cpk = min(cpu, cpl)
+
+                fail_count = np.sum((simulated_vals < lsl) | (simulated_vals > usl))
+                fail_rate = fail_count / 5000
+                expected_scrap = mass_input * fail_rate
+
+                results.append({
+                    'cpk': round(cpk, 2),
+                    'mean': round(sim_mean, 3),
+                    'count': len(vals),
+                    'fail_rate_pct': round(fail_rate * 100, 2),
+                    'expected_scrap': round(expected_scrap, 0)
+                })
+
+            except Exception as e:
+                print(f"Lỗi tính item: {e}")
+                results.append({'cpk': None, 'msg': 'Lỗi tính toán'})
+
+        return jsonify({'status': 'ok', 'results': results})
+
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({'status': 'error', 'msg': str(e)}), 500

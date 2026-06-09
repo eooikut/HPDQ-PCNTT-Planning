@@ -449,15 +449,6 @@ def process_lichtau(file_path):
         return final_df
     else:
         return pd.DataFrame()
-def process_so_details():
-    file_path = "HRC2 - FILE THEO DÕI ĐƠN HÀNG.xlsx"
-    df = pd.read_excel("HRC1 - FILE THEO DÕI ĐƠN HÀNG (04.04)_28.xlsx", sheet_name=1)
-
-    # Sửa lại dòng này: thêm một cặp dấu ngoặc vuông [[...]]
-    df1 = df[["SO Mapping", "CW", "NHÓM", "Material description"]]
-
-    # In ra 5 dòng đầu tiên của DataFrame mới
-    print(df1.head())
 
 def _rename_columns(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -509,39 +500,37 @@ def _normalize_cw(value):
 
 def process_so_details(file_paths: list[str]):
     """
-    Đọc và xử lý các file chi tiết SO,
-    sau đó ghi đè vào bảng so_request trong DB.
+    Đọc và xử lý các file chi tiết SO, chuẩn hóa dữ liệu, tách dòng Order,
+    tạo ID tự tăng và ghi đè vào bảng so_request trong DB.
     """
-    from sqlalchemy.types import NVARCHAR, BigInteger
+    import pandas as pd
+    from sqlalchemy.types import NVARCHAR, BigInteger, VARCHAR, Float, Integer
+    from db import engine # Kế thừa import engine từ đầu file của bạn
 
     all_dfs = []
 
-    for file_path in file_paths: # Lặp qua tất cả các file được cung cấp
+    for file_path in file_paths:
         try:
-            # --- LOGIC MỚI: Sử dụng 'with' để đảm bảo file được đóng lại ---
             with pd.ExcelFile(file_path) as xls:
                 sheet_names = xls.sheet_names
                 
                 target_sheet = None
-                # 1. Ưu tiên tìm tên sheet chính xác (không phân biệt hoa thường)
+                # 1. Ưu tiên tìm tên sheet chính xác
                 for name in sheet_names:
                     if name.strip().upper() in ["ĐƠN HÀNG", "ĐƠN HÀNG HRC"]:
                         target_sheet = name
                         break
                 
-                # 2. Nếu không tìm thấy tên, thử dùng index 1 (sheet thứ hai) làm dự phòng
+                # 2. Nếu không tìm thấy tên, thử dùng index 1 (sheet thứ hai)
                 if target_sheet is None and len(sheet_names) > 1:
-                    target_sheet = 1 # Dùng index
+                    target_sheet = 1
     
                 if target_sheet is not None:
-                    # Đọc dữ liệu từ đối tượng 'xls' đã mở
                     df = pd.read_excel(xls, sheet_name=target_sheet)
                     all_dfs.append(df)
                 else:
-                    # Nếu không có sheet nào phù hợp, bỏ qua file này
                     print(f"Cảnh báo: Không tìm thấy sheet 'ĐƠN HÀNG' hoặc sheet thứ 2 trong file '{file_path}'. Bỏ qua file.")
                     continue
-            # --- KẾT THÚC LOGIC MỚI: File sẽ tự động được đóng khi thoát khỏi khối 'with' ---
         except Exception as e:
             print(f"Cảnh báo: Bỏ qua file '{file_path}' do lỗi: {e}")
 
@@ -549,47 +538,172 @@ def process_so_details(file_paths: list[str]):
         print("Không có file chi tiết SO nào được cung cấp.")
         return
 
-    # --- Kết hợp dữ liệu và chọn cột ---
+    # --- KẾT HỢP DỮ LIỆU ---
     df_combined = pd.concat(all_dfs, ignore_index=True)
-    
 
-    required_cols = ["SO Mapping", "CW", "NHÓM", "Material description"]
-    # Lọc ra các cột tồn tại trong DataFrame
-    existing_cols = [col for col in required_cols if col in df_combined.columns]
-    df_final = df_combined[existing_cols]
+    # --- CHUẨN HÓA TÊN CỘT ĐỂ MAPPING ---
+    # Thay thế các ký tự xuống dòng (\n, \r) trong tên cột thành khoảng trắng
+    df_combined.columns = [str(c).replace('\n', ' ').replace('\r', '').strip() for c in df_combined.columns]
 
-    # Kiểm tra cột bắt buộc 'SO Mapping'
-    if 'SO Mapping' not in df_final.columns:
-        raise ValueError("Không tìm thấy cột 'SO Mapping' hoặc các biến thể của nó trong file Excel. Vui lòng kiểm tra lại tên cột.")
-
-    # --- Chuẩn hóa kiểu dữ liệu ---
-    df_final['SO Mapping'] = pd.to_numeric(df_final['SO Mapping'], errors='coerce').fillna(0).astype('Int64')
-    df_final = df_final.dropna(subset=['SO Mapping']) # Bỏ các dòng không có SO Mapping
-
-    # Áp dụng chuẩn hóa cho cột CW nếu tồn tại
-    if 'CW' in df_final.columns:
-        df_final['CW'] = df_final['CW'].apply(_normalize_cw)
-
-    # Chuẩn hóa cột NHÓM: thay thế '/' bằng ','
-    if 'NHÓM' in df_final.columns:
-        # 1. Đảm bảo cột là kiểu string
-        # 2. Loại bỏ phần trong ngoặc đơn và các khoảng trắng xung quanh nó
-        # 3. Thay thế '/' bằng ','
-        df_final['NHÓM'] = df_final['NHÓM'].astype(str).str.replace(r'\s*\(.*\)\s*', '', regex=True).str.replace('/', ',', regex=False)
-
-    for col in ["CW", "NHÓM", "Material description"]:
-        if col in df_final.columns:
-            df_final[col] = df_final[col].astype(str).fillna('')
-
-    # --- Ghi vào DB ---
-    dtype_mapping = {
-        'SO Mapping': BigInteger(),
-        'CW': NVARCHAR(),
-        'NHÓM': NVARCHAR(),
-        'Material description': NVARCHAR()
+    rename_map = {
+        'Order HRC/HSPM': 'Order',
+        'PO cán 204 nguội': 'Order', 
+        # Đã xóa 'Tên KH' và 'XN'
+        'Mã TDC': 'TDC_Code',          # <-- MỚI THÊM
+        'TDC code': 'TDC_Code',  
+        'TDC Code': 'TDC_Code',        # <-- MỚI THÊM
+        'Mác thép': 'gradeSteel',
+        'Mục đích sử dụng': 'purpose',
+        'Material Description': 'Material description',
+        'Material description': 'Material description',
+        'SO Mapping': 'SO Mapping',
+        'SO mapping': 'SO Mapping',
+        'số lệnh tách': 'SO Mapping',
+        'số lệnh tách': 'SO Mapping',
+        'Tổng LSX': 'Target_Weight',
+        'Tổng LSX (Tấn)': 'Target_Weight', 
+        'Tổng LSX (KG)': 'Target_Weight',
+        'Độ dày': 'thickness',
+        'Khổ rộng': 'width',
+        'Chiều dày mục tiêu': 'alloc_thick',
+        'MVT\nHRC': 'material_code',
+        'MVT HRC': 'material_code',
+        'MVT\nMDD': 'material_code',
+        'MVT MDD': 'material_code'
     }
+
+    # Đổi tên cột theo format chuẩn
+    df_combined.rename(columns=lambda x: rename_map.get(x, x), inplace=True)
+    def merge_duplicated_columns(df):
+        out = pd.DataFrame()
+        for col_name in df.columns.unique():
+            col_data = df[col_name]
+            if isinstance(col_data, pd.DataFrame):
+                # Nếu bị trùng tên cột -> dồn dữ liệu (bfill ngang) và lấy cột đầu tiên
+                out[col_name] = col_data.bfill(axis=1).iloc[:, 0]
+            else:
+                out[col_name] = col_data
+        return out
+
+    df_combined = merge_duplicated_columns(df_combined)
+    if 'Tháng' in df_combined.columns:
+        df_combined['KySanXuat'] = df_combined['Tháng'].astype(str).str.strip()
+    else:
+        df_combined['KySanXuat'] = pd.NA
+
+    if 'Skinpass' in df_combined.columns:
+        df_combined['is_skin_required'] = (
+            df_combined['Skinpass'].astype(str)
+            .str.lower()
+            .str.strip()
+            .apply(lambda x: 1 if x == 'yes' else 0)
+        )
+    else:
+        df_combined['is_skin_required'] = 0
+    is_skin = df_combined['Skinpass'].astype(str).str.strip().str.lower() == 'yes'
+    df_combined['material_code'] = np.where(
+        is_skin,
+        df_combined['MVT HSPM'],        # Nếu Skinpass=Yes, lấy cột HSPM
+        df_combined['material_code']    # Nếu Skinpass=No, lấy cột đã rename chuẩn
+    )
+
+    # Định tuyến Material Description
+    df_combined['Material description'] = np.where(
+        is_skin,
+        df_combined['Item Description'], # Nếu Skinpass=Yes, lấy cột Item Desc
+        df_combined['Material description'] # Nếu Skinpass=No, lấy cột đã rename chuẩn
+    )    
+    if 'material_code' in df_combined.columns:
+        df_combined['material_code'] = df_combined['material_code'].astype(str).str.strip()
+        df_combined['material_code'] = df_combined['material_code'].str.replace(r'\.0$', '', regex=True)
+        df_combined['material_code'] = df_combined['material_code'].replace(['nan', 'None', '<NA>', ''], pd.NA)
+    else:
+        df_combined['material_code'] = pd.NA
+    df_combined['thickness'] = pd.to_numeric(df_combined.get('thickness'), errors='coerce')
+    df_combined['width'] = pd.to_numeric(df_combined.get('width'), errors='coerce')
+    df_combined['alloc_thick'] = pd.to_numeric(df_combined.get('alloc_thick'), errors='coerce')
+
+    # 2. LOGIC CỐT LÕI: Nếu Chiều dày mục tiêu (alloc_thick) bị rỗng (NaN), 
+    # thì lấy giá trị của Độ dày (thickness) đắp vào.
+    df_combined['alloc_thick'] = df_combined['alloc_thick'].fillna(df_combined['thickness'])
+    # 🌟 2. THÊM CỘT MẶC ĐỊNH MTO
+    df_combined['production_status'] = 'MTO'
+    # Đảm bảo các cột yêu cầu phải tồn tại (nếu thiếu thì gán rỗng)S
+    required_cols = [
+        "SO Mapping", "CW", "NHÓM", "Material description", "Order", 
+        "TDC_Code",  
+        "gradeSteel", "purpose", "Target_Weight", 
+        "KySanXuat", "is_skin_required", "production_status",
+        "thickness", "width", "alloc_thick",
+        "material_code"
+    ]
+    for col in required_cols:
+        if col not in df_combined.columns:
+            df_combined[col] = pd.NA
+
+    df_final = df_combined[required_cols].copy()
+
+    # --- LỌC DÒNG CÓ ORDER (Giữ nguyên) ---
+    df_final['Order'] = df_final['Order'].astype(str).str.strip()
+    df_final['Order'] = df_final['Order'].str.replace(r'\.0$', '', regex=True)
+    df_final['Order'] = df_final['Order'].replace(['nan', 'None', '', '<NA>'], pd.NA)
+    df_final = df_final.dropna(subset=['Order'])
+    
+    # --- 2. NHÂN BẢN DÒNG '/' (BƯỚC NÀY PHẢI ĐƯA LÊN TRƯỚC) ---
+    df_final['Order'] = df_final['Order'].str.replace(r'\s*/\s*', '/', regex=True)
+    df_final['Order'] = df_final['Order'].str.split('/')
+    df_final = df_final.explode('Order')
+    df_final['Order'] = df_final['Order'].str.strip().replace('', pd.NA)
+    df_final = df_final.dropna(subset=['Order'])
+
+    df_final = df_final[df_final['Order'].str.match(r'^\d+$', na=False)]
+
+    # --- BƯỚC 3: LÀM SẠCH VÀ CHỐT CHẶN TDC_CODE ---
+    # 1. Chuẩn hóa chuỗi
+    df_final['TDC_Code'] = df_final['TDC_Code'].astype(str).str.strip().str.upper()
+    df_final['TDC_Code'] = df_final['TDC_Code'].replace(['NAN', 'NONE', 'NULL', '<NA>'], '')
+
+    # --- CHUẨN HÓA CÁC CỘT CÒN LẠI (Giữ nguyên) ---
+    df_final['SO Mapping'] = pd.to_numeric(df_final['SO Mapping'], errors='coerce').astype('Int64')
+    df_final['Target_Weight'] = pd.to_numeric(df_final['Target_Weight'], errors='coerce').fillna(0.0) * 1000
+    if 'CW' in df_final.columns: df_final['CW'] = df_final['CW'].apply(_normalize_cw)
+    if 'NHÓM' in df_final.columns: df_final['NHÓM'] = df_final['NHÓM'].astype(str).str.replace(r'\s*\(.*\)\s*', '', regex=True).str.replace('/', ',', regex=False)
+    
+    # 🚨 ĐÃ XÓA logic làm sạch cột Customer cũ ở đây
+
+    text_cols = ["CW", "NHÓM", "Material description", "gradeSteel", "purpose"]
+    for col in text_cols:
+        if col in df_final.columns:
+            df_final[col] = df_final[col].astype(str).replace(['nan', 'None', '<NA>'], '').fillna('')
+
+    # --- TẠO ID & GHI DB ---
+    df_final = df_final.reset_index(drop=True)
+    df_final.insert(0, 'ID', range(1, len(df_final) + 1))
+
+    # --- BƯỚC 4: CẬP NHẬT DTYPE MAPPING ---
+    dtype_mapping = {
+        'ID': BigInteger(),
+        'SO Mapping': BigInteger(),
+        'CW': NVARCHAR(255),
+        'NHÓM': NVARCHAR(255),
+        'Material description': NVARCHAR(500),
+        'Order': NVARCHAR(100),
+        'TDC_Code': VARCHAR(100),  
+        'gradeSteel': VARCHAR(100),
+        'purpose': NVARCHAR(500),
+        'Target_Weight': Float(),
+        'KySanXuat': NVARCHAR(50),
+        'is_skin_required': Integer(),
+        'production_status': NVARCHAR(50),
+        'thickness': Float(),
+        'width': Float(),
+        'alloc_thick': Float(),
+        'material_code': NVARCHAR(100)
+    }
+    
+    # Lệnh replace sẽ tự động tạo bảng mới với cột TDC_Code, xóa mất cột Customer cũ
     df_final.to_sql('so_request', engine, if_exists='replace', index=False, dtype=dtype_mapping)
-    print(f"Đã ghi thành công {len(df_final)} dòng vào bảng so_request.")
+    print(f"Đã ghi thành công {len(df_final)} dòng vào bảng so_request (Bao gồm TDC_Code chuẩn).")
 import numpy as np
 def process_create_lsx(input_file_path):
 
@@ -601,7 +715,7 @@ def process_create_lsx(input_file_path):
     # 1. Định nghĩa các tên cột
     COL_KHSX = 'KHSX'
     COL_DO_DAY = 'Độ dày'              # Dùng cho cả sắp xếp (số) và hiển thị (chuỗi)
-    COL_WMDD_STR = 'W\nMDĐ'          # Cột CHUỖI (vd: "123X") - Dùng để HIỂN THỊ
+    COL_WMDD_STR = 'W\nMDĐ'            # Cột CHUỖI (vd: "123X") - Dùng để HIỂN THỊ
     COL_KHO_RONG_NUM = 'Khổ rộng'      # Cột SỐ (vd: 1230) - Dùng để SẮP XẾP
     COL_MAC_THEP = 'Mác thép'
     COL_1A = '1A'

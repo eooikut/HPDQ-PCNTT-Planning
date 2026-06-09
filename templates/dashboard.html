@@ -24,6 +24,14 @@
     </select>
   </div>
   <div>
+    <label for="filter-status" class="form-label mb-1 small">Trạng thái xuất</label>
+    <select id="filter-status" name="status" class="form-select">
+      <option value="">-- Tất cả trạng thái --</option>
+      <option value="done" {% if selected_status == 'done' %}selected{% endif %}>Đã xuất xong</option>
+      <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Chưa xuất xong</option>
+    </select>
+  </div>
+  <div>
     <label for="filter-start-date" class="form-label mb-1 small">Từ ngày</label>
     <input type="date" id="filter-start-date" name="start_date" class="form-control" value="{{ selected_start_date or '' }}">
   </div>
@@ -118,6 +126,15 @@
                                     <i class="fas fa-chevron-right so-toggle-icon"></i>
                                     SO {{ so_number }}: {{ so_detail.summary.progress_text }} T (Phân bổ : {{ so_detail.summary.so_phan_bo }} / {{ (so_detail.summary.klyeucau / 1000)|int }} T)
                                 </div>
+                                {% set target_tan = (so_detail.summary.klyeucau / 1000)|int %}
+								{% set export_pct = (so_detail.summary.thucte_xuat_tan / target_tan * 100) if target_tan > 0 else 0 %}
+								
+								<div class="so-info mt-1" style="font-size: 0.9em; font-weight: bold; color: {% if so_detail.is_exported_finished %}#0dcaf0{% else %}#adb5bd{% endif %};">
+									↳ Đã xuất tàu: {{ so_detail.summary.thucte_xuat_tan }} / {{ target_tan }} T ({{ "%.1f"|format(export_pct) }}%)
+									{% if so_detail.is_exported_finished %}
+										<i class="fas fa-check-circle ms-1"></i> (Đã xong)
+									{% endif %}
+								</div>
                                 <div class="progress progress-sm position-relative">
                                     {# Nếu SO có material < 90% thì màu vàng, ngược lại màu xanh #}
                                     <div class="progress-bar {% if so_detail.has_underperforming_material %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ so_detail.summary.progress_percent }}%;" aria-valuenow="{{ so_detail.summary.progress_percent }}" aria-valuemin="0" aria-valuemax="100">
@@ -373,10 +390,10 @@
     const filterSheetMonth = document.getElementById("filter-sheetmonth");
 
     // Khi thay đổi tháng, tự động tải lại trang với tháng mới và reset bộ lọc ngày
-    filterSheetMonth.addEventListener("change", function() {
-      const selectedMonth = this.value;
-      window.location.href = `{{ url_for('dashboard_bp.dashboard') }}?sheetmonth=${selectedMonth}`;
-    });
+    // filterSheetMonth.addEventListener("change", function() {
+    //   const selectedMonth = this.value;
+    //   window.location.href = `{{ url_for('dashboard_bp.dashboard') }}?sheetmonth=${selectedMonth}`;
+    // });
 
     // Form submission sẽ xử lý việc lọc theo ngày trong tháng đã chọn
     // Action mặc định của form là GET, sẽ tự động thêm các tham số vào URL
@@ -546,26 +563,26 @@ document.addEventListener('click', function() {
         // Biểu đồ 3: Xu hướng giao hàng
         const deliveryTrendCtx = document.getElementById('deliveryTrendChart').getContext('2d');
         deliveryTrendChart = new Chart(deliveryTrendCtx, {
-            type: 'line',
-            data: { labels: [], datasets: [{ label: 'Khối lượng giao (tấn)', data: [], borderColor: '#0d6efd', tension: 0.1 }] },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { 
-                    title: { display: true, text: 'Xu hướng giao hàng theo ngày' },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `Khối lượng giao: ${context.raw.toLocaleString()} tấn`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: { type: 'time', time: { unit: 'day', tooltipFormat: 'dd/MM/yyyy' } },
-                    y: { beginAtZero: true, title: { display: true, text: 'Tấn' } }
-                }
-            }
-        });
+          type: 'line',
+          data: { labels: [], datasets: [] }, // Đổi từ [{...}] thành mảng rỗng
+          options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: { 
+                  title: { display: true, text: 'Xu hướng giao hàng theo ngày' },
+                  tooltip: {
+                      callbacks: {
+                          label: function(context) {
+                              return `${context.dataset.label}: ${context.raw.toLocaleString()} tấn`;
+                          }
+                      }
+                  }
+              },
+              scales: {
+                  x: { type: 'time', time: { unit: 'day', tooltipFormat: 'dd/MM/yyyy' } },
+                  y: { beginAtZero: true, title: { display: true, text: 'Tấn' } }
+              }
+          }
+      });
     }
 
     async function updateCharts() {
@@ -587,7 +604,24 @@ document.addEventListener('click', function() {
             shipStatusChart.update();
 
             deliveryTrendChart.data.labels = data.delivery_trend.labels;
-            deliveryTrendChart.data.datasets[0].data = data.delivery_trend.data;
+            deliveryTrendChart.data.datasets = [
+                {
+                    label: 'Kế hoạch P.KD (tấn)',
+                    data: data.delivery_trend.actual_data, // Lấy mảng thực tế
+                    borderColor: '#0d6efd', // Màu xanh dương
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    tension: 0.1
+                },
+                {
+                    label: 'Kế hoạch PLCOS(tấn)',
+                    data: data.delivery_trend.planned_data, // Lấy mảng kế hoạch
+                    borderColor: '#ffc107', // Màu vàng
+                    backgroundColor: 'transparent',
+                    borderDash: [5, 5], // Nét đứt phân biệt với thực tế
+                    borderWidth: 2,
+                    tension: 0.1
+                }
+            ];
             deliveryTrendChart.update();
 
         } catch (error) {

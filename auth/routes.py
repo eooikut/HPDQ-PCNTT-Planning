@@ -60,6 +60,7 @@ def login():
                     'manage_lsx': 'lsx.danhsach_lsx',
                     'manage_users': 'user.list_users',
                     'upload_files': 'upload.upload_files',
+                    'manage_mtc': 'mtc_bp.mtc',
                 }
 
                 for perm, route in permission_routes.items():

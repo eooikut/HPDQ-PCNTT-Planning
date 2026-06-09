@@ -34,9 +34,7 @@ def format_date(d):
 def get_sanluong_kho():
     sql = text("""
 -- Phần 1: Lấy các cuộn "Chờ nhập kho"
-WITH Raw_Data AS (
-    /* --- KHỐI 1: Sản lượng (Đã lọc trùng với kho) --- */
-    SELECT DISTINCT
+SELECT DISTINCT
     s.[ID Cuộn Bó],
     s.[Material Description],
     s.[Nhóm],
@@ -58,15 +56,14 @@ WITH Raw_Data AS (
     END AS NgayDuKien,
     0 AS [SO Mapping],  -- SỬA LẠI ĐÚNG: Gán giá trị mặc định là 0
     ISNULL(so_detail.[SO_Mapping], 0) AS [SO Mapping dự kiến],
-    s.[NhaMay],
-    2 AS NguonDuLieu
-FROM sanluong s
-LEFT JOIN tbl_SO_Allocation_Detail so_detail ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
+    s.[NhaMay]
+FROM sanluong s WITH (NOLOCK)
+LEFT JOIN tbl_SO_Allocation_Detail so_detail WITH (NOLOCK) ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
 WHERE 
     s.[ID Cuộn Bó] IS NOT NULL
     AND s.[ID Cuộn Bó] <> ''
     AND (s.[Đã nhập kho] = 'No' OR s.[Đã nhập kho] IS NULL)
-    AND NOT EXISTS (SELECT 1 FROM kho k WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó])
+    AND NOT EXISTS (SELECT 1 FROM kho k WITH (NOLOCK) WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó])
 
 UNION ALL
 
@@ -99,26 +96,9 @@ SELECT
         WHEN k.[Plant] = 1000 THEN N'HRC1'
         WHEN k.[Plant] = 1600 THEN N'HRC2'
         ELSE N'Khác'
-    END AS NhaMay,
-     1 AS NguonDuLieu
-FROM kho k
-LEFT JOIN tbl_SO_Allocation_Detail so_detail ON k.[ID Cuộn Bó] = so_detail.[Roll_ID]
-),
-
-/* --- BƯỚC LỌC TRÙNG (QUAN TRỌNG NHẤT) --- */
-Deduped_Data AS (
-    SELECT *,
-           ROW_NUMBER() OVER(
-               PARTITION BY [ID Cuộn Bó] 
-               ORDER BY 
-                   NguonDuLieu ASC,       -- QUAN TRỌNG: Số 1 (Kho) sẽ được xếp trước số 2 (Sanluong)
-                   [Ngày sản xuất] DESC   -- Nếu cùng nguồn (vd lỗi mapping nhân đôi dòng kho), lấy ngày mới nhất
-           ) as rn
-    FROM Raw_Data
-)
-/* --- KẾT QUẢ CUỐI CÙNG --- */
-SELECT * FROM Deduped_Data
-WHERE rn = 1; -- Chỉ lấy dòng đầu tiên, loại bỏ dòng thứ 2, 3 trở đi
+    END AS NhaMay
+FROM kho k WITH (NOLOCK)
+LEFT JOIN tbl_SO_Allocation_Detail so_detail WITH (NOLOCK) ON k.[ID Cuộn Bó] = so_detail.[Roll_ID]
 
     """)
     with engine.connect() as conn:
@@ -133,8 +113,9 @@ def idcuonbo():
     nhom_list = sorted({r["Nhóm"] for r in rows if r["Nhóm"]})
     tp2_list = sorted({r["TpLoai2"] for r in rows if r["TpLoai2"] is not None})
     nha_may_list = sorted({r["NhaMay"] for r in rows if r.get("NhaMay")}) 
+    ca_list = sorted({str(r["Ca"]) for r in rows if r["Ca"]})
     return render_template("idcuonbo.html", trangthai_list=trangthai_list,nhom_list=nhom_list,
-        tp2_list=tp2_list,nha_may_list=nha_may_list, )
+        tp2_list=tp2_list,nha_may_list=nha_may_list,ca_list=ca_list )
 
 @idcuonbo_bp.route("/idcuonbo_search")
 @permission_required('view_coil_id')
@@ -150,7 +131,12 @@ def idcuonbo_search():
     nhom_list = request.args.getlist("nhom[]")
     tp2 = request.args.get("tp2", "")
     nha_may = request.args.get("nha_may", "") 
+    ca_filter = request.args.get("ca", "")
+    tu_ngay_str = request.args.get("tu_ngay", "") # Format yyyy-mm-dd từ input type=date
+    den_ngay_str = request.args.get("den_ngay", "")
 
+    tu_ngay_dt = datetime.strptime(tu_ngay_str, '%Y-%m-%d') if tu_ngay_str else None
+    den_ngay_dt = datetime.strptime(den_ngay_str, '%Y-%m-%d') if den_ngay_str else None
     # --------- filter ---------
     filtered = []
     keywords = [k.strip().lower() for k in keyword.split(",") if k.strip()]
@@ -166,7 +152,9 @@ def idcuonbo_search():
         if keywords:
             match_kw = all(
                 (
-                    (k.isdigit() and (str(id_val) == k or str(so_mapping_val) == k or str(so_mapping_du_kien_val) == k))
+                    k in str(id_val).lower()
+                    or k in str(so_mapping_val).lower()
+                    or k in str(so_mapping_du_kien_val).lower()
                     or k in material_val
                     or k in lo_phoi_val
                 )
@@ -182,8 +170,24 @@ def idcuonbo_search():
         )
         match_tp2 = (tp2 == "" or str(r["TpLoai2"]) == str(tp2))
         match_nha_may = (nha_may == "" or r.get("NhaMay") == nha_may)
-
-        if match_kw and match_trangthai and match_nhom and match_tp2 and match_nha_may:
+        match_ca = (ca_filter == "" or str(r.get("Ca")) == ca_filter)
+        row_date = r.get("Ngày sản xuất")
+        if not isinstance(row_date, datetime):
+            row_date = parse_date_str(row_date)
+        
+        match_ngay = True
+        if row_date:
+            # So sánh chỉ lấy phần ngày (date), bỏ qua giờ phút
+            r_date_only = row_date.date() # chuyển về date object
+            if tu_ngay_dt and r_date_only < tu_ngay_dt.date():
+                match_ngay = False
+            if den_ngay_dt and r_date_only > den_ngay_dt.date():
+                match_ngay = False
+        else:
+            # Nếu dòng không có ngày sản xuất mà người dùng đang lọc ngày -> loại bỏ
+            if tu_ngay_dt or den_ngay_dt:
+                match_ngay = False
+        if match_kw and match_trangthai and match_nhom and match_tp2 and match_nha_may and match_ca and match_ngay:
             filtered.append(r)
 
     rows = filtered
@@ -222,18 +226,22 @@ def idcuonbo_export():
     # 1. Lấy tất cả các tham số lọc từ URL, giống hệt idcuonbo_search
     keyword = request.args.get("keyword", "").strip()
     trangthai = request.args.get("trangthai", "")
-    nhom_list = request.args.getlist("nhom[]")
-    tp2 = request.args.get("tp2", "")
-    nha_may = request.args.get("nha_may", "")
     sort_col = request.args.get("sort_col", "")
     sort_dir = request.args.get("sort_dir", "asc")
-
-    # 2. Lấy toàn bộ dữ liệu
     rows = get_sanluong_kho()
+    nhom_list = request.args.getlist("nhom[]")
+    tp2 = request.args.get("tp2", "")
+    nha_may = request.args.get("nha_may", "") 
+    ca_filter = request.args.get("ca", "")
+    tu_ngay_str = request.args.get("tu_ngay", "") # Format yyyy-mm-dd từ input type=date
+    den_ngay_str = request.args.get("den_ngay", "")
 
-    # 3. Áp dụng logic lọc y hệt trong idcuonbo_search
+    tu_ngay_dt = datetime.strptime(tu_ngay_str, '%Y-%m-%d') if tu_ngay_str else None
+    den_ngay_dt = datetime.strptime(den_ngay_str, '%Y-%m-%d') if den_ngay_str else None
+    # --------- filter ---------
     filtered = []
     keywords = [k.strip().lower() for k in keyword.split(",") if k.strip()]
+
     for r in rows:
         id_val = r.get("ID Cuộn Bó")
         so_mapping_val = r.get("SO Mapping")
@@ -241,10 +249,13 @@ def idcuonbo_export():
         material_val = (r.get("Material Description") or "").lower()
         lo_phoi_val = (r.get("Lô phôi") or "").lower()
 
+        # Kiểm tra keyword (AND logic)
         if keywords:
             match_kw = all(
                 (
-                    (k.isdigit() and (str(id_val) == k or str(so_mapping_val) == k or str(so_mapping_du_kien_val) == k))
+                    k in str(id_val).lower()
+                    or k in str(so_mapping_val).lower()
+                    or k in str(so_mapping_du_kien_val).lower()
                     or k in material_val
                     or k in lo_phoi_val
                 )
@@ -260,8 +271,24 @@ def idcuonbo_export():
         )
         match_tp2 = (tp2 == "" or str(r["TpLoai2"]) == str(tp2))
         match_nha_may = (nha_may == "" or r.get("NhaMay") == nha_may)
-
-        if match_kw and match_trangthai and match_nhom and match_tp2 and match_nha_may:
+        match_ca = (ca_filter == "" or str(r.get("Ca")) == ca_filter)
+        row_date = r.get("Ngày sản xuất")
+        if not isinstance(row_date, datetime):
+            row_date = parse_date_str(row_date)
+        
+        match_ngay = True
+        if row_date:
+            # So sánh chỉ lấy phần ngày (date), bỏ qua giờ phút
+            r_date_only = row_date.date() # chuyển về date object
+            if tu_ngay_dt and r_date_only < tu_ngay_dt.date():
+                match_ngay = False
+            if den_ngay_dt and r_date_only > den_ngay_dt.date():
+                match_ngay = False
+        else:
+            # Nếu dòng không có ngày sản xuất mà người dùng đang lọc ngày -> loại bỏ
+            if tu_ngay_dt or den_ngay_dt:
+                match_ngay = False
+        if match_kw and match_trangthai and match_nhom and match_tp2 and match_nha_may and match_ca and match_ngay:
             filtered.append(r)
     
     rows = filtered

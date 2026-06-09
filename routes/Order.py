@@ -28,7 +28,7 @@ SELECT
     [Shipped Quantity (KG)],
     [Quantity (KG)],
     [Process]
-FROM Order_mapping_so
+FROM Order_mapping_so WITH (NOLOCK)
 ORDER BY [Order], [SO Mapping];
     """)
     with engine.connect() as conn:

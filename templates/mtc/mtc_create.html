@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Tạo Mới Tem Nhãn MTC{% endblock %}
+
+{% block content %}
+<style>
+    .mtc-form-wrapper { font-family: Arial, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; padding-top: 50px; min-height: 85vh; border-radius: 8px; }
+    .mtc-create-card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 500px; height: fit-content;}
+    .mtc-form-group { margin-bottom: 15px; }
+    .mtc-create-card label { font-weight: bold; display: block; margin-bottom: 5px; color: #004b93; }
+    .mtc-create-card input[type="text"], .mtc-create-card textarea, .mtc-create-card select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+    .mtc-create-card textarea { height: 120px; resize: vertical; }
+    .mtc-btn-save { background: #0d6efd; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold; }
+    .mtc-btn-save:hover { background: #0b5ed7; }
+    .mtc-btn-back { display: block; text-align: center; margin-top: 15px; color: #666; text-decoration: none; font-weight: bold; }
+    .mtc-btn-back:hover { color: #333; }
+</style>
+
+<div class="mtc-form-wrapper">
+    <div class="mtc-create-card">
+        <h2 style="text-align: center; color: #004b93; margin-top: 0; font-weight: bold; font-size: 1.8rem;">➕ Tạo Mới MTC</h2>
+        <form id="createForm">
+            <div class="mtc-form-group">
+                <label>Loại MTC (Mẫu tem):</label>
+                <select name="loai_mtc" required>
+                    <option value="" disabled selected>-- Chọn loại mẫu --</option>
+                    <option value="SNI">Mẫu SNI</option>
+                    <option value="CE">Mẫu CE</option>
+                    <option value="MS-Right">Mẫu MS (Thông tin bên phải)</option>
+                    <option value="NONE">Mẫu Trống (Chỉ in nội dung chính)</option>
+                </select>
+            </div>
+            <div class="mtc-form-group">
+                <label>Mã SO (Số đơn hàng):</label>
+                <input type="text" name="so_number" placeholder="Ví dụ: 2400001584" required>
+            </div>
+            <div class="mtc-form-group">
+                <label>Mác Thép:</label>
+                <input type="text" name="mac_thep" placeholder="Ví dụ: SPHT, S275... (Nếu SNI/CE có thể bỏ trống)">
+            </div>
+            <div class="mtc-form-group">
+                <label>Nhãn Màu:</label>
+                <input type="text" name="nhan_mau" placeholder="Ví dụ: Đỏ, Vàng, Xanh...">
+            </div>
+            <div class="mtc-form-group">
+                <label>Người Tạo (PIC):</label>
+                <input type="text" name="pic" placeholder="Ví dụ: Nguyễn Văn A">
+            </div>
+            <div class="mtc-form-group">
+                <label>Tên Tàu:</label>
+                <input type="text" name="ten_tau" placeholder="Ví dụ: TAU-01">
+            </div>
+            <div class="mtc-form-group">
+                <label>Ghi Chú:</label>
+                <textarea name="ghi_chu" placeholder="Nhập ghi chú (nếu có)..." style="height: 80px;"></textarea>
+            </div>
+            <div class="mtc-form-group">
+                <label>Nội Dung Chính:</label>
+                <textarea name="noi_dung_chinh" placeholder="Nhập nội dung (Nhấn Enter để xuống dòng)..." required></textarea>
+            </div>
+            <button type="submit" class="mtc-btn-save">💾 Tạo Mới & Lưu Database</button>
+            <a href="/mtc" class="mtc-btn-back">⬅ Hủy và Quay lại MTC</a>
+        </form>
+    </div>
+</div>
+
+<script>
+    const loaiSelect = document.querySelector('select[name="loai_mtc"]');
+    const soInput = document.querySelector('input[name="so_number"]');
+    const soLabel = soInput.previousElementSibling; // Lấy thẻ <label> ngay trên thẻ input
+
+    loaiSelect.addEventListener('change', function() {
+        if (this.value === 'NONE') {
+            // Nếu chọn NONE: Bỏ bắt buộc và đổi text nhắc nhở
+            soInput.removeAttribute('required');
+            soLabel.innerHTML = 'Mã SO (Số đơn hàng) <span style="color: #6c757d; font-weight: normal;">(Tùy chọn)</span>:';
+        } else {
+            // Nếu chọn loại khác: Bật lại bắt buộc
+            soInput.setAttribute('required', 'required');
+            soLabel.innerHTML = 'Mã SO (Số đơn hàng):';
+        }
+    });
+
+    // --- LOGIC LƯU DATABASE HIỆN TẠI CỦA BẠN (Giữ nguyên) ---
+    document.getElementById('createForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        const res = await fetch('/api/mtc/create-order', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            body: formData
+        });
+        const result = await res.json();
+        
+        if(result.status === 'success') {
+            alert('Tuyệt vời! Đã tạo tem mới thành công.');
+            window.location.href = '/mtc'; 
+        } else {
+            alert(result.message);
+        }
+    });
+</script>
+{% endblock %}

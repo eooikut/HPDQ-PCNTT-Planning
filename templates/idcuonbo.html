@@ -6,7 +6,15 @@
 
 <div class="d-flex flex-wrap mb-3 gap-2 justify-content-start align-items-center">
   <input type="text" id="keyword" class="form-control" placeholder="Tìm ID Cuộn Bó, Material" style="min-width:350px; max-width:300px">
-
+  <select id="filter-ca" class="form-select" style="width:auto; max-width:120px">
+    <option value="">-- Ca --</option>
+    {% for c in ca_list %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+  </select>
+  <div class="d-flex align-items-center gap-1">
+      <input type="date" id="tu-ngay" class="form-control" title="Từ ngày" style="width: auto;">
+      <span>-</span>
+      <input type="date" id="den-ngay" class="form-control" title="Đến ngày" style="width: auto;">
+  </div>
   <select id="filter-trangthai" class="form-select" style="width:auto; max-width:200px">
     <option value="">-- Tất cả trạng thái --</option>
     {% for tt in trangthai_list %}<option value="{{ tt }}">{{ tt }}</option>{% endfor %}
@@ -126,7 +134,9 @@ const pageInfo = $("#page-info");
 const selectLimit = $("#select-limit");
 const btnReset = $("#btn-reset");
 const filterNhaMay = $("#filter-nhamay");
-
+const filterCa = $("#filter-ca");
+const tuNgayInput = $("#tu-ngay");
+const denNgayInput = $("#den-ngay");
 // Debounce function
 function debounce(fn, delay) {
   let timeout;
@@ -143,6 +153,9 @@ function updateURL() {
   if (filterTp2.val()) params.set("tp2", filterTp2.val());
   if (filterNhaMay.val()) params.set("nha_may", filterNhaMay.val());
   if (filterNhom.val() && filterNhom.val().length > 0) params.set("nhom", filterNhom.val().join(","));
+  if (filterCa.val()) params.set("ca", filterCa.val());
+  if (tuNgayInput.val()) params.set("tu_ngay", tuNgayInput.val());
+  if (denNgayInput.val()) params.set("den_ngay", denNgayInput.val());
   params.set("page", currentPage);
   params.set("limit", limit);
   if (sortCol) params.set("sort_col", sortCol);
@@ -158,6 +171,9 @@ function restoreFiltersFromURL() {
   filterNhaMay.val(params.get("nha_may") || "").trigger("change");
   const nhomVal = params.get("nhom");
   if (nhomVal) filterNhom.val(nhomVal.split(",")).trigger("change");
+  filterCa.val(params.get("ca") || "");
+  tuNgayInput.val(params.get("tu_ngay") || "");
+  denNgayInput.val(params.get("den_ngay") || "");
   currentPage = parseInt(params.get("page")) || 1;
   limit = parseInt(params.get("limit")) || 100;
   sortCol = params.get("sort_col") || "";
@@ -172,6 +188,9 @@ function fetchRows() {
     nhom: filterNhom.val() || [],
     tp2: filterTp2.val(),
     nha_may: filterNhaMay.val(),
+    ca: filterCa.val(),
+    tu_ngay: tuNgayInput.val(),
+    den_ngay: denNgayInput.val(),
     sort_col: sortCol,
     sort_dir: sortDir,
     page: currentPage,
@@ -229,7 +248,7 @@ fetchRows();
 
 // Events
 keywordInput.on("input", () => { currentPage = 1; fetchRowsDebounced(); });
-[filterTrangThai, filterNhom, filterTp2, filterNhaMay].forEach(elem => {
+[filterTrangThai, filterNhom, filterTp2, filterNhaMay, filterCa, tuNgayInput, denNgayInput].forEach(elem => {
   elem.on("change", () => { currentPage = 1; fetchRows(); });
 });
 selectLimit.on("change", function () {
@@ -243,6 +262,9 @@ btnReset.on("click", () => {
   filterNhom.val(null).trigger("change");
   filterTp2.val("").trigger("change");
   filterNhaMay.val("").trigger("change");
+  filterCa.val("");
+  tuNgayInput.val("");
+  denNgayInput.val("");
   selectLimit.val("100");
   limit = 100;
   currentPage = 1;
@@ -275,6 +297,9 @@ $("#btn-export").click(() => {
         trangthai: filterTrangThai.val(),
         tp2: filterTp2.val(),
         nha_may: filterNhaMay.val(),
+        ca: filterCa.val(),
+        tu_ngay: tuNgayInput.val(),
+        den_ngay: denNgayInput.val(),
         sort_col: sortCol,
         sort_dir: sortDir,
     });

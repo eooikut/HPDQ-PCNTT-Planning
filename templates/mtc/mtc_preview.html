@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview Tem - {{ order.SO_Number }}</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #555; font-family: Arial, sans-serif; position: relative; }
+        
+        /* GIAO DIỆN THANH CÔNG CỤ TRÊN CÙNG */
+        .toolbar { position: absolute; top: 20px; left: 0; right: 0; text-align: center; }
+        .btn-download { background-color: #28a745; color: white; padding: 10px 20px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: 0.2s; }
+        .btn-download:hover { background-color: #218838; transform: scale(1.05); }
+
+        /* NỀN PHÔI TEM */
+        .label-container { 
+            width: 96mm; 
+            height: 96mm; 
+            position: relative; 
+            background-image: url('/static/mtc/phoi_tem.png'); 
+            background-size: 100% 100%; 
+            background-repeat: no-repeat; 
+            background-position: center; 
+            border-radius: 3mm; 
+            overflow: hidden; 
+            background-color: #ffffff; 
+
+            /* 👇 THÊM DÒNG NÀY: Phóng to tem lên 40% trên màn hình web */
+            transform: scale(1.4); 
+        }
+        /* MÃ SỐ DỌC */
+        .vertical-serial { 
+            position: absolute; 
+            width: 40mm;  
+            height: 16px;
+            line-height: 16px;
+            text-align: center; 
+            transform-origin: center center; 
+            transform: rotate(90deg); 
+            
+            /* Đẩy tâm xuống đúng giữa vùng nội dung trắng */
+            top: 63mm; 
+            margin-top: -8px; 
+            bottom: auto; 
+            
+            left: -15mm; 
+            
+            font-weight: bold; 
+            font-size: 14px; 
+            color: #000; 
+            letter-spacing: 1.5px; 
+            z-index: 10; 
+            backface-visibility: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* MÁC THÉP DỌC - Song song với Mã SO */
+        .vertical-mac-thep { 
+            position: absolute; 
+            width: 40mm;  
+            height: 16px;
+            line-height: 16px;
+            text-align: center; 
+            transform-origin: center center; 
+            transform: rotate(90deg); 
+            
+            /* Căn giữa chiều dọc giống hệt mã số */
+            top: 63mm; 
+            margin-top: -8px;
+            bottom: auto; 
+            
+            left: -16mm; 
+            
+            font-weight: bold; 
+            font-size: 14px; 
+            color: #000; 
+            letter-spacing: 1.5px; 
+            z-index: 10; 
+            backface-visibility: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+        .cert-ms-left .vertical-serial { display: none; }
+        .cert-ms-left .vertical-mac-thep { display: none; } /* Ẩn đi nếu là mẫu left */
+        .cert-ms-right .vertical-serial {
+            left: -11mm;        /* Đẩy mã SO sang bên PHẢI nhường chỗ cho Mác thép */
+        }
+
+        .cert-ms-right .main-content-zone {
+            left: 15mm !important; /* Mở rộng lề trái lên 15mm để text chính không bị lấn/đè vào chữ dọc gây mờ */
+        }
+        /* KHU VỰC GÓC PHẢI TRÊN (TOP-RIGHT) */
+        .top-right-zone { position: absolute; top: 3.5mm; right: 3.5mm; width: 35mm; height: 35mm; z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 1mm; }
+        .cert-sni .top-right-zone img { width: 100%; height: 100%; object-fit: contain; }
+        .cert-ce .top-right-zone img { width: 20mm; height: 14mm; object-fit: contain; margin-bottom: 1mm; }
+        .cert-ce .top-right-zone p { font-size: 9px; font-weight: bold; line-height: 1.1; margin: 0; }
+        .cert-ce .top-right-zone p.ce-license { font-size: 18px; margin-bottom: 2mm; }
+        .cert-ms-right .top-right-zone img { 
+            width: 28mm; /* Phóng to chiều rộng logo lên 28mm (cũ là 20mm) */
+            height: 18mm; /* Phóng to chiều cao tương ứng */
+            object-fit: contain; 
+            margin-bottom: 1mm; /* Tạo khoảng thở với dòng chữ */
+        }
+        .cert-ms-right .top-right-zone p { 
+            font-size: 11px; /* Tăng cỡ chữ lên một chút */
+            font-weight: bold; 
+            line-height: 1.4; /* Giãn khoảng cách giữa các dòng cho thoáng */
+            margin: 0; 
+            font-family: Arial, sans-serif; /* Đổi sang font có chân (Serif) giống hệt ảnh mẫu của bạn */
+        }
+        .cert-ms-left .top-right-zone p { font-size: 13px; font-weight: bold; line-height: 1.3; margin: 0; }
+
+        /* KHU VỰC DỮ LIỆU TRUNG TÂM */
+        .main-content-zone { position: absolute; top: 43mm; bottom: 13mm; left: 12mm; right: 5mm; z-index: 10; display: flex; }
+        .cert-sni .main-content-zone, .cert-ce .main-content-zone, .cert-ms-right .main-content-zone { flex-direction: column; justify-content: center; align-items: center; gap: 4mm; }
+        
+        .cert-ms-left .main-content-zone { flex-direction: row; align-items: center; justify-content: flex-start; gap: 5mm; }
+        .ms-logo-box { flex: 0 0 24mm; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .ms-logo-box img { width: 24mm; height: 18mm; object-fit: contain; margin-bottom: 2mm; }
+        .ms-logo-box p { font-size: 9px; font-weight: bold; text-align: center; margin: 0; line-height: 1.2; }
+        
+        .ms-text-box { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        /* --- CSS CHO TRƯỜNG HỢP KHÔNG CÓ LOẠI MTC (CERT-NONE) --- */
+        /* 1. Ẩn toàn bộ Logo góc phải và các chữ dọc */
+        .cert-none .top-right-zone {
+            display: none;
+        }
+        
+        .cert-ms-right.has-mac-thep .vertical-serial,
+        .cert-none.has-mac-thep .vertical-serial {
+            left: -11mm; /* Đẩy mã SO sang trái nhường chỗ cho Mác thép */
+        }
+        .cert-ms-right.has-mac-thep .main-content-zone,
+        .cert-none.has-mac-thep .main-content-zone {
+            left: 15mm !important; /* Mở rộng lề trái để text chính không đè vào 2 dòng chữ dọc */
+        }
+        /* 2. Mở rộng vùng chứa nội dung chính ra tối đa và căn giữa hoàn hảo */
+        .cert-none .main-content-zone { 
+            position: absolute; 
+            top: 43mm;     /* Giới hạn trần nghiêm ngặt ở mép dưới mảng xanh */
+            bottom: 13mm;  /* Giới hạn sàn ở mép trên mảng xanh dưới */
+            left: 12mm;     /* Đổi lề trái thành 5mm (bằng lề phải) để chữ nằm ngay chính giữa tâm tem */
+            right: 5mm; 
+            z-index: 10; 
+            
+            /* Bổ sung 4 lệnh này để ép chữ vào chính giữa khung giống hệt các mẫu khác */
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 4mm;
+        }
+
+        /* Ép chữ to lên một chút cho trường hợp chỉ có nội dung chính */
+        .cert-none .dynamic-text {
+            font-size: 13px; 
+            line-height: 1.4;
+        }
+        /* Cấu hình text tự động xuống dòng chuẩn Excel */
+        .dynamic-text { font-size: 13px; font-weight: bold; text-align: center; margin: 0; line-height: 1.4; background-color: rgba(255,255,255,0.8); padding: 0 4px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <button class="btn-download" onclick="downloadPNG()">📥 Tải xuống tem PNG (Bản In)</button>
+    </div>
+
+    <div class="label-container {{ cert_class }} {% if ('ms' in cert_class or cert_class == 'cert-none') and order.Mac_Thep and order.Mac_Thep != 'DEFAULT' %}has-mac-thep{% endif %}" id="label-capture">
+        
+        <div class="vertical-serial">{{ order.SO_Number }}</div>
+        
+        {% if ('ms' in cert_class or cert_class == 'cert-none') and order.Mac_Thep and order.Mac_Thep != 'DEFAULT' %}
+            <div class="vertical-mac-thep">{{ order.Mac_Thep }}</div>
+        {% endif %}
+        <div class="top-right-zone">
+            {% if cert_class == 'cert-sni' %}
+                <img src="/static/mtc/logo_sni.png" alt="SNI Logo">
+                
+            {% elif cert_class == 'cert-ce' %}
+                <img src="/static/mtc/logo_ce.png" alt="CE Logo">
+                <p class="ce-license">{{ config.License_No if config else '2195' }}</p>
+                <p>{{ config.Tieu_Chuan if config else 'EN 10025-2' }}</p>
+                
+                {% set mac = order.Mac_Thep if order.Mac_Thep and order.Mac_Thep != 'DEFAULT' else 'S355JR' %}
+                <p>DoP: HP{{ mac }}AR</p>
+                
+            {% elif cert_class == 'cert-ms-right' %}
+                <img src="/static/mtc/logo_ms.png" alt="MS Logo">
+                <p>SIRIM</p>
+                <p>{{ config.Tieu_Chuan if config else '' }}</p>
+                <p>{{ config.License_No if config else '' }}</p>
+                
+            {% elif cert_class == 'cert-ms-left' %}
+                <p>{{ order.SO_Number }}--</p>
+                <p>{{ order.Mac_Thep if order.Mac_Thep != 'DEFAULT' else '' }}--</p>
+            {% endif %}
+        </div>
+
+        <div class="main-content-zone">
+            {% if cert_class == 'cert-ms-left' %}
+                <div class="ms-logo-box">
+                    <img src="/static/mtc/logo_ms.png" alt="MS Logo">
+                    <p>SIRIM</p>
+                    <p>{{ config.Tieu_Chuan if config else '' }}</p>
+                    <p>{{ config.License_No if config else '' }}</p>
+                </div>
+                <div class="ms-text-box">
+                    <div class="dynamic-text">{{ order.Noi_Dung_Chinh }}</div>
+                </div>
+            {% else %}
+                <div class="dynamic-text">{{ order.Noi_Dung_Chinh }}</div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js"></script>
+    <script>
+        if (window.self !== window.top) {
+            const toolbar = document.querySelector('.toolbar');
+            if (toolbar) toolbar.style.display = 'none';
+        }
+        // Lấy thông tin
+        const label = document.getElementById('label-capture');
+        const soNumber = "{{ order.SO_Number }}";
+
+        function downloadPNG() {
+            const label = document.getElementById('label-capture');
+            const soNumber = "{{ order.SO_Number }}";
+            
+            const scale = 4;
+            
+            // Lấy kích thước GỐC của tem
+            const origWidth = label.offsetWidth;
+            const origHeight = label.offsetHeight;
+
+            // Dùng dom-to-image xuất ảnh
+            domtoimage.toPng(label, {
+                width: origWidth * scale,
+                height: origHeight * scale,
+                style: {
+                    transform: 'scale(' + scale + ')',
+                    transformOrigin: 'top left',
+                    width: origWidth + 'px',
+                    height: origHeight + 'px'
+                }
+            })
+            .then(function (dataUrl) {
+                let link = document.createElement('a');
+                link.download = `MTC_${soNumber}.png`;
+                link.href = dataUrl;
+                link.click();
+            })
+            .catch(function (error) {
+                console.error('Lỗi khi tạo PNG:', error);
+                alert("Có lỗi xảy ra khi tạo ảnh PNG.");
+            });
+        }
+
+        function downloadPDF() {
+            const label = document.getElementById('label-capture');
+            const soNumber = "{{ order.SO_Number }}";
+            
+            // Giữ nguyên tỷ lệ nét gấp 4 lần
+            const scale = 4; 
+            const origWidth = label.offsetWidth;
+            const origHeight = label.offsetHeight;
+
+            // Dùng domtoimage thay vì html2canvas để tránh lỗi transform/rotate
+            domtoimage.toPng(label, {
+                width: origWidth * scale,
+                height: origHeight * scale,
+                style: {
+                    transform: 'scale(' + scale + ')',
+                    transformOrigin: 'top left',
+                    width: origWidth + 'px',
+                    height: origHeight + 'px'
+                }
+            })
+            .then(function (imgData) {
+                // imgData lúc này là base64 của bức ảnh PNG siêu nét và chuẩn tỷ lệ
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: [96, 96] // Kích thước tem thật
+                });
+                
+                // Dán ảnh PNG hoàn hảo vào file PDF
+                pdf.addImage(imgData, 'PNG', 0, 0, 96, 96);
+                pdf.save(`MTC_${soNumber}.pdf`);
+            })
+            .catch(function (error) {
+                console.error('Lỗi khi tạo PDF:', error);
+                alert("Có lỗi xảy ra khi tạo PDF.");
+            });
+        }
+
+        // AUTO-DOWNLOAD LOGIC (Dành cho chức năng gọi từ Dashboard)
+       window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const autoType = urlParams.get('auto_download');
+        const autoArchive = urlParams.get('auto_archive');
+        
+        // Xử lý auto download về máy người dùng
+        if (autoType) {
+            setTimeout(() => {
+                if (autoType === 'png') downloadPNG();
+                else if (autoType === 'pdf') downloadPDF();
+            }, 1000); 
+        }
+        
+        // XỬ LÝ AUTO ARCHIVE LƯU XUỐNG SERVER BẰNG GIAO DIỆN THỰC
+        if (autoArchive) {
+        // Đợi 1.5 giây để load 100% hình ảnh nền, logo, và font chữ
+        setTimeout(() => {
+            const label = document.getElementById('label-capture');
+            const soNumber = "{{ order.SO_Number }}";
+            const scale = 4;
+            const origWidth = label.offsetWidth;
+            const origHeight = label.offsetHeight;
+
+            domtoimage.toPng(label, {
+                width: origWidth * scale,
+                height: origHeight * scale,
+                style: {
+                    transform: 'scale(' + scale + ')',
+                    transformOrigin: 'top left',
+                    width: origWidth + 'px',
+                    height: origHeight + 'px'
+                }
+            })
+            .then(function (dataUrl) {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                fetch('/api/mtc/save-local-file', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ 
+                        image: dataUrl, 
+                        order_id: "{{ order.ID }}"
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    // Thành công hay Thất bại đều phải gửi tín hiệu giải phóng
+                    if(data.status !== 'success') {
+                        alert("Lỗi lưu ảnh: " + data.message);
+                    }
+                    window.parent.postMessage('archive_done', '*');
+                })
+                .catch(err => {
+                    console.error("Lỗi fetch:", err);
+                    window.parent.postMessage('archive_done', '*');
+                });
+            })
+            .catch(function (error) {
+                // NẾU LỖI DOM-TO-IMAGE, GỬI TÍN HIỆU ĐỂ TRÁNH TREO
+                console.error("Lỗi tạo ảnh:", error);
+                window.parent.postMessage('archive_done', '*');
+            });
+        }, 1500); 
+    }
+    };
+    </script>
+
+</body>
+</html>

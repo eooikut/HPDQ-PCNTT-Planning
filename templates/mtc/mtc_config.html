@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Cấu Hình Mác Thép & Tiêu Chuẩn{% endblock %}
+
+{% block content %}
+<style>
+    .mtc-config-wrapper { font-family: Arial, sans-serif; background-color: #f4f7f6; padding: 20px; border-radius: 8px; min-height: 85vh; }
+    .mtc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .mtc-header h1 { color: #004b93; margin: 0; font-size: 1.8rem; font-weight: bold; }
+    .btn-add { background: #0d6efd; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; cursor: pointer; border: none; }
+    .btn-add:hover { background: #0b5ed7; }
+    .btn-back { background: #6c757d; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-right: 10px; }
+    .btn-back:hover { background: #5c636a; color: white; }
+    
+    .mtc-config-wrapper table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .mtc-config-wrapper th, .mtc-config-wrapper td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; font-size: 14px; }
+    .mtc-config-wrapper th { background-color: #004b93; color: white; }
+    .mtc-config-wrapper tr:hover { background-color: #f1f1f1; }
+    
+    .action-btn { padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; color: white; margin-right: 5px; font-size: 12px;}
+    .btn-edit { background-color: #ffc107; color: #333; font-weight: bold;}
+    .btn-delete { background-color: #dc3545; }
+
+    /* Modal CSS: Nâng z-index lên 1100 để đè lên Topbar */
+    .mtc-modal { display: none; position: fixed; z-index: 1100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+    .mtc-modal-content { background: white; padding: 25px; border-radius: 8px; width: 400px; position: relative; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    .close-btn { position: absolute; right: 15px; top: 15px; cursor: pointer; font-size: 20px; font-weight: bold; color: #aaa; }
+    .close-btn:hover { color: red; }
+    .mtc-form-group { margin-bottom: 15px; }
+    .mtc-form-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
+    .mtc-form-group input, .mtc-form-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    .mtc-btn-save { width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    .mtc-btn-save:hover { background: #218838; }
+</style>
+
+<div class="mtc-config-wrapper">
+    <div class="mtc-header">
+        <h1>⚙️ Cấu Hình Mác Thép</h1>
+        <div>
+            <a href="/mtc" class="btn-back">⬅ Quay lại MTC</a>
+            <button class="btn-add" onclick="openModal()">➕ Thêm Cấu Hình Mới</button>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Loại MTC</th>
+                <th>Mác Thép</th>
+                <th>Tiêu Chuẩn (Standard)</th>
+                <th>License No.</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in configs %}
+            <tr id="row-{{ c.ID }}">
+                <td>{{ c.ID }}</td>
+                <td><strong>{{ c.Loai_MTC }}</strong></td>
+                <td>{{ c.Mac_Thep }}</td>
+                <td>{{ c.Tieu_Chuan or '' }}</td>
+                <td>{{ c.License_No or '' }}</td>
+                <td>
+                    <button class="action-btn btn-edit" onclick="openModal('{{ c.ID }}', '{{ c.Loai_MTC }}', '{{ c.Mac_Thep }}', '{{ c.Tieu_Chuan or '' }}', '{{ c.License_No or '' }}')">✏️ Sửa</button>
+                    <button class="action-btn btn-delete" onclick="deleteConfig({{ c.ID }})">🗑️ Xóa</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="configModal" class="mtc-modal">
+    <div class="mtc-modal-content">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <h2 id="modalTitle" style="margin-top:0; color:#004b93;">Thêm Cấu Hình</h2>
+        <form id="configForm">
+            <input type="hidden" name="id" id="configId">
+            <div class="mtc-form-group">
+                <label>Loại MTC:</label>
+                <select name="loai_mtc" id="loaiMtc" required>
+                    <option value="SNI">SNI</option>
+                    <option value="CE">CE</option>
+                    <option value="MS">MS</option> 
+                </select>
+            </div>
+            <div class="mtc-form-group">
+                <label>Mác Thép:</label>
+                <input type="text" name="mac_thep" id="macThep" placeholder="VD: SPHT, S275 hoặc DEFAULT" required>
+            </div>
+            <div class="mtc-form-group">
+                <label>Tiêu Chuẩn (Tùy chọn):</label>
+                <input type="text" name="tieu_chuan" id="tieuChuan" placeholder="VD: MS EN 10025-2 : 2011">
+            </div>
+            <div class="mtc-form-group">
+                <label>License No (Tùy chọn):</label>
+                <input type="text" name="license_no" id="licenseNo" placeholder="VD: PC012155">
+            </div>
+            <button type="submit" class="mtc-btn-save">💾 Lưu Cấu Hình</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal(id = '', loai = 'MS', mac = '', tieu_chuan = '', license = '') {
+        document.getElementById('configModal').style.display = 'flex';
+        document.getElementById('modalTitle').innerText = id ? 'Sửa Cấu Hình' : 'Thêm Cấu Hình Mới';
+        
+        document.getElementById('configId').value = id;
+        document.getElementById('loaiMtc').value = loai.includes('MS') ? 'MS' : loai;
+        document.getElementById('macThep').value = mac;
+        document.getElementById('tieuChuan').value = tieu_chuan;
+        document.getElementById('licenseNo').value = license;
+    }
+
+    function closeModal() {
+        document.getElementById('configModal').style.display = 'none';
+    }
+
+    document.getElementById('configForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const res = await fetch('/api/mtc/config/save', { 
+            method: 'POST', 
+            headers: {
+                'X-CSRFToken': csrfToken
+        },
+        body: formData 
+    });
+        const result = await res.json();
+        if(result.status === 'success') {
+            location.reload(); 
+        } else {
+            alert(result.message);
+        }
+    });
+
+    async function deleteConfig(id) {
+        if(!confirm('Bạn có chắc chắn muốn xóa cấu hình này?')) return;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const res = await fetch(`/api/mtc/config/delete/${id}`, { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            } 
+        });
+        const data = await res.json();
+        if(data.status === 'success') {
+            document.getElementById(`row-${id}`).remove();
+        }
+    }
+</script>
+{% endblock %}

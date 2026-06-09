@@ -40,8 +40,8 @@ WITH data AS (
         lt.[NHỊP] AS nhip,
         lt.SheetMonth,
         s.NhaMay AS nhamay
-    FROM vw_so_kho_sumary2 s
-    JOIN dbo.lichtau lt
+    FROM vw_so_kho_sumary2 s WITH (NOLOCK)
+    JOIN dbo.lichtau lt WITH (NOLOCK)
         ON s.[SO Mapping] = TRY_CAST(lt.[SỐ LỆNH TÁCH] AS BIGINT)
 ),
 process AS (
@@ -122,7 +122,7 @@ FROM process_with_color p -- <-- Cập nhật: Lấy từ CTE mới
 LEFT JOIN tau_status ts 
     ON p.tau = ts.tau 
     AND p.SheetMonth = ts.SheetMonth 
-LEFT JOIN dbo.tbl_SO_Forecast_Result fr 
+LEFT JOIN dbo.tbl_SO_Forecast_Result fr WITH (NOLOCK)
     ON p.saleO = fr.[SO Mapping] 
     AND p.material = fr.Material 
     AND p.nhamay = fr.NhaMay 

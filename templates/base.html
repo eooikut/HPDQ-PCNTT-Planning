@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <title>{% block title %}LSX Tracker{% endblock %}</title>
 	<meta name="csrf-token" content="{{ csrf_token() }}" />
-    <!-- Bootstrap & Font Awesome -->
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
@@ -18,9 +17,10 @@
       href="{{ url_for('static', filename='css/base.css') }}"
     />
     <link
-      rel="icon"
-      href="{{ url_for('static', filename='image/Logo-Gang-thep-mau.png') }}"
-    />
+    rel="icon"
+    href="{{ url_for('static', filename='image/icon-HP.webp') }}"
+    type="image/webp"
+	/>
 
     <style>
       .update-time small {
@@ -78,12 +78,10 @@
   </head>
 
   <body>
-    <!-- 🔝 TOPBAR -->
     <nav
       class="navbar navbar-light bg-white shadow-sm fixed-top d-flex justify-content-between align-items-center px-3"
     >
       <div class="d-flex align-items-center">
-        <!-- Logo -->
         <a class="navbar-brand d-flex align-items-center mb-0 h1" href="#">
           <img
             src="{{ url_for('static', filename='image/Logo-Gang-thep-mau.png') }}"
@@ -92,13 +90,11 @@
           />
         </a>
 
-        <!-- Toggle -->
         <button id="sidebarToggle" class="btn btn-outline-primary me-2">
           <i class="fas fa-bars"></i>
         </button>
       </div>
 
-      <!-- Thời gian cập nhật -->
       <div class="update-time d-flex align-items-center text-muted">
         <small id="so_time">
           📦 SO: {% if so_created_at %} {{ so_created_at.strftime("%Y-%m-%d
@@ -117,7 +113,6 @@
         </small>
       </div>
 
-      <!-- User -->
       <div class="d-flex align-items-center">
         {% if session.get('user_id') %}
         <span class="me-3">👋 Xin chào, {{ session.get('username') }}</span>
@@ -138,18 +133,17 @@
       </div>
     </nav>
 
-    <!-- 📁 SIDEBAR -->
     <div class="sidebar">
       <h6>BÁO CÁO</h6>
       {% if 'view_ship_schedule' in session.get('permissions', []) or session.get('role') == 'admin' %}
       <a href="{{ url_for('dashboard_bp.dashboard') }}"
-        ><i class="fas fa-tachometer-alt"></i><span>Dashboard Tàu</span></a>
+        ><i class="fas fa-anchor"></i><span>Dashboard Tàu</span></a>
       {% endif %}
 	  {% if 'view_cpk_kho' in session.get('permissions', []) or session.get('role') == 'admin' %}
-      <a href="{{ url_for('dashboard_so_bp.dashboard_inventory') }}"><i class="fas fa-sitemap"></i><span>Dashboard Kho</span></a>
+      <a href="{{ url_for('dashboard_so_bp.dashboard_inventory') }}"><i class="fas fa-warehouse"></i><span>Dashboard Kho</span></a>
       {% endif %}
       {% if 'view_cpk_kho' in session.get('permissions', []) or session.get('role') == 'admin' %}
-      <a href="{{ url_for('dashboard_so_bp.dashboard_capacity') }}"><i class="fas fa-sitemap"></i><span>Dashboard CPK</span></a>
+      <a href="{{ url_for('dashboard_so_bp.dashboard_capacity') }}"><i class="fas fa-chart-area"></i><span>Dashboard CPK</span></a>
       {% endif %}
 	  {% if 'view_ship_schedule' in session.get('permissions', []) or session.get('role') == 'admin' %}
 	  <a href="{{ url_for('tau_bp.lichtau') }}"
@@ -162,12 +156,12 @@
       {% endif %}
       {% if 'view_customer' in session.get('permissions', []) or session.get('role') == 'admin' %}
       <a href="{{ url_for('so.so_all') }}"
-        ><i class="fas fa-users"></i><span>Check Khách hàng</span></a
+        ><i class="fas fa-address-card"></i><span>Check Khách hàng</span></a
       >
       {% endif %}
       {% if 'view_coil_id' in session.get('permissions', []) or session.get('role') == 'admin' %}
       <a href="{{ url_for('idcuonbo_bp.idcuonbo') }}"
-        ><i class="fas fa-list"></i><span>Check ID Cuộn</span></a
+        ><i class="fas fa-scroll"></i><span>Check ID Cuộn</span></a
       >
       {% endif %}
       {% if 'view_lsx_report' in session.get('permissions', []) or session.get('role') == 'admin' %}
@@ -179,7 +173,7 @@
       {% if 'manage_lsx' in session.get('permissions', []) or session.get('role') == 'admin' %}
       <h6>KIỂM SOÁT</h6>
       <a href="{{ url_for('lsx.danhsach_lsx') }}" title="Danh sách LSX">
-        <i class="fas fa-list"></i><span>Danh sách LSX</span>
+        <i class="fas fa-clipboard-list"></i><span>Danh sách LSX</span>
       </a>
 	  <a href="{{ url_for('lsx.lap_lsx') }}" title="Lập Form LSX">
         <i class="fas fa-edit"></i><span>Lập Form LSX</span>
@@ -187,7 +181,7 @@
       {% endif %}
 		{% if 'view_kho2d' in session.get('permissions', []) or session.get('role') == 'admin' %}
       <a href="{{ url_for('kho2d_bp.kho2d') }}" title="Kho 2D">
-        <i class="fas fa-users-cog"></i><span>Kho 2D</span>
+        <i class="fas fa-th"></i><span>Kho 2D</span>
       </a>
       {% endif %}
       {% if 'manage_users' in session.get('permissions', []) or session.get('role') == 'admin' %}
@@ -198,13 +192,15 @@
 	  {% if 'upload_files' in session.get('permissions', []) or session.get('role') == 'admin' %}
       <h6>THAO TÁC</h6>
       <a class="text-success" href="{{ url_for('upload.upload_files') }}">
-        <i class="fas fa-upload"></i><span>Upload LSX hoặc Lịch tàu</span>
+        <i class="fas fa-file-upload"></i><span>Upload LSX hoặc Lịch tàu</span>
       </a>
       {% endif %}
 	  <h6>CÔNG CỤ</h6>
       <a href="{{ url_for('tools.production_calc') }}"> <i class="fas fa-calculator"></i><span>Tính toán Sản xuất</span>
       </a>
-	  <!-- 📄 SUPPORT -->
+      {% if 'manage_mtc' in session.get('permissions', []) or session.get('role') == 'admin' %}
+      <a href="{{ url_for('mtc_bp.mtc') }}"> <i class="fas fa-tags"></i><span>Preview nhãn phụ</span></a>
+      {% endif %}
 	  <div class="mx-2 mb-1" style="margin-top: 80px;">
 		  <div class="support-box p-3 bg-light rounded-3 border transition-all">
 			
@@ -234,10 +230,8 @@
 		</div>
     </div>
 
-    <!-- 📄 MAIN CONTENT -->
     <div class="main-content">{% block content %}{% endblock %}</div>
 
-    <!-- 🔔 TOAST -->
     <div id="flash-toast-container">
       {% with messages = get_flashed_messages(with_categories=true) %} {% if
       messages %} {% for category, message in messages %}
@@ -261,7 +255,6 @@
     </div>
 	<script>
 	  function copyEmail(btn) {
-		// ... (Giữ nguyên code script copy email cũ của bạn) ...
 		const email = btn.getAttribute('data-email');
 		const icon = btn.querySelector('i');
 		const textSpan = btn.querySelector('span');
@@ -284,7 +277,6 @@
 		});
 	  }
 	</script>
-    <!-- 🧠 SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
@@ -323,7 +315,7 @@
               updateShipDisplay("lichtau_time", "🚢 Lịch tàu", data.lichtau_name, data.lichtau_time);
 			  updateShipDisplay(
                 "donhangchitiet_time", 
-                "🧾ĐƠN HÀNG CHI TIẾT", // Bạn có thể đổi tên label này
+                "🧾ĐƠN HÀNG CHI TIẾT", 
                 data.donhangchitiet_name, 
                 data.donhangchitiet_time
               );
@@ -337,7 +329,6 @@
             });
         }
 
-        // 🔦 Cập nhật nội dung & hiệu ứng
         function updateTimeDisplay(id, label, time, status) {
           const el = document.getElementById(id);
           if (status === "updating") {
@@ -367,50 +358,36 @@
           }
         }
       }
-              // 💥 Hiệu ứng nhấp nháy khi cập nhật mới
         function flash(el) {
           el.classList.add("flash-update");
           setTimeout(() => el.classList.remove("flash-update"), 1500);
         }
 
-        // Cập nhật mỗi 5 giây
         updateTimes();
         setInterval(updateTimes, 30000);
       });
     </script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
-        // Lấy đường dẫn URL hiện tại
         const currentPath = window.location.pathname;
-
-        // Lấy tất cả các liên kết trong sidebar
         const sidebarLinks = document.querySelectorAll(".sidebar a");
         
         let mostSpecificLink = null;
         let maxMatchLength = 0;
 
         sidebarLinks.forEach((link) => {
-          // Lấy đường dẫn từ thuộc tính href của link
           const linkPath = new URL(link.href).pathname;
-
-          // 1. Bỏ qua trang chủ '/' để tránh active nhầm tất cả
-          // 2. Kiểm tra xem đường dẫn hiện tại có chứa đường dẫn của link không
           if (linkPath !== "/" && currentPath.startsWith(linkPath)) {
-            
-            // LOGIC MỚI: Chỉ chọn link có độ dài khớp lớn nhất
-            // Ví dụ: '/dashboard/kho' (dài hơn) sẽ thắng '/dashboard' (ngắn hơn)
             if (linkPath.length > maxMatchLength) {
                 mostSpecificLink = link;
                 maxMatchLength = linkPath.length;
             }
           }
-          // Xử lý riêng cho trang chủ (Dashboard chính) nếu cần thiết kế trùng khớp hoàn toàn
           else if (linkPath === "/" && currentPath === "/") {
              mostSpecificLink = link;
           }
         });
 
-        // Chỉ thêm class active cho link cụ thể nhất tìm được
         if (mostSpecificLink) {
             mostSpecificLink.classList.add("active");
         }

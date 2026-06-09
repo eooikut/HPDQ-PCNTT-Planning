@@ -91,7 +91,83 @@
                         </div>
                     </div>
                 </div>
-            </div> </div> </div> </div>
+            </div>
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-primary">
+                    <i class="fas fa-calculator me-2"></i>Mô phỏng & Kiểm tra CPK Đơn hàng Mới
+                </h6>
+                <button class="btn btn-sm btn-primary px-3" onclick="runSimulation()">
+                    <i class="fas fa-play me-1"></i> Tính toán
+                </button>
+            </div>
+            <div class="card-body bg-light">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small text-muted">Nhà máy sản xuất</label>
+                        <select class="form-select form-select-sm fw-bold border-primary" id="sim-factory" onchange="updateSimGrades()">
+                            <option value="HRC1">HRC 1</option>
+                            <option value="HRC2">HRC 2</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small text-muted">Mác thép (Lọc từ lịch sử)</label>
+                        <select class="form-select form-select-sm fw-bold border-primary" id="sim-grade">
+                            <option value="">Đang tải...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5 d-flex align-items-end">
+                        <div class="small text-muted fst-italic">
+                            <i class="fas fa-info-circle me-1"></i>Hệ thống sẽ tìm các cuộn cũ cùng Nhà máy, Mác thép và kích thước tương đồng để dự báo.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive bg-white rounded shadow-sm border">
+                    <table class="table table-sm table-bordered align-middle text-center mb-0" id="sim-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 15%">Rộng (mm)</th>
+                                <th style="width: 15%">Dày (mm)</th>
+                                <th style="width: 20%">Khối lượng (Kg)</th>
+                                <th style="width: 15%">CPK (Năng lực)</th>
+                                <th style="width: 25%">Dự báo Rủi ro (Scrap)</th>
+                                <th style="width: 10%">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="sim-row">
+                                <td><input type="number" class="form-control form-control-sm text-center border-0 fw-bold input-w" value="1250"></td>
+                                <td><input type="number" class="form-control form-control-sm text-center border-0 fw-bold input-t" value="2.0"></td>
+                                <td><input type="number" class="form-control form-control-sm text-center border-0 input-m" value="1000"></td>
+                                <td class="res-cpk bg-light text-center align-middle text-muted small">-</td>
+                                <td class="res-risk bg-light text-center align-middle text-muted small">-</td>
+                                <td><button class="btn btn-xs text-danger" onclick="removeSimRow(this)"><i class="fas fa-times"></i></button></td>
+                            </tr>
+                        </tbody>
+                        <tfoot class="table-light border-top" style="border-top-width: 2px !important;">
+                            <tr class="fw-bold text-dark">
+                                <td colspan="2" class="text-end text-uppercase text-muted small py-2">Tổng hợp Đơn hàng:</td>
+                                <td class="py-2 text-primary" id="total-mass">-</td>
+                                <td class="py-2" id="total-cpk">-</td>
+                                <td class="py-2 text-danger" id="total-scrap">-</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="addSimRow()">
+                        <i class="fas fa-plus me-1"></i> Thêm dòng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div> </div> </div>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <script>
     // --- KHAI BÁO BIẾN TOÀN CỤC ---
@@ -1093,184 +1169,6 @@ function updateMonthlyTrendSpecific() {
     };
     myChart.setOption(option, true);
 }
-// function updateMonthlyTrendSpecific() {
-//     // Lấy giá trị các bộ lọc
-//     const factoryVal = document.getElementById('trend-factory').value;
-//     const widthVal = document.getElementById('trend-width').value;
-//     const thickVal = document.getElementById('trend-thickness').value;
-    
-//     // --- MỚI: Lấy giá trị Mác thép ---
-//     const elMac = document.getElementById('trend-mac-thep');
-//     const macThepVal = elMac ? elMac.value : 'all';
-
-//     const getWeight = (item) => parseFloat(item['weight'] || item['Khối lượng'] || 0);
-
-//     const getMonthKey = (dateInput) => {
-//         if (!dateInput) return null;
-//         if (typeof dateInput === 'string') {
-//             if (dateInput.match(/^\d{4}-\d{2}/)) return dateInput.substring(0, 7);
-//         }
-//         const d = new Date(dateInput);
-//         if (!isNaN(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-//         return null;
-//     };
-
-//     const generateMonthRange = (minStr, maxStr) => {
-//         if (!minStr || !maxStr) return [];
-//         const start = new Date(minStr + "-01");
-//         const end = new Date(maxStr + "-01");
-//         const list = [];
-//         let loops = 0;
-//         while (start <= end && loops < 60) {
-//             const m = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
-//             list.push(m);
-//             start.setMonth(start.getMonth() + 1);
-//             loops++;
-//         }
-//         return list;
-//     };
-
-//     // --- LOGIC LỌC DỮ LIỆU ---
-//     const filterItem = (item) => {
-//         // 1. Lọc Nhà máy
-//         const itemFactory = getFactoryType(item['NhaMay'] || item['Factory'] || item['Plant']);
-//         if (factoryVal !== 'all' && itemFactory !== factoryVal) return false;
-        
-//         // 2. Lọc Khổ
-//         const w = parseFloat(item['kho_rong_num'] || item['kho_rong'] || 0);
-//         if (!isInRange(w, widthVal)) return false;
-        
-//         // 3. Lọc Dày
-//         const t = parseFloat(item['chieu_day'] || 0);
-//         if (!isInRange(t, thickVal)) return false;
-
-//         // 4. --- MỚI: Lọc Mác Thép ---
-//         if (macThepVal !== 'all') {
-//             // Dữ liệu backend: Coils dùng 'Mác thép', Future dùng 'mac_thep'
-//             const itemMac = item['Mác thép'] || item['mac_thep'];
-//             if (itemMac !== macThepVal) return false;
-//         }
-
-//         return true;
-//     };
-
-//     // --- TỔNG HỢP DỮ LIỆU (Giữ nguyên logic cũ) ---
-//     const allMonthsSet = new Set();
-//     const monthlyData = {};
-
-//     const addToMonth = (dateRaw, type, value) => {
-//         const m = getMonthKey(dateRaw);
-//         if (!m) return;
-//         allMonthsSet.add(m);
-//         if (!monthlyData[m]) monthlyData[m] = { prod: 0, stock: 0, so: 0, future_demand: 0, future_cap: 0 };
-//         monthlyData[m][type] += value;
-//     };
-
-//     if (typeof allCoils !== 'undefined') allCoils.forEach(c => { if (filterItem(c)) addToMonth(c['Ngày sản xuất'], 'prod', getWeight(c)); });
-//     if (typeof inventoryCoils !== 'undefined') inventoryCoils.forEach(c => { if (filterItem(c)) addToMonth(c['Ngày sản xuất'], 'stock', getWeight(c)); });
-//     if (typeof allSOs !== 'undefined') allSOs.forEach(s => { if (filterItem(s)) addToMonth(s['Document Date'] || s['Month'], 'so', s['Quantity (KG)'] || s['quantity'] || 0); });
-
-//     if (typeof allFuturePlans !== 'undefined') {
-//         allFuturePlans.forEach(p => {
-//             let m = p['month_key'] || p['month'];
-//             if (m && m.includes('T.')) {
-//                  let part = m.replace('T.', '').trim();
-//                  if(part.length === 1) part = '0' + part;
-//                  m = `2025-${part}`;
-//             }
-//             if (filterItem(p)) {
-//                  allMonthsSet.add(m);
-//                  if (!monthlyData[m]) monthlyData[m] = { prod: 0, stock: 0, so: 0, future_demand: 0, future_cap: 0 };
-//                  const w = getWeight(p);
-//                  monthlyData[m]['future_demand'] += w;
-//                  const factory = p['Factory'];
-//                  const keyTotal = `${factory}_${m}`;
-//                  const totalW_Month = totalPlanWeightsByMonth[keyTotal] || 0;
-//                  if (totalW_Month > 0 && CAPACITY_CONST[factory]) {
-//                       const allocatedCap = (w / totalW_Month) * CAPACITY_CONST[factory];
-//                       monthlyData[m]['future_cap'] += (allocatedCap * 1000);
-//                  }
-//             }
-//         });
-//     }
-
-//     // --- CHUẨN BỊ DỮ LIỆU VẼ (Giữ nguyên) ---
-//     const existingMonths = Array.from(allMonthsSet).sort();
-//     if (existingMonths.length === 0) {
-//         const chartDom = document.getElementById('chart-monthly-trend');
-//         if(chartDom) {
-//             const myChart = echarts.getInstanceByDom(chartDom) || echarts.init(chartDom);
-//             myChart.clear();
-//             myChart.setOption({ title: { text: 'Không có dữ liệu phù hợp', left: 'center', top: 'center', textStyle: {color: '#999'} }});
-//         }
-//         return;
-//     }
-
-//     const fullTimeline = generateMonthRange(existingMonths[0], existingMonths[existingMonths.length - 1]);
-//     let lastRealSOIndex = -1;
-//     for (let i = fullTimeline.length - 1; i >= 0; i--) {
-//         const m = fullTimeline[i];
-//         const d = monthlyData[m] || { so: 0, future_demand: 0 };
-//         if (d.so > 0 && d.future_demand === 0) {
-//             lastRealSOIndex = i;
-//             break;
-//         }
-//     }
-//     if (lastRealSOIndex === -1) lastRealSOIndex = fullTimeline.length - 1;
-
-//     const seriesProd = [], seriesStock = [], seriesSO = [], seriesFutureDemand = [], seriesFutureCap = [];
-
-//     fullTimeline.forEach((m, index) => {
-//         const d = monthlyData[m] || { prod: 0, stock: 0, so: 0, future_demand: 0, future_cap: 0 };
-//         const vProd = d.prod / 1000, vStock = d.stock / 1000, vSO = d.so / 1000, vFutureDem = d.future_demand / 1000, vFutureCap = d.future_cap / 1000;
-
-//         if (index < lastRealSOIndex) {
-//             seriesProd.push(vProd); seriesStock.push(vStock); seriesSO.push(vSO);
-//             seriesFutureDemand.push(null); seriesFutureCap.push(null);
-//         } else if (index === lastRealSOIndex) {
-//             seriesProd.push(vProd); seriesStock.push(vStock); seriesSO.push(vSO);
-//             seriesFutureDemand.push(vSO); seriesFutureCap.push(vProd);
-//         } else {
-//             seriesProd.push(null); seriesStock.push(null); seriesSO.push(null);
-//             seriesFutureDemand.push(vFutureDem); seriesFutureCap.push(vFutureCap);
-//         }
-//     });
-
-//     // --- VẼ ECHARTS (Giữ nguyên cấu hình cũ) ---
-//     const chartDom = document.getElementById('chart-monthly-trend');
-//     if (!chartDom) return;
-//     let myChart = echarts.getInstanceByDom(chartDom);
-//     if (!myChart) myChart = echarts.init(chartDom);
-
-//     const option = {
-//         tooltip: { 
-//             trigger: 'axis',
-//             formatter: function(params) {
-//                 let html = `<b>Tháng ${params[0].axisValue}</b><br/>`;
-//                 params.forEach(p => {
-//                     if (p.value !== null && p.value !== undefined) {
-//                         // Sửa 'Năng lực sx (Dự kiến)' thành 'Năng lực dự kiến'
-// 					if (p.dataIndex === lastRealSOIndex && (p.seriesName === 'Nhu cầu dự kiến' || p.seriesName === 'Năng lực dự kiến')) return;
-//                         html += `${p.marker} ${p.seriesName}: <b>${Math.round(p.value).toLocaleString('vi-VN')}</b> tấn<br/>`;
-//                     }
-//                 });
-//                 return html;
-//             }
-//         },
-//         legend: { data: ['Sản xuất thực tế', 'Đang Tồn kho', 'Đặt hàng thực tế', 'Nhu cầu dự kiến', 'Năng lực dự kiến'], bottom: 0, type: 'scroll' },
-//         grid: { left: '3%', right: '4%', top: '10%', bottom: '15%', containLabel: true },
-//         xAxis: { type: 'category', data: fullTimeline, boundaryGap: false, axisLabel: { rotate: 45, interval: 0, fontSize: 10 } },
-//         yAxis: { type: 'value', name: 'Tấn' },
-//         series: [
-//             { name: 'Sản xuất thực tế', type: 'line', data: seriesProd, itemStyle: { color: '#28a745' }, symbol: 'circle', smooth: true },
-//             { name: 'Đang Tồn kho', type: 'line', data: seriesStock, itemStyle: { color: '#ffc107' }, symbol: 'circle', smooth: true },
-//             { name: 'Đặt hàng thực tế', type: 'line', data: seriesSO, itemStyle: { color: '#dc3545' }, lineStyle: { width: 3 }, symbol: 'circle', smooth: true },
-//             { name: 'Nhu cầu dự kiến', type: 'line', data: seriesFutureDemand, itemStyle: { color: '#dc3545' }, lineStyle: { width: 3, type: 'dashed' }, symbol: 'emptyCircle', connectNulls: true },
-//             { name: 'Năng lực dự kiến', type: 'line', data: seriesFutureCap, itemStyle: { color: '#28a745' }, lineStyle: { width: 3, type: 'dashed' }, symbol: 'diamond', connectNulls: true }
-//         ]
-//     };
-//     myChart.setOption(option, true);
-// }
 
 async function initializeData() {
     try {
@@ -1297,13 +1195,7 @@ async function initializeData() {
         }
         populateMacThepFilter(allCoils, allFuturePlans);
         updateMonthDropdown(allCoils);
-        
-        // --- [SỬA TỐI ƯU TẠI ĐÂY] ---
-        // Xóa 2 dòng update lẻ tẻ cũ đi vì handleMasterChange đã làm hết rồi.
-        // updateMonthlyTrendSpecific();  <-- XÓA
-        // updateCapabilityCharts(allCoils, allSOs); <-- XÓA
-        
-        // Chỉ cần gọi 1 hàm này là nó tự vẽ lại TẤT CẢ biểu đồ (Trend + CPK)
+        // 2. Vẽ Biểu đồ
         handleMasterChange(); 
         if (data.cpk_by_thickness) {
             renderCPKSummaryChart(data.cpk_by_thickness);
@@ -1311,6 +1203,7 @@ async function initializeData() {
     } catch (error) {
         console.error("Lỗi khởi tạo Capacity Dashboard:", error);
     }
+    updateSimGrades();
 }
     function populateMacThepFilter(coils, futurePlans) {
     const select = document.getElementById('trend-mac-thep');
@@ -1451,6 +1344,210 @@ function calculateTotalFutureWeights(plans) {
         }
     });
     console.log("Tổng kế hoạch theo tháng (Kg):", totalPlanWeightsByMonth);
+}
+function updateSimGrades() {
+    const factory = document.getElementById('sim-factory').value;
+    const gradeSel = document.getElementById('sim-grade');
+    gradeSel.innerHTML = '<option value="">-- Chọn Mác thép --</option>';
+
+    if (!allCoils || allCoils.length === 0) return;
+
+    // Lọc mác thép theo nhà máy từ biến toàn cục allCoils
+    const gradeCounts = {};
+    allCoils.forEach(c => {
+        // Kiểm tra đúng nhà máy
+        if (getFactoryType(c['NhaMay']) === factory) {
+            const m = c['Mác thép'];
+            if (m) gradeCounts[m] = (gradeCounts[m] || 0) + 1;
+        }
+    });
+
+    // Sắp xếp phổ biến nhất lên đầu
+    const sortedGrades = Object.keys(gradeCounts).sort((a, b) => gradeCounts[b] - gradeCounts[a]);
+
+    sortedGrades.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g;
+        opt.textContent = `${g} (${gradeCounts[g]})`;
+        gradeSel.appendChild(opt);
+    });
+}
+
+// 2. Thêm/Xóa dòng
+function addSimRow() {
+    const tbody = document.querySelector('#sim-table tbody');
+    const tr = document.createElement('tr');
+    tr.className = 'sim-row';
+    tr.innerHTML = `
+        <td><input type="number" class="form-control form-control-sm text-center border-0 fw-bold input-w"></td>
+        <td><input type="number" class="form-control form-control-sm text-center border-0 fw-bold input-t"></td>
+        <td><input type="number" class="form-control form-control-sm text-center border-0 input-m"></td>
+        
+        <td class="res-cpk bg-light text-center align-middle">-</td>
+        
+        <td class="res-risk bg-light text-center align-middle">-</td>
+        
+        <td><button class="btn btn-xs text-danger" onclick="removeSimRow(this)"><i class="fas fa-times"></i></button></td>
+    `;
+    tbody.appendChild(tr);
+    tr.querySelector('input').focus();
+}
+
+function removeSimRow(btn) {
+    const rows = document.querySelectorAll('.sim-row');
+    if(rows.length > 1) btn.closest('tr').remove();
+}
+
+// 3. Gọi API Tính toán
+async function runSimulation() {
+    const factory = document.getElementById('sim-factory').value;
+    const grade = document.getElementById('sim-grade').value;
+    
+    if (!grade) {
+        alert("Vui lòng chọn Mác thép trước.");
+        document.getElementById('sim-grade').focus();
+        return;
+    }
+
+    const rows = document.querySelectorAll('.sim-row');
+    const items = [];
+    
+    // Reset footer
+    document.getElementById('total-mass').innerText = '-';
+    document.getElementById('total-cpk').innerText = '-';
+    document.getElementById('total-scrap').innerText = '-';
+
+    rows.forEach(row => {
+        const w = row.querySelector('.input-w').value;
+        const t = row.querySelector('.input-t').value;
+        const m = row.querySelector('.input-m').value;
+        if(w && t) {
+            items.push({ width: w, thick: t, mass: m });
+        }
+    });
+
+    if(items.length === 0) {
+        alert("Vui lòng nhập ít nhất 1 dòng quy cách đầy đủ.");
+        return;
+    }
+
+    // Loading UI
+    rows.forEach(r => {
+        const cpkCell = r.querySelector('.res-cpk');
+        const riskCell = r.querySelector('.res-risk');
+        if (cpkCell) cpkCell.innerHTML = '<i class="fas fa-spinner fa-spin text-primary"></i>';
+        if (riskCell) riskCell.innerHTML = '...';
+    });
+
+    try {
+        const response = await fetch("{{ url_for('dashboard_so_bp.calculate_adhoc_cpk') }}", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token() }}" 
+            },
+            body: JSON.stringify({ factory, grade, items })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'ok') {
+            
+            // BIẾN TÍNH TỔNG HỢP
+            let sumMass = 0;
+            let sumScrap = 0;
+            let weightedCpkSum = 0;
+            let totalMassForCpk = 0;
+
+            data.results.forEach((res, idx) => {
+                if (!rows[idx]) return;
+
+                const cpkCell = rows[idx].querySelector('.res-cpk');
+                const riskCell = rows[idx].querySelector('.res-risk');
+                
+                // Lấy khối lượng input (để tính tổng)
+                const inputMass = parseFloat(items[idx].mass) || 0;
+                sumMass += inputMass;
+
+                if (res.cpk !== null) {
+                    // Cộng dồn tính tổng
+                    sumScrap += (res.expected_scrap || 0);
+                    weightedCpkSum += (res.cpk * inputMass);
+                    totalMassForCpk += inputMass;
+
+                    // 1. Hiển thị CPK dòng
+                    let color = res.cpk >= 1.33 ? 'text-success' : (res.cpk >= 1.0 ? 'text-warning' : 'text-danger');
+                    let warningIcon = res.count < 10 ? `<i class="fas fa-exclamation-circle text-warning ms-1" title="Mẫu ít (${res.count})"></i>` : '';
+                    
+                    cpkCell.innerHTML = `
+                        <div class="${color} fw-bold" style="font-size: 1.1em;">${res.cpk} ${warningIcon}</div>
+                        <div class="text-muted" style="font-size: 0.7em;">Mean: ${res.mean}</div>
+                    `;
+
+                    // 2. Hiển thị Rủi ro dòng
+                    let riskColor = res.fail_rate_pct > 5 ? 'text-danger' : (res.fail_rate_pct > 0 ? 'text-warning' : 'text-success');
+                    riskCell.innerHTML = `
+                        <div class="${riskColor} fw-bold">
+                            ${res.expected_scrap.toLocaleString()} kg
+                        </div>
+                        <div class="text-muted small" style="font-size: 0.75em;">
+                            Lỗi: ${res.fail_rate_pct}% ${res.msg ? `<br><span class='text-info'>${res.msg}</span>` : ''}
+                        </div>
+                    `;
+                } else {
+                    cpkCell.innerHTML = '<span class="text-muted small">-</span>';
+                    riskCell.innerHTML = `<span class="text-muted small fst-italic">${res.msg || 'N/A'}</span>`;
+                }
+            });
+
+            // --- TÍNH TOÁN & HIỂN THỊ TỔNG HỢP (FOOTER) ---
+            if (sumMass > 0) {
+                // 1. Tổng Khối lượng
+                document.getElementById('total-mass').innerHTML = `${sumMass.toLocaleString()} kg`;
+
+                // 2. Tổng Phế phẩm & Tỷ lệ lỗi chung
+                const totalFailRate = (sumScrap / sumMass) * 100;
+                let scrapColor = totalFailRate > 5 ? 'text-danger' : (totalFailRate > 1 ? 'text-warning' : 'text-success');
+                
+                document.getElementById('total-scrap').innerHTML = `
+                    <div class="${scrapColor}">${sumScrap.toLocaleString()} kg</div>
+                    <div style="font-size: 0.75em;" class="text-muted">TL Lỗi: ${totalFailRate.toFixed(2)}%</div>
+                `;
+
+                // 3. CPK Bình quân (Gia quyền theo khối lượng)
+                // Công thức: Tổng(CPK * Mass) / Tổng(Mass)
+                if (totalMassForCpk > 0) {
+                    const avgCpk = weightedCpkSum / totalMassForCpk;
+                    let cpkColor = avgCpk >= 1.33 ? 'text-success' : (avgCpk >= 1.0 ? 'text-warning' : 'text-danger');
+                    
+                    document.getElementById('total-cpk').innerHTML = `
+                        <div class="${cpkColor}">${avgCpk.toFixed(2)}</div>
+                        <div style="font-size: 0.7em;" class="text-muted fst-italic">(Bình quân)</div>
+                    `;
+                } else {
+                     document.getElementById('total-cpk').innerHTML = '-';
+                }
+            }
+
+        } else {
+            alert("Lỗi: " + data.msg);
+            resetRows(rows);
+        }
+
+    } catch (e) {
+        console.error(e);
+        alert("Lỗi kết nối đến Server.");
+        resetRows(rows);
+    }
+}
+
+function resetRows(rows) {
+    rows.forEach(r => {
+        const c1 = r.querySelector('.res-cpk');
+        const c2 = r.querySelector('.res-risk');
+        if(c1) c1.innerHTML = '-';
+        if(c2) c2.innerHTML = '-';
+    });
 }
 document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('trend-factory').addEventListener('change', handleMasterChange);

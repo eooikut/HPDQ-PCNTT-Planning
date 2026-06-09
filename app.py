@@ -6,12 +6,22 @@ from functools import wraps
 from flask_wtf.csrf import CSRFProtect
 # Import scheduler và engine SQLAlchemy
 from ETLExceltoDB import start_scheduler
-from db import engine
+from db import SQLALCHEMY_URI, engine
 from storage_utils import load_metadata
 from cheroot.wsgi import Server
 from extensions import cache
+from flask_compress import Compress
+import sys
+from models import db, ConfigMacThep, MTCOrder
 # ---------- Logger ----------
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.DEBUG,  # Hạ xuống DEBUG để bắt được mọi log từ Blueprint
+    format='%(asctime)s - %(levelname)s - [%(module)s] - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),                     # Vẫn cố gắng in ra Terminal
+        logging.FileHandler("app_debug.log", encoding="utf-8") # GHI RA FILE (Quan trọng)
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # ---------- Hàm lấy ngày tạo file SO ----------
@@ -48,6 +58,7 @@ def login_required(f):
 def create_app():
     app = Flask(__name__)
     cache.init_app(app)
+    Compress(app)
     # Config
     app.config["UPLOAD_FOLDER"] = "uploads"
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
@@ -56,7 +67,14 @@ def create_app():
 
     # Khởi tạo CSRF Protection - BẮT BUỘC BẬT TRÊN PRODUCTION
     CSRFProtect(app)
+    app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_URI
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Kế thừa luôn thuộc tính fast_executemany siêu tốc độ của bạn
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'fast_executemany': True}
 
+    # 2. Khởi tạo
+    db.init_app(app)
     # ---------- Đăng ký blueprint ----------
     from auth.routes import auth_bp
     from routes.upload import upload_bp
@@ -71,6 +89,11 @@ def create_app():
     from routes.dashboardso import dashboard_so_bp
     from routes.tools import tools_bp
     from routes.kho2d import kho2d_bp
+
+    from routes.mtc.mtc import mtc_bp
+    from routes.mtc.mtc_config import mtc_config_bp
+    from routes.mtc.mtc_upload import mtc_upload_bp
+    from routes.mtc.mtc_preview import mtc_preview_bp
     app.register_blueprint(tools_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(upload_bp)
@@ -84,6 +107,11 @@ def create_app():
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(dashboard_so_bp)
     app.register_blueprint(kho2d_bp)
+
+    app.register_blueprint(mtc_bp)
+    app.register_blueprint(mtc_config_bp)
+    app.register_blueprint(mtc_upload_bp)
+    app.register_blueprint(mtc_preview_bp)
     # ---------- Biến toàn cục cho template ----------
     @app.context_processor
     def inject_file_times():
@@ -129,11 +157,19 @@ def create_app():
         return redirect(url_for('auth.login'))
 
     return app
-
-
 # ---------- Main ----------
 app = create_app()
 if __name__ == "__main__":
-    # Khởi động các tác vụ nền nếu cần
     start_scheduler() 
-    app.run(host="0.0.0.0", port=5005, debug=True)
+    logger.info("🚀 Starting Planning App with Cheroot (HTTP mode for Nginx)...")
+
+    # Chỉ chạy HTTP thường trên cổng 8086
+    server_address = ('127.0.0.1', 8086) 
+    server = Server(server_address, app)
+
+    # KHÔNG dùng ssl_adapter ở đây vì Nginx đã giữ SSL rồi
+    try:
+        server.start()
+    except KeyboardInterrupt:
+        server.stop()
+    

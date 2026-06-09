@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block title %}Quản Lý Nhãn Phụ{% endblock %}
+
+{% block content %}
+<style>
+    
+    .mtc-badge.warning { background-color: #ffc107; color: #333; } /* Vàng cho Đang chốt */
+    .mtc-badge.primary { background-color: #0d6efd; color: white; } /* Xanh dương cho Lệnh In */
+    .mtc-badge.success { background-color: #28a745; color: white; } /* Xanh lá cho Đã in xong */
+    /* 1. Thay thế thẻ 'body' cũ thành lớp bao bọc bên ngoài để không dính lỗi với base.html */
+    .mtc-wrapper { 
+        font-family: Arial, sans-serif; 
+        background-color: #f4f7f6; 
+        /* Căn chỉnh lại lề một chút để hài hòa với main-content của base */
+        padding: 20px; 
+        border-radius: 8px;
+        min-height: 85vh;
+    }
+    
+    .mtc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .mtc-header h1 { color: #004b93; margin: 0; font-weight: bold; font-size: 1.8rem; }
+    .btn-upload { background: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+    .btn-upload:hover { color: white; opacity: 0.9; } /* Fix hover cho thẻ a */
+    
+    .mtc-wrapper table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .mtc-wrapper th, .mtc-wrapper td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; font-size: 14px; }
+    .mtc-wrapper th { 
+        background-color: #004b93 !important; 
+        color: white !important; 
+        position: sticky !important; 
+        top: 0; 
+        z-index: 10 !important; 
+        box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4); 
+    }
+    
+    .table-wrapper {
+        max-height: 75vh; 
+        overflow-y: auto; 
+        background: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border-radius: 5px;
+    }
+
+    .toolbar-btns { display: flex; gap: 8px; }
+    .mtc-wrapper tr:hover { background-color: #f1f1f1; }
+    
+    .mtc-badge { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; color: white; display: inline-block; text-align: center; }
+    .mtc-badge.process { background-color: #ffc107; color: #333; }
+    .mtc-badge.success { background-color: #28a745; }
+    
+    .action-btn { padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; color: white; margin-right: 5px; font-size: 12px; margin-bottom: 5px; }
+    .btn-view { background-color: #17a2b8; }
+    .btn-status { background-color: #6c757d; }
+    .btn-delete { background-color: #dc3545; }
+    
+    /* --- CSS CHO POPUP XEM TRƯỚC --- */
+    .mtc-modal {
+        display: none; 
+        position: fixed; 
+        /* Tăng z-index lên 1100 để đè lên thanh nav fixed-top của Bootstrap */
+        z-index: 1100; left: 0; top: 0; width: 100%; height: 100%;
+        background-color: rgba(0, 0, 0, 0.7); 
+        justify-content: center; align-items: center;
+    }
+    .mtc-modal-content {
+        background-color: #555; 
+        padding: 20px;
+        border-radius: 10px;
+        position: relative;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        width: 600px; height: 650px; 
+    }
+    .close-btn {
+        position: absolute; top: -15px; right: -15px;
+        background: #dc3545; color: white;
+        width: 30px; height: 30px; border-radius: 50%;
+        text-align: center; line-height: 30px; font-size: 20px; font-weight: bold;
+        cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .close-btn:hover { background: #c82333; transform: scale(1.1); }
+    #previewIframe {
+        width: 100%; height: 100%; border: none; background: white; border-radius: 5px;
+    }
+</style>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+
+<div class="mtc-wrapper">
+    <div class="mtc-header">
+        <h1>Quản lý dữ liệu Nhãn phụ</h1>
+        <div class="toolbar-btns">
+            <a href="/mtc_config" class="btn-upload" style="background-color: #6c757d;">⚙️ Cấu Hình</a>
+            <a href="/create/mtc" class="btn-upload" style="background-color: #0d6efd;">➕ Tạo Mới</a>
+            <button class="btn-upload" style="border: none; cursor: pointer;" onclick="openUploadModal()">📁 Upload Excel</button>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="mtcTable"> 
+            <thead>
+                <tr>
+                    <th>STT</th>
+                    <th>Loại MTC</th>
+                    <th>Mã SO</th>
+                    <th>Mác Thép</th>
+                    <th>Nhãn Màu</th>
+                    <th>Người Tạo</th>
+                    <th>Tên Tàu</th>
+                    <th>Ghi Chú</th>
+                    <th style="width: 30%;">Nội Dung Chính</th>
+                    <th>Ngày Tạo</th>
+                    <th>Trạng Thái</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr id="row-{{ order.ID }}">
+                    <td></td> 
+                    
+                    <td><strong>{{ order.Loai_MTC }}</strong></td>
+                    
+                    <td>{{ order.SO_Number }}</td>
+                    
+                    <td>{{ order.Mac_Thep }}</td>
+                    <td>{{ order.nhan_mau or '' }}</td>
+                    <td>{{ order.pic or '' }}</td>
+                    <td>{{ order.ten_tau or '' }}</td>
+                    <td>{{ order.ghi_chu or '' }}</td>
+                    <td style="white-space: pre-wrap; word-break: break-word;">{{ order.Noi_Dung_Chinh }}</td>
+                    
+                    <td>{{ order.Ngay_Tao.strftime('%Y-%m-%d %H:%M') }}</td>
+                    
+                    <td>
+                        {% set status = order.Trang_Thai or 'DANG_CHOT' %}
+                        {# Bộ lọc map dữ liệu cũ nếu có #}
+                        {% if status == 'Process' %}{% set status = 'DANG_CHOT' %}{% endif %}
+                        {% if status == 'Success' %}{% set status = 'CHOT_IN' %}{% endif %}
+                        
+                        <span id="badge-{{ order.ID }}" class="mtc-badge {% if status == 'DA_IN' %}success{% elif status == 'CHOT_IN' %}primary{% else %}warning{% endif %}">
+                            {% if status == 'DA_IN' %}✅ Đã In Xong
+                            {% elif status == 'CHOT_IN' %}🖨️ Chốt In
+                            {% else %}⏳ Đang Chốt
+                            {% endif %}
+                        </span>
+                        {% if order.linkPng %}
+                        <a href="{{ order.linkPng }}" target="_blank" title="Xem ảnh mẫu tĩnh" style="margin-left:5px; text-decoration:none;">🖼️</a>
+                        {% endif %}
+                    </td>
+                    
+                    <td>
+                        <div style="margin-bottom: 5px;">
+                            {% if order.linkPng %}
+                                <a href="{{ order.linkPng }}" target="_blank" class="action-btn btn-view" style="text-decoration:none; display:inline-block;">Xem Ảnh</a>
+                            {% else %}
+                                <button class="action-btn btn-view" onclick="openPreview({{ order.ID }})">Xem Trước</button>
+                            {% endif %}
+
+                            {% if order.linkPng %}
+                                <a href="{{ order.linkPng }}" download="MTC_{{ order.SO_Number }}.png" class="action-btn" style="background-color: #28a745; text-decoration:none; display:inline-block;">Tải PNG</a>
+                            {% else %}
+                                <button class="action-btn" style="background-color: #28a745;" onclick="exportFile({{ order.ID }}, 'png')">PNG</button>
+                            {% endif %}
+
+                            <button class="action-btn" style="background-color: #c82333;" onclick="exportFile({{ order.ID }}, 'pdf')">PDF</button>
+                            <button class="action-btn" style="background-color: #17a2b8;" onclick="window.location.href='/api/mtc/export-excel/{{ order.ID }}'">Excel</button>
+                        </div>
+                        
+                        <div>
+                            {% set status = order.Trang_Thai or 'DANG_CHOT' %}
+                            {% if status == 'Process' %}{% set status = 'DANG_CHOT' %}{% endif %}
+                            {% if status == 'Success' %}{% set status = 'CHOT_IN' %}{% endif %}
+
+                            {# KỊCH BẢN 1: ĐƠN ĐANG CHỐT -> Được sửa dữ liệu, có nút Chốt In lệnh #}
+                            {% if status == 'DANG_CHOT' %}
+                                <button class="action-btn" style="background-color: #0d6efd;" onclick="updateStatus(event, {{ order.ID }}, 'CHOT_IN')">🔒 Chốt In</button>
+                                <a href="/edit/mtc/{{ order.ID }}" class="action-btn" style="background-color: #ffc107; color: #333; text-decoration: none; display: inline-block;">Sửa</a>
+                                <button class="action-btn btn-delete" onclick="deleteOrder({{ order.ID }})">🗑️ Xóa</button>
+                                
+                            {# KỊCH BẢN 2: ĐƠN ĐÃ CHỐT IN -> Khóa sửa, hiển thị nút hoàn tất in #}
+                            {% elif status == 'CHOT_IN' %}
+                                <button class="action-btn" style="background-color: #28a745;" onclick="updateStatus(event, {{ order.ID }}, 'DA_IN')">✅ Hoàn Tất In</button>
+                                <button class="action-btn" style="background-color: #ccc; color: #666; cursor: not-allowed;" title="Đơn đã chốt in, không thể sửa dữ liệu" disabled>🔒 Đã Khóa</button>
+                            
+                            {# KỊCH BẢN 3: ĐƠN ĐÃ IN XONG -> Khóa sửa, hiển thị nút hỗ trợ Xưởng quay lại bước Chốt In #}
+                            {% elif status == 'DA_IN' %}
+                                <button class="action-btn" style="background-color: #6c757d;" onclick="updateStatus(event, {{ order.ID }}, 'CHOT_IN')">↩️ Lùi về Chốt In</button>
+                                <button class="action-btn" style="background-color: #ccc; color: #666; cursor: not-allowed;" title="Đơn đã chốt in, không thể sửa dữ liệu" disabled>🔒 Đã Khóa</button>
+                            {% endif %}
+                            
+                            </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<div id="uploadModal" class="mtc-modal">
+    <div class="mtc-modal-content" style="width: 420px; height: auto; text-align: center; background-color: #ffffff; padding: 30px;">
+        <span class="close-btn" onclick="closeUploadModal()">&times;</span>
+        <h2 style="color: #004b93; margin-top: 0; font-weight: bold; font-size: 1.8rem;">📁 Nhập dữ liệu MTC</h2>
+        
+        <form id="uploadForm">
+            <input type="file" id="excelFile" accept=".xlsx, .xls" required style="margin: 20px 0; padding: 15px; width: 100%; border: 2px dashed #004b93; border-radius: 5px; cursor: pointer; background-color: #f8f9fa; box-sizing: border-box; font-size: 15px; color: #333;">
+            
+            <button type="submit" style="background-color: #0d6efd; color: white; padding: 12px 20px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; width: 100%; font-weight: bold;">Tải lên & Lưu Database</button>
+        </form>
+        
+        <div id="uploadMessage" style="margin-top: 15px; font-weight: bold; font-size: 15px;"></div>
+    </div>
+</div>
+<div id="previewModal" class="mtc-modal">
+    <div class="mtc-modal-content">
+        <span class="close-btn" onclick="closePreview()">&times;</span>
+        <iframe id="previewIframe" src=""></iframe>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script>
+    // Gọi API đổi trạng thái 
+    async function updateStatus(event, id, newStatus) {
+        let message = "";
+        
+        if (newStatus === 'CHOT_IN') {
+            if (event.target.innerText.includes('Lùi')) {
+                message = "Bạn có chắc chắn muốn LÙI đơn hàng này về bước 'Chốt In' không?";
+            } else {
+                message = "Xác nhận CHỐT đơn hàng và KHÓA dữ liệu chỉnh sửa?";
+            }
+        } else if (newStatus === 'DA_IN') {
+            message = "Xác nhận bộ phận xưởng sản xuất đã hoàn tất IN XONG thành công nhãn MTC cho đơn hàng này?";
+        }
+
+        if (!confirm(message)) return;
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const btnStatus = event.target;
+        const originalText = btnStatus.innerHTML;
+        
+        btnStatus.innerHTML = '⏳ Đang xử lý...';
+        btnStatus.disabled = true;
+
+        try {
+            const res = await fetch(`/api/mtc/update-status/${id}`, { 
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken 
+                },
+                body: JSON.stringify({ new_status: newStatus })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                // Đơn giản là reload lại trang ngay lập tức vì dữ liệu đã được cập nhật và khóa an toàn
+                location.reload(); 
+            } else {
+                alert("Hệ thống từ chối: " + data.message);
+                btnStatus.innerHTML = originalText;
+                btnStatus.disabled = false;
+            }
+        } catch(err) {
+            alert("Không thể kết nối tới máy chủ API.");
+            btnStatus.innerHTML = originalText;
+            btnStatus.disabled = false;
+        }
+    }
+    // Gọi API xóa dữ liệu
+    async function deleteOrder(id) {
+        if(!confirm('Bạn có chắc chắn muốn xóa dòng này?')) return;
+
+        // 1. Lấy "vé thông hành" CSRF Token từ thẻ meta trên trang
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        // 2. Bơm token vào Header của request
+        const res = await fetch(`/api/mtc/delete-order/${id}`, { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken // <-- Mấu chốt là dòng này
+            }
+        });
+        
+        const data = await res.json();
+        if(data.status === 'success') {
+            document.getElementById(`row-${id}`).remove();
+        } else {
+            alert("Lỗi khi xóa: " + (data.message || "Không xác định"));
+        }
+    }
+
+    // Hàm gọi lệnh xuất file ngầm
+    function exportFile(id, format) {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '⏳ Đang tạo...';
+        btn.disabled = true;
+
+        let oldIframe = document.getElementById('export-iframe');
+        if(oldIframe) oldIframe.remove();
+
+        let iframe = document.createElement('iframe');
+        iframe.id = 'export-iframe';
+        iframe.style.cssText = 'position: absolute; width: 1200px; height: 1200px; top: -9999px; left: -9999px; border: none;';
+        iframe.src = `/preview/mtc/${id}?auto_download=${format}`;
+        document.body.appendChild(iframe);
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            setTimeout(() => iframe.remove(), 2000); 
+        }, 3000);
+    }
+
+    // Hàm Mở Popup Preview
+    function openPreview(id) {
+        const modal = document.getElementById('previewModal');
+        const iframe = document.getElementById('previewIframe');
+        iframe.src = `/preview/mtc/${id}`;
+        modal.style.display = 'flex';
+    }
+
+    // Hàm Đóng Popup Preview
+    function closePreview() {
+        const modal = document.getElementById('previewModal');
+        const iframe = document.getElementById('previewIframe');
+        modal.style.display = 'none';
+        iframe.src = ''; 
+    }
+
+    // Click ra ngoài để tắt popup
+    window.onclick = function(event) {
+        const previewModal = document.getElementById('previewModal');
+        const uploadModal = document.getElementById('uploadModal');
+        
+        if (event.target === previewModal) closePreview();
+        if (event.target === uploadModal) closeUploadModal();
+    }
+
+    // Khởi tạo DataTables
+    $(document).ready(function() {
+        var t = $('#mtcTable').DataTable({
+            "pageLength": 10,
+            "lengthMenu": [10, 25, 50, 100],
+            "deferRender": true,
+            "language": {
+                "processing": "Đang xử lý...",
+                "lengthMenu": "Hiển thị _MENU_ mục",
+                "zeroRecords": "Không tìm thấy dữ liệu phù hợp",
+                "info": "Đang xem _START_ đến _END_ trong tổng số _TOTAL_ mục",
+                "infoEmpty": "Đang xem 0 đến 0 trong tổng số 0 mục",
+                "infoFiltered": "(được lọc từ _MAX_ mục)",
+                "search": "Tìm kiếm:",
+                "emptyTable": "Không có dữ liệu trong bảng",
+                "paginate": {
+                    "first": "Đầu",
+                    "previous": "Trước",
+                    "next": "Tiếp",
+                    "last": "Cuối"
+                }
+            },
+            "columnDefs": [{ "searchable": false, "orderable": false, "targets": 0 }],
+            "order": [[9, 'desc']] 
+        });
+
+        // Đánh số STT tự động
+        t.on('order.dt search.dt', function () {
+            let i = 1;
+            t.cells(null, 0, { search: 'applied', order: 'applied' }).every(function (cell) {
+                this.data(i++);
+            });
+        }).draw();
+    });
+    // --- CÁC HÀM XỬ LÝ POPUP UPLOAD EXCEL ---
+    function openUploadModal() {
+        document.getElementById('uploadModal').style.display = 'flex';
+    }
+
+    function closeUploadModal() {
+        document.getElementById('uploadModal').style.display = 'none';
+        document.getElementById('uploadMessage').innerHTML = ''; // Xóa thông báo cũ
+        document.getElementById('excelFile').value = ''; // Reset file đã chọn
+    }
+
+    // Logic gửi file giống hệt trang upload cũ nhưng gọn hơn
+    document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const messageDiv = document.getElementById('uploadMessage');
+        const fileInput = document.getElementById('excelFile');
+        
+        if (fileInput.files.length === 0) return;
+
+        messageDiv.innerHTML = "⏳ Đang xử lý dữ liệu... vui lòng đợi.";
+        messageDiv.style.color = "#333";
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        try {
+            const response = await fetch('/api/mtc/upload-excel', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                messageDiv.innerHTML = "✅ " + result.message;
+                messageDiv.style.color = "#198754";
+                
+                // Trễ 1.5 giây cho người dùng đọc chữ "Thành công" rồi tự load lại bảng
+                setTimeout(() => {
+                    location.reload(); 
+                }, 1500);
+            } else {
+                messageDiv.innerHTML = "❌ " + result.message;
+                messageDiv.style.color = "#dc3545";
+            }
+        } catch (error) {
+            messageDiv.innerHTML = "❌ Lỗi kết nối máy chủ!";
+            messageDiv.style.color = "#dc3545";
+        }
+    });
+</script>
+{% endblock %}

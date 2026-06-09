@@ -302,41 +302,84 @@ function handleResultClick(tabId, zoneName) {
     }
 }
   // --- 3. LOGIC VẼ GRID & PYRAMID (ĐÃ CHUẨN HÓA LOGIC CHÂN ĐẾ) ---
-  async function renderGridGeneric(mapData, zoneList, containerId) {
+// --- HÀM VẼ LAYOUT CHIA CỘT (CẤU HÌNH THEO TỪNG ZONE) ---
+async function renderGridGeneric(mapData, zoneList, containerId) {
     const container = document.getElementById(containerId);
     container.innerHTML = "";
+    
+    // CẤU HÌNH SỐ DÒNG CẮT CỘT (Theo đúng thực tế)
+    const CHUNK_CONFIG = { "HC": 10, "HD": 10 }; // HC, HD: 10 line/cột
+    const DEFAULT_CHUNK = 9; // HA, HB, KA, KB...: 9 line/cột
+
     for (const zone of zoneList) {
         let linesConfig = G_STRUCTURE[zone] || [];
         let zData = mapData[zone] || {};
         if (linesConfig.length === 0) continue;
 
-        let zoneHtml = `<div class="zone-card" id="zone-${zone}"><div class="zone-title">${zone}</div>`;
-        linesConfig.sort((a, b) => a.line - b.line);
+        // 1. Sắp xếp Line
+        linesConfig.sort((a, b) => {
+            let la = a.line, lb = b.line;
+            let isRayA = (la === 0 || la > 90);
+            let isRayB = (lb === 0 || lb > 90);
+            if (isRayA && !isRayB) return 1;
+            if (!isRayA && isRayB) return -1;
+            return la - lb;
+        });
 
-        for (let lineInfo of linesConfig) {
-            let lineKey = lineInfo.line;
-            let lData = zData[lineKey] || { fixed: {}, pending: [] };
-            
-            zoneHtml += `
-            <div class="line-row">
-                <div class="line-name" title="Line ${lineKey}">${lineInfo.desc}</div>
-                <div class="pyramid-container">
-                    ${buildPyramid(
-                        lData, 
-                        lineInfo.max_capacity, 
-                        true, 
-                        lineInfo.max_tiers,
-                        zone // <--- [QUAN TRỌNG] TRUYỀN ZONE VÀO ĐÂY
-                    )}
-                </div>
-            </div>`;
+        // 2. Chia nhỏ Zone lớn thành các "Thẻ" (Card) nhỏ (1-9, 10-18...)
+        let chunks = [];
+        let chunkSize = CHUNK_CONFIG[zone] || DEFAULT_CHUNK;
+        
+        let normalLines = linesConfig.filter(l => l.line > 0 && l.line < 90);
+        let rayLines = linesConfig.filter(l => l.line === 0 || l.line >= 90);
+
+        // NẾU LÀ HRC2 HOẶC BÃI (CHỈ CÓ 1 CHUNK DUY NHẤT)
+        // (Logic cũ: NA có 12 line nhưng vẫn vẽ chung 1 card)
+        if (zone.startsWith('N') || zone.startsWith('E') || zone.startsWith('D')) {
+             chunks.push({ title: zone, lines: linesConfig });
+        } 
+        else {
+            // LOGIC CHIA CỘT CHO HSPM VÀ HRC1
+            if (normalLines.length > 0) {
+                for (let i = 0; i < normalLines.length; i += chunkSize) {
+                    let chunkItems = normalLines.slice(i, i + chunkSize);
+                    let start = chunkItems[0].line;
+                    let end = chunkItems[chunkItems.length - 1].line;
+                    chunks.push({ title: `${zone} (${start}-${end})`, lines: chunkItems });
+                }
+            }
+            if (rayLines.length > 0) {
+                chunks.push({ title: `${zone} (RAY)`, lines: rayLines });
+            }
         }
-        zoneHtml += `</div>`;
-        container.insertAdjacentHTML("beforeend", zoneHtml);
+
+        // 3. Render HTML (Vẽ từng Chunk thành 1 ô trong lưới)
+        chunks.forEach(chunk => {
+            let wrapperHtml = `<div class="zone-card" id="zone-${zone}">`; // Dùng lại class cũ
+            wrapperHtml += `<div class="zone-title">${chunk.title}</div>`; 
+            
+            chunk.lines.forEach(lineInfo => {
+                let lineKey = lineInfo.line;
+                let lData = zData[lineKey] || { fixed: {}, pending: [] };
+                
+                wrapperHtml += `
+                <div class="line-row">
+                    <div class="line-name" title="Line ${lineKey}">${lineInfo.desc}</div>
+                    <div class="pyramid-container">
+                        ${buildPyramid(lData, lineInfo.max_capacity, true, lineInfo.max_tiers, zone)}
+                    </div>
+                </div>`;
+            });
+            wrapperHtml += `</div>`; // End card
+            container.insertAdjacentHTML("beforeend", wrapperHtml);
+        });
+        
         if (zoneList.length > 5) await new Promise((r) => setTimeout(r, 0));
     }
 }
 // --- LOGIC VẼ KIM TỰ THÁP (ĐÃ FIX: BÁO LỖI NẾU CHÂN ĐẾ LÀ GỢI Ý) ---
+// --- LOGIC VẼ KIM TỰ THÁP (CẬP NHẬT LABEL X, Y, Z) ---
+// --- LOGIC VẼ KIM TỰ THÁP (ĐÃ ĐỒNG BỘ FORMAT X, Y, Z03) ---
 function buildPyramid(lData, maxCellsRef, checkStructuralIntegrity, maxTiers = 3, currentZone = "") {
     let fixed = lData.fixed || {};
     let pending = [...(lData.pending || [])]; 
@@ -349,27 +392,51 @@ function buildPyramid(lData, maxCellsRef, checkStructuralIntegrity, maxTiers = 3
     // 1. LOAD HÀNG FIXED
     let maxIdFound = 0;
     Object.keys(fixed).forEach((key) => {
-        let num = parseInt(key);
+        // Key có thể là "01", "30" hoặc "Z03"... ta cần lấy số
+        // Logic Backend đã chuẩn hóa key về dạng số nguyên (nếu là fixed chuẩn)
+        // Nếu key là "Z03" -> cần parse ra số 3
+        let num = parseInt(key.replace(/\D/g, '')); // Loại bỏ chữ, lấy số
+        
         if (!isNaN(num)) {
             if (num > maxIdFound) maxIdFound = num;
-            if (key.toUpperCase().endsWith("X")) mapT3[num] = fixed[key];
-            else {
-                if (maxTiers === 1) mapT1[num] = fixed[key];
-                else {
-                    if (num % 2 === 0) mapT2[num] = fixed[key];
+            
+            // Phân loại vào map dựa trên Tier (Backend đã xử lý Tier, nhưng ở đây ta check lại key)
+            // Hoặc đơn giản: Số lẻ -> T1/T3, Số chẵn -> T2
+            // Với Z: Key thường có dính chữ X hoặc Z từ Backend gửi xuống nếu là format cũ
+            // Tuy nhiên, logic chuẩn là dựa vào số dư:
+            
+            if (maxTiers === 1) {
+                mapT1[num] = fixed[key];
+            } else {
+                // Logic chuẩn: Tầng 2 là số chẵn
+                if (num % 2 === 0) {
+                    mapT2[num] = fixed[key];
+                } else {
+                    // Số lẻ: Có thể là T1 hoặc T3. 
+                    // Trong data Backend gửi xuống:
+                    // - T3 thường được đánh dấu riêng hoặc do thuật toán quy định.
+                    // - Ở đây ta tạm thời ưu tiên: Nếu có suffix X/Z trong key gốc -> T3, còn lại T1.
+                    // NHƯNG để đơn giản và khớp với Backend: 
+                    // Backend trả về 'fixed' là dict { "1": [...], "2": [...] }
+                    // Ta sẽ dựa vào logic: Nếu T3 có hàng thì nó phải nằm ở mapT3.
+                    
+                    // [FIX]: Để hiển thị đúng, ta ưu tiên T1 trước. 
+                    // Nếu là Z03 (Tầng 3), key trong JSON thường là "3X" hoặc "3" tuỳ parser.
+                    // Ta sẽ kiểm tra: Nếu key chứa 'X' hoặc 'Z' -> T3
+                    if (key.includes('X') || key.includes('Z')) mapT3[num] = fixed[key];
                     else mapT1[num] = fixed[key];
                 }
             }
         }
     });
     
-    let reqFixedLen = Math.ceil(maxIdFound / (maxTiers === 1 ? 1 : 2));
+    let step = (maxTiers === 1) ? 1 : 2;
+    let reqFixedLen = Math.ceil(maxIdFound / step);
     if (reqFixedLen > REAL_MAX_T1) REAL_MAX_T1 = reqFixedLen;
 
     let isBaiDE = currentZone.startsWith('E') || currentZone.startsWith('D');
-    let step = (maxTiers === 1) ? 1 : 2;
 
-    // 2. VÁ CHÂN ĐẾ (ƯU TIÊN 1)
+    // 2. VÁ CHÂN ĐẾ (ƯU TIÊN 1 - Giống Backend)
     if (pending.length > 0 && maxTiers >= 2) {
         Object.keys(mapT2).sort((a,b)=>a-b).forEach(key => {
             let t2Num = parseInt(key);
@@ -378,12 +445,12 @@ function buildPyramid(lData, maxCellsRef, checkStructuralIntegrity, maxTiers = 3
         });
     }
 
-    // 3. VÒNG LẶP LẤP ĐẦY THỐNG NHẤT
+    // 3. THUẬT TOÁN LẤP ĐẦY (Giống Backend calculate_layout_allocation)
     let k = 0;
     while (true) {
         if (!isBaiDE && k >= REAL_MAX_T1) break;
         if (isBaiDE && k >= REAL_MAX_T1 && pending.length === 0) break;
-        if (k > 500) break;
+        if (k > 500) break; // Safety break
 
         // A. T1
         let t1Num = 1 + k * step;
@@ -410,7 +477,7 @@ function buildPyramid(lData, maxCellsRef, checkStructuralIntegrity, maxTiers = 3
         k++;
     }
 
-    // 4. RENDER & SAFETY CHECK (ĐÃ SỬA LOGIC KIỂM TRA CHÂN)
+    // 4. RENDER HTML 
     const drawRow = (tierName, startNum, count, marginClass, currentMap, supportMap) => {
         let rowHtml = `<div class="tier ${marginClass}">`;
         
@@ -418,52 +485,56 @@ function buildPyramid(lData, maxCellsRef, checkStructuralIntegrity, maxTiers = 3
             let num = startNum + k * step;
             let item = currentMap[num]; 
             let css = "empty"; 
-            let shortId = "";
+            let displayText = "";
             let isErr = false;
             let isAuto = false;
 
             if (item) {
-                // Xác định đây là cuộn Gợi ý (Auto) hay cuộn Thật (Fixed)
-                // item[5] === true là Auto/Pending
+                // --- CÓ HÀNG ---
                 isAuto = (item[5] === true);
-
-                // --- LOGIC CHECK LỖI AN TOÀN ---
-                if (maxTiers >= 2 && checkStructuralIntegrity && tierName !== "T1" && supportMap) {
-                    // Chỉ kiểm tra lỗi nếu bản thân nó là CUỘN THẬT
-                    // (Cuộn gợi ý thì không cần báo lỗi chân đế, vì nó là kế hoạch)
-                    if (!isAuto) {
-                        let legLeft = supportMap[num - 1];
-                        let legRight = supportMap[num + 1];
-                        
-                        // Lỗi khi: Thiếu chân HOẶC Chân đó là chân ảo (Gợi ý)
-                        // Vì cuộn thật không thể đứng trên cuộn ảo được.
-                        let leftIsReal = legLeft && (legLeft[5] !== true);
-                        let rightIsReal = legRight && (legRight[5] !== true);
-
-                        if (!leftIsReal || !rightIsReal) {
-                            isErr = true;
-                        }
-                    }
+                
+                // Check lỗi chân đế
+                if (maxTiers >= 2 && checkStructuralIntegrity && tierName !== "T1" && supportMap && !isAuto) {
+                    let legLeft = supportMap[num - 1];
+                    let legRight = supportMap[num + 1];
+                    let leftIsReal = legLeft && (legLeft[5] !== true);
+                    let rightIsReal = legRight && (legRight[5] !== true);
+                    if (!leftIsReal || !rightIsReal) isErr = true;
                 }
 
-                shortId = item[0].slice(-4);
-                
+                displayText = item[0].slice(-4); // Lấy 4 số cuối ID
                 if (isErr) css = "error"; 
                 else if (isAuto) css = "auto";
                 else if (item[4] && item[4] != "") css = "ok";
                 else css = "empty-so";
             } else {
-                let label = (tierName === "T3") ? num.toString().padStart(2, '0') + "X" : num.toString().padStart(3, '0');
-                shortId = `<span style="color:#aaa; font-size:6px; pointer-events:none;">${label}</span>`;
+                // --- Ô TRỐNG (HIỂN THỊ NHÃN X01, Y02, Z03) ---
+                let labelPrefix = "";
+                if (tierName === "T1") labelPrefix = "X";
+                else if (tierName === "T2") labelPrefix = "Y";
+                else if (tierName === "T3") labelPrefix = "Z";
+                
+                // Format số 2 chữ số (01, 02...)
+                let numStr = num.toString().padStart(2, '0');
+                
+                // [FIX]: Hiển thị Z03 thay vì 03X
+                displayText = `<span style="color:#ced4da; font-size:9px; font-weight:600;">${labelPrefix}${numStr}</span>`;
             }
 
+            // Data attribute cho tooltip
             let dataStr = "";
+            let fullPosLabel = "";
+            if (tierName === "T1") fullPosLabel = `X${num.toString().padStart(2,'0')}`;
+            else if (tierName === "T2") fullPosLabel = `Y${num.toString().padStart(2,'0')}`;
+            else if (tierName === "T3") fullPosLabel = `Z${num.toString().padStart(2,'0')}`;
+
             if (item) {
                 dataStr = JSON.stringify({ id: item[0], pos: item[1], w: item[2], so: item[4], tier: tierName, zone: currentZone, isErr: isErr, isAuto: isAuto }).replace(/"/g, "&quot;");
             } else {
-                dataStr = JSON.stringify({ id: "TRỐNG", pos: shortId.replace(/<[^>]*>/g, ''), w: 0, so: "-", tier: tierName, zone: currentZone, isErr: false, isAuto: false }).replace(/"/g, "&quot;");
+                dataStr = JSON.stringify({ id: "TRỐNG", pos: fullPosLabel, w: 0, so: "-", tier: tierName, zone: currentZone, isErr: false, isAuto: false }).replace(/"/g, "&quot;");
             }
-            rowHtml += `<div class="coil ${css}" data-info="${dataStr}">${shortId}</div>`;
+            
+            rowHtml += `<div class="coil ${css}" data-info="${dataStr}">${displayText}</div>`;
         }
         rowHtml += `</div>`;
         return rowHtml;
@@ -684,11 +755,7 @@ function buildPyramid(lData, maxCellsRef, checkStructuralIntegrity, maxTiers = 3
   function updateDashboardStats(tabId) {
       // 1. Định nghĩa giới hạn tải trọng (Hardcode theo yêu cầu của bạn)
       const LIMITS = {
-          "HSPM": 326968.0,
-          "HRC1": 79258.0,
-          "HRC2": 107272.0,
-          "BAIE": 68241.0, // Tạm tính riêng
-          "BAID": 94185.0  // Tạm tính riêng
+          "HSPM": 326968.0, "HRC1": 79258.0, "HRC2": 107272.0, "BAIE": 68241.0, "BAID": 94185.0// Tạm tính riêng
       };
 
       // Mapping tabId sang Key dữ liệu

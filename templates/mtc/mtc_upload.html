@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Dữ Liệu Excel MTC{% endblock %}
+
+{% block content %}
+<style>
+    .mtc-upload-wrapper { font-family: Arial, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; padding-top: 100px; min-height: 85vh; border-radius: 8px;}
+    .mtc-upload-card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 400px; text-align: center; height: fit-content; }
+    .mtc-upload-card h2 { color: #004b93; margin-top: 0; margin-bottom: 20px; font-weight: bold; font-size: 1.8rem; }
+    .mtc-upload-card input[type="file"] { margin: 20px 0; padding: 10px; width: 100%; border: 1px dashed #004b93; border-radius: 5px; cursor: pointer; background-color: #f8f9fa;}
+    .mtc-btn-upload { background-color: #0d6efd; color: white; padding: 10px 20px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; width: 100%; font-weight: bold; }
+    .mtc-btn-upload:hover { background-color: #0b5ed7; }
+    .mtc-btn-back { display: block; text-align: center; margin-top: 15px; color: #666; text-decoration: none; font-weight: bold;}
+    .mtc-btn-back:hover { color: #333; }
+    
+    #message { margin-top: 15px; font-weight: bold; }
+    .msg-success { color: #198754; }
+    .msg-error { color: #dc3545; }
+</style>
+
+<div class="mtc-upload-wrapper">
+    <div class="mtc-upload-card">
+        <h2>📁 Nhập dữ liệu MTC</h2>
+        <form id="uploadForm">
+            <input type="file" id="excelFile" accept=".xlsx, .xls" required>
+            <button type="submit" class="mtc-btn-upload">Tải lên & Lưu Database</button>
+        </form>
+        <div id="message"></div>
+        <a href="/mtc" class="mtc-btn-back">⬅ Quay lại trang MTC</a>
+    </div>
+</div>
+
+<script>
+    document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const messageDiv = document.getElementById('message');
+        const fileInput = document.getElementById('excelFile');
+        
+        if (fileInput.files.length === 0) return;
+
+        messageDiv.innerHTML = "⏳ Đang xử lý dữ liệu... vui lòng đợi.";
+        messageDiv.className = "";
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        try {
+            const response = await fetch('/api/upload-excel', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken // 2. Bơm token vào Header của request
+                },
+                body: formData
+            });
+            const result = await response.json();
+
+            messageDiv.innerHTML = result.message;
+            messageDiv.className = result.status === 'success' ? 'msg-success' : 'msg-error';
+            
+            if (result.status === 'success') {
+                fileInput.value = ""; 
+            }
+        } catch (error) {
+            messageDiv.innerHTML = "❌ Lỗi kết nối máy chủ!";
+            messageDiv.className = 'msg-error';
+        }
+    });
+</script>
+{% endblock %}

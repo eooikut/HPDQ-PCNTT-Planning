@@ -4,8 +4,9 @@ import os
 import sys
 import subprocess
 from datetime import datetime, date, timedelta
-from dateutil.relativedelta import relativedelta 
-
+from dateutil.relativedelta import relativedelta
+import win32gui
+import win32con
 # ===============================
 # 📌 CẤU HÌNH ĐĂNG NHẬP (QUAN TRỌNG: CẦN SỬA)
 # ===============================
@@ -21,7 +22,51 @@ SAP_LOGON_PATH = r"C:\Program Files (x86)\SAP\FrontEnd\SAPgui\saplogon.exe"
 # ===============================
 CUSTOM_DIR = r"C:\Users\Administrator\Desktop\ProjectPKH\data_auto_update"
 LOG_PATH = os.path.join(CUSTOM_DIR, "master_export_log.txt")
+def clear_ghost_icons():
+    """Dùng Windows API quét và xóa icon ma dựa trên X-Quang thực tế."""
+    try:
+        toolbars = []
 
+        # 1. BẮT KHAY HIỂN THỊ (Visible Tray)
+        hwnd_tray = win32gui.FindWindow("Shell_TrayWnd", None)
+        if hwnd_tray:
+            hwnd_notify = win32gui.FindWindowEx(hwnd_tray, 0, "TrayNotifyWnd", None)
+            if hwnd_notify:
+                # Bắt Toolbar nằm trong SysPager (Như ảnh X-Quang)
+                hwnd_pager = win32gui.FindWindowEx(hwnd_notify, 0, "SysPager", None)
+                if hwnd_pager:
+                    tb1 = win32gui.FindWindowEx(hwnd_pager, 0, "ToolbarWindow32", None)
+                    if tb1: toolbars.append(tb1)
+                
+                # Bắt Toolbar nằm ngoài (Phòng hờ)
+                tb2 = win32gui.FindWindowEx(hwnd_notify, 0, "ToolbarWindow32", None)
+                if tb2: toolbars.append(tb2)
+
+        # 2. BẮT KHAY ẨN (Overflow Tray - Ổ chứa icon ma của bạn)
+        hwnd_overflow = win32gui.FindWindow("NotifyIconOverflowWindow", None)
+        if hwnd_overflow:
+            tb3 = win32gui.FindWindowEx(hwnd_overflow, 0, "ToolbarWindow32", None)
+            if tb3: toolbars.append(tb3)
+
+        # 3. TIẾN HÀNH QUÉT CHUỘT ẢO
+        for tb in toolbars:
+            rect = win32gui.GetClientRect(tb)
+            w = rect[2]
+            h = rect[3]
+            
+            # 🔥 MẤU CHỐT Ở ĐÂY: Nếu khay bị ẩn (kích thước 0x0), ép quét vùng 400x400
+            if w == 0 or h == 0:
+                w = 400
+                h = 400
+
+            # Quét từng pixel với bước nhảy 5px
+            for x in range(0, w, 5):
+                for y in range(0, h, 5):
+                    win32gui.SendMessage(tb, win32con.WM_MOUSEMOVE, 0, (y << 16) | x)
+
+        log_message("🔄 Đã quét dọn triệt để Ghost Icons (bao gồm cả khay ẩn).", "INFO")
+    except Exception as e:
+        log_message(f"⚠️ Lỗi clear ghost icon: {e}", "WARN")
 # --- Hàm ghi log tập trung ---
 def log_message(message, level="INFO"):
     """Ghi thông báo ra console và file log."""
@@ -32,11 +77,43 @@ def log_message(message, level="INFO"):
         with open(LOG_PATH, "a", encoding="utf-8") as log:
              log.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {'✅' if level == 'SUCCESS' else '🛑'} {message}\n")
 def kill_all_sap_processes():
-    """Tắt toàn bộ các tiến trình liên quan đến SAP để đảm bảo sạch sẽ."""
-    log_message("♻️ Đang dọn dẹp (Kill) toàn bộ tiến trình SAP cũ...", level="WARN")
-    force_close_process("saplogon.exe")
-    force_close_process("saplgpad.exe")
-    time.sleep(3) # Chờ vài giây để hệ điều hành giải phóng xong
+    processes = ["sapgui.exe", "saplogon.exe", "saplgpad.exe"]
+    for process in processes:
+        try:
+            subprocess.run(
+                ['taskkill', '/f', '/im', process, '/t'], 
+                capture_output=True, 
+                check=False
+            )
+        except Exception as e:
+            pass
+    time.sleep(2)
+    clear_ghost_icons()
+    log_message("✅ Đã dọn dẹp xong toàn bộ tiến trình SAP.", level="SUCCESS")
+def graceful_exit_sap(session):
+    """
+    Thử đóng SAP một cách 'êm ái' bằng lệnh /nex để tránh lỗi Ghost Icon.
+    Nếu thất bại (do treo, mất kết nối) thì mới dùng đến biện pháp mạnh (Kill).
+    """
+    try:
+        if session is None:
+            log_message("⚠️ Không có phiên SAP để đóng (Session is None).", level="WARN")
+            return
+
+        log_message("🚪 Đang gửi lệnh đóng SAP (/nex)...", level="INFO")
+        
+        # /nex là T-code đặc biệt để thoát ngay lập tức không cần hỏi Yes/No
+        session.findById("wnd[0]/tbar[0]/okcd").text = "/nex"
+        session.findById("wnd[0]").sendVKey(0) # Enter
+        
+        time.sleep(3) # Chờ 3 giây để cửa sổ SAP tự biến mất
+        session = None
+        log_message("✅ Đã đóng SAP an toàn (Graceful Exit).", level="SUCCESS")
+
+    except Exception as e:
+        log_message(f"⚠️ Không thể đóng êm (Lỗi: {e}). Đang chuyển sang chế độ Kill...", level="WARN")
+        # Nếu gửi lệnh thất bại (ví dụ SAP đang bị treo), buộc phải Kill
+        kill_all_sap_processes()
 # --- HÀM CHỜ THÔNG MINH ---
 def wait_for_sap_ready(session, max_wait_minutes=15):
     log_message(f"⏳ Bắt đầu chờ SAP xử lý (Tối đa {max_wait_minutes} phút)...", level="INFO")
@@ -47,6 +124,9 @@ def wait_for_sap_ready(session, max_wait_minutes=15):
             raise Exception("TIMEOUT: SAP chạy quá lâu.")
 
         try:
+            if session.Busy:
+                time.sleep(1)
+                continue
             # Xử lý Popup cảnh báo dữ liệu lớn
             if session.Children.Count > 1:
                 try:
@@ -73,6 +153,7 @@ DATE_FROM_ID_ZBC04B = "wnd[0]/usr/ctxtS_NGAYSX-LOW"
 DATE_TO_ID_ZBC04B = "wnd[0]/usr/ctxtS_NGAYSX-HIGH"
 PLANT_ID_ZBC04B = "wnd[0]/usr/ctxtS_WERKS-LOW" 
 PRODUCT_GROUP_ID = "wnd[0]/usr/ctxtS_PX-LOW"
+PRODUCT_GROUP_BUTTON_ID = "wnd[0]/usr/btn%_S_PX_%_APP_%-VALU_PUSH"
 L1_CHECKBOX_ID = "wnd[0]/usr/chkP_L1"
 L2_CHECKBOX_ID = "wnd[0]/usr/chkP_L2"
 DATE_FROM_ID_ZSD04A = "wnd[0]/usr/ctxtS_VDATU-LOW"
@@ -121,7 +202,7 @@ TASK_CONFIGS = [
         "output_filename": "sanluong_nm1.xlsx",
         "menu_export_path": "wnd[0]/mbar/menu[0]/menu[1]/menu[0]",
         "group": "FAST",
-        "params": { "DATE_FROM": "{ZBC04B_FROM}", "DATE_TO": "{ZBC04B_TO}", "PLANT_VALUE": "1000", "PRODUCT_GROUP_VALUE": "7", "UNCHECK_L1_L2": True }
+        "params": { "DATE_FROM": "{ZBC04B_FROM}", "DATE_TO": "{ZBC04B_TO}", "PLANT_VALUE": "1000", "PRODUCT_GROUP_LIST": ["7", "7H"], "UNCHECK_L1_L2": True }
     },
     # 5. ZBC04B - HRC2
     {
@@ -130,7 +211,7 @@ TASK_CONFIGS = [
         "output_filename": "sanluong_nm2.xlsx",
         "menu_export_path": "wnd[0]/mbar/menu[0]/menu[1]/menu[0]",
         "group": "FAST",
-        "params": { "DATE_FROM": "{ZBC04B_FROM}", "DATE_TO": "{ZBC04B_TO}", "PLANT_VALUE": "1600", "PRODUCT_GROUP_VALUE": "8", "UNCHECK_L1_L2": True }
+        "params": { "DATE_FROM": "{ZBC04B_FROM}", "DATE_TO": "{ZBC04B_TO}", "PLANT_VALUE": "1600", "PRODUCT_GROUP_LIST": ["8", "7H"], "UNCHECK_L1_L2": True }
     },
 ]
 
@@ -141,15 +222,16 @@ def calculate_dynamic_dates():
     today = date.today()
     tomorrow = today + timedelta(days=1)
     today_sap = today.strftime("%d.%m.%Y")
-    
+    tomorrow_sap = tomorrow.strftime("%d.%m.%Y")
     # ZSD04A
-    six_months_ago = today - relativedelta(months=5)
+    six_months_ago = today - relativedelta(months=4)
     start_zsd04a = six_months_ago.replace(day=1).strftime("%d.%m.%Y")
     
     # ZBC04B
-    start_zbc04b = (tomorrow - timedelta(days=26)).strftime("%d.%m.%Y")
+    first_day_prev_month = (today - relativedelta(months=2)).replace(day=1)
+    start_zbc04b = first_day_prev_month.strftime("%d.%m.%Y")
     
-    return {"ZSD04A_FROM": start_zsd04a, "ZSD04A_TO": today_sap, "ZBC04B_FROM": start_zsd04a, "ZBC04B_TO": today_sap}
+    return {"ZSD04A_FROM": start_zsd04a, "ZSD04A_TO": tomorrow_sap, "ZBC04B_FROM": start_zbc04b, "ZBC04B_TO": tomorrow_sap}
 
 def force_close_process(process_name):
     """Tắt cưỡng bức tiến trình."""
@@ -158,65 +240,71 @@ def force_close_process(process_name):
     except: pass
 
 # ===============================
-# 🔐 HÀM LOGIN & CONNECT (ĐÃ NÂNG CẤP)
+# 🔐 HÀM LOGIN & CONNECT 
 # ===============================
 def sap_login_and_connect():
-    """Logic kết nối thông minh: Tự động Login nếu chưa mở."""
+    """
+    Kết nối thông minh: 
+    1. Thử dùng session đang mở.
+    2. Nếu chưa login (đang ở màn hình User/Pass), tiến hành login.
+    3. Nếu không thấy SAP, mới khởi động mới hoàn toàn.
+    """
+    session = None
     try:
-        # BƯỚC 1: Thử kết nối vào Session đang mở sẵn
+        # Bước 1: Kiểm tra xem có tiến trình SAP nào đang chạy không
         SapGuiAuto = win32com.client.GetObject("SAPGUI")
         application = SapGuiAuto.GetScriptingEngine
-        connection = application.Children(0)
-        session = connection.Children(0)
         
-        # Kiểm tra xem có đang bị kẹt ở màn hình Login không? (Trường hợp bị Logout)
-        try:
-            # Nếu tìm thấy ô nhập User nghĩa là chưa đăng nhập
-            if session.findById("wnd[0]/usr/txtRSYST-BNAME").text == "" or session.findById("wnd[0]/usr/txtRSYST-BNAME").text != "":
-                 # Thực ra nếu code chạy vào được đây nghĩa là đang ở màn hình login
-                 raise Exception("NEEDS_LOGIN") 
-        except:
-            # Nếu không tìm thấy ô user -> Nghĩa là ĐÃ Đăng nhập -> Dùng luôn
-            log_message("✅ Tìm thấy SAP đang mở & đã đăng nhập.", level="SUCCESS")
-            return session
+        if application.Children.Count > 0:
+            connection = application.Children(0)
+            if connection.Children.Count > 0:
+                session = connection.Children(0)
+                
+                # Bước 2: Kiểm tra trạng thái Login thực tế
+                try:
+                    # Thử tìm ô nhập Username. Nếu thấy -> Chưa login.
+                    session.findById("wnd[0]/usr/txtRSYST-BNAME")
+                    log_message("⚠️ SAP đang mở nhưng chưa login. Tiến hành đăng nhập...", level="WARN")
+                except:
+                    # Nếu không tìm thấy ô nhập User -> Đã vào màn hình chính -> Dùng luôn
+                    log_message("✅ Đã kết nối vào Session đang hoạt động.", level="SUCCESS")
+                    return session
+        else:
+            log_message("🔍 Không tìm thấy kết nối SAP hiện có.", level="INFO")
+    except Exception:
+        # Lỗi ở đây thường là do chưa mở SAP Logon
+        pass
 
-    except:
-        pass # Nếu lỗi ở trên, nghĩa là chưa mở SAP hoặc cần login -> Xuống Bước 2
-
-    # BƯỚC 2: Login từ đầu
-    log_message("⚠️ Không tìm thấy phiên làm việc hợp lệ. Đang khởi động lại SAP...", level="WARN")
+    # Bước 3: Nếu không tận dụng được session cũ, dọn dẹp để mở mới
+    log_message("🚀 Đang khởi động và đăng nhập SAP mới từ đầu...", level="INFO")
+    kill_all_sap_processes() # Quét sạch Ghost Icons cũ trước khi bắt đầu
     
-    # Dọn dẹp tiến trình cũ cho sạch sẽ
-    force_close_process("saplogon.exe")
-    force_close_process("saplgpad.exe")
-    time.sleep(2)
-
     try:
         # Mở SAP Logon
         subprocess.Popen(SAP_LOGON_PATH)
-        time.sleep(5) # Chờ SAP Logon hiện lên
+        time.sleep(5) 
 
         SapGuiAuto = win32com.client.GetObject("SAPGUI")
         application = SapGuiAuto.GetScriptingEngine
         
-        # Mở Connection
-        log_message(f"Đang kết nối tới: {SAP_CONNECTION_NAME}...", level="INFO")
+        log_message(f"Kết nối tới Server: {SAP_CONNECTION_NAME}...", level="INFO")
         connection = application.OpenConnection(SAP_CONNECTION_NAME, True)
         time.sleep(3)
         session = connection.Children(0)
 
-        # Điền User/Pass
+        # Điền thông tin đăng nhập
         session.findById("wnd[0]/usr/txtRSYST-BNAME").text = SAP_USERNAME
         session.findById("wnd[0]/usr/pwdRSYST-BCODE").text = SAP_PASSWORD
         session.findById("wnd[0]").sendVKey(0) # Enter
         
-        # Chờ Login xong
         time.sleep(3)
-        log_message("✅ Đăng nhập tự động thành công!", level="SUCCESS")
+        log_message("✅ Đăng nhập SAP thành công!", level="SUCCESS")
         return session
 
     except Exception as e:
-        log_message(f"🛑 Đăng nhập thất bại. Kiểm tra lại Tên Connection/User/Pass. Lỗi: {e}", level="CRITICAL")
+        log_message(f"🛑 Đăng nhập thất bại: {e}", level="CRITICAL")
+        # Nếu lỗi nặng, dọn dẹp sạch sẽ để không để lại icon ma
+        kill_all_sap_processes()
         sys.exit(1)
 
 
@@ -247,7 +335,17 @@ def run_tcode_and_fill_selections(session, config, dummy_wait=0):
             session.findById(DATE_FROM_ID_ZBC04B).text = params["DATE_FROM"]
             session.findById(DATE_TO_ID_ZBC04B).text = params["DATE_TO"]
             session.findById(PLANT_ID_ZBC04B).text = params["PLANT_VALUE"]
-            session.findById(PRODUCT_GROUP_ID).text = params["PRODUCT_GROUP_VALUE"]
+            if params.get("PRODUCT_GROUP_LIST"):
+                session.findById(PRODUCT_GROUP_BUTTON_ID).press()
+                time.sleep(1)
+                for i, px in enumerate(params["PRODUCT_GROUP_LIST"]):
+                    # Điền vào bảng chọn nhiều
+                    session.findById(f"{MULTI_SELECT_TABLE_PATH}/{MULTI_SELECT_INPUT_BASE}[0,{i}]").text = px
+                session.findById("wnd[1]/tbar[0]/btn[8]").press() # F8 (Copy)
+                time.sleep(1)
+            else:
+                # Logic cũ (giữ lại để tương thích với NM2 nếu chỉ chạy 1 giá trị)
+                session.findById(PRODUCT_GROUP_ID).text = params.get("PRODUCT_GROUP_VALUE", "")
             if params.get("UNCHECK_L1_L2"):
                 session.findById(L1_CHECKBOX_ID).selected = False
                 session.findById(L2_CHECKBOX_ID).selected = False
@@ -369,51 +467,66 @@ def main_sequence():
             if isinstance(v, str) and v.startswith("{"): 
                 config['params'][k] = date_map.get(v.strip("{}"), v)
 
-    # 2. DỌN DẸP TRƯỚC KHI CHẠY (QUAN TRỌNG)
-    if not os.path.isdir(CUSTOM_DIR): os.makedirs(CUSTOM_DIR)
-    
-    # Kill Excel để tránh lỗi file đang mở
-    force_close_process("excel.exe") 
-    
-    # 🔥 THÊM: Kill SAP cũ đi để bắt buộc Login mới (Start Fresh)
-    kill_all_sap_processes() 
-
-    # 3. LOGIN & CHẠY
-    # Vì đã kill hết ở trên, hàm này sẽ tự động chạy vào logic "BƯỚC 2: Login từ đầu"
-    sap_session = sap_login_and_connect()
-    
-    for config in TASK_CONFIGS:
-        print("\n" + "="*60)
-        try:
-            path = os.path.join(CUSTOM_DIR, config['output_filename'])
-            if os.path.exists(path): os.remove(path)
-
-            run_tcode_and_fill_selections(sap_session, config)
-            export_data_to_excel(sap_session, config['output_filename'], CUSTOM_DIR, config['menu_export_path'])
-            
-            # Tắt Excel ngay sau khi ZSD04A xong (như logic cũ của bạn)
-            if config['tcode'] == "ZSD04A": force_close_process("excel.exe")
-
-        except Exception as e:
-            if "NO_DATA_FOUND" in str(e): 
-                log_message(f"Bỏ qua {config['name']} (No Data).", level="WARN")
-            else: 
-                log_message(f"❌ Thất bại {config['name']}: {e}", level="ERROR")
-                # Tùy chọn: Nếu 1 task lỗi quá nặng, có thể cân nhắc break hoặc continue
+    # 2. CHUẨN BỊ MÔI TRƯỜNG (Sử dụng try...finally để đảm bảo dọn dẹp)
+    try:
+        if not os.path.isdir(CUSTOM_DIR): 
+            os.makedirs(CUSTOM_DIR)
         
-        # Quay về màn hình chính sau mỗi task
-        try:
-            sap_session.findById("wnd[0]/tbar[0]/okcd").text = "/n"
-            sap_session.findById("wnd[0]").sendVKey(0)
-            time.sleep(1)
-        except: pass
+        # Đóng toàn bộ các tác vụ cũ để tránh xung đột
+        force_close_process("excel.exe") 
+        kill_all_sap_processes() # Hàm này cần bổ sung "sapgui.exe" như tôi đã gợi ý
 
-    # 4. KẾT THÚC & DỌN DẸP CUỐI CÙNG
-    log_message("🏁 Đã chạy xong toàn bộ danh sách.", level="SUCCESS")
-    
-    # 🔥 THÊM: Tắt SAP sau khi hoàn thành để máy sạch sẽ
-    kill_all_sap_processes() 
-    log_message("✅ Đã đóng SAP an toàn.", level="SUCCESS")
+        # 3. KHỞI TẠO KẾT NỐI MỚI (Start Fresh)
+        sap_session = sap_login_and_connect()
+        
+        for config in TASK_CONFIGS:
+            print("\n" + "="*60)
+            try:
+                path = os.path.join(CUSTOM_DIR, config['output_filename'])
+                if os.path.exists(path): 
+                    os.remove(path)
+
+                # Thực thi T-Code
+                run_tcode_and_fill_selections(sap_session, config)
+                
+                # Export dữ liệu
+                export_data_to_excel(sap_session, config['output_filename'], CUSTOM_DIR, config['menu_export_path'])
+                
+                # Tắt Excel ngay nếu là ZSD04A (để giải phóng file)
+                if config['tcode'] == "ZSD04A": 
+                    force_close_process("excel.exe")
+
+            except Exception as e:
+                if "NO_DATA_FOUND" in str(e): 
+                    log_message(f"Bỏ qua {config['name']} (Không có dữ liệu).", level="WARN")
+                else: 
+                    log_message(f"❌ Lỗi tại Task {config['name']}: {e}", level="ERROR")
+            
+            # Quay về màn hình chính sau mỗi task bằng lệnh /n
+            try:
+                sap_session.findById("wnd[0]/tbar[0]/okcd").text = "/n"
+                sap_session.findById("wnd[0]").sendVKey(0)
+                time.sleep(1)
+            except: 
+                pass
+
+        log_message("🏁 Đã hoàn thành danh sách tác vụ.", level="SUCCESS")
+
+    except Exception as fatal_e:
+        log_message(f"🛑 Lỗi nghiêm trọng trong quá trình chạy: {fatal_e}", level="CRITICAL")
+    finally:
+        # 4. DỌN DẸP CUỐI CÙNG (LUÔN CHẠY)
+        # Thử đóng SAP êm ái trước, nếu không được sẽ Kill sạch
+        try:
+            if 'sap_session' in locals():
+                graceful_exit_sap(sap_session) # Sử dụng lệnh /nex
+        except:
+            pass
+            
+        log_message("🧹 Đang thực hiện dọn dẹp tài nguyên hệ thống...", level="INFO")
+        kill_all_sap_processes() 
+        force_close_process("excel.exe")
+        log_message("✅ Hệ thống đã sạch sẽ. Sẵn sàng cho lần chạy sau.", level="SUCCESS")
 
 if __name__ == "__main__":
     try:

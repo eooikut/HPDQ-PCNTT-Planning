@@ -67,8 +67,8 @@ WITH Data_with_Process AS (
             ELSE 0
         END AS process_value
         
-    FROM so s
-    LEFT JOIN vw_so_kho_sumary2 t
+    FROM so s WITH (NOLOCK)
+    LEFT JOIN vw_so_kho_sumary2 t WITH (NOLOCK)
         ON s.[Sales Document] = t.[SO Mapping]
         AND s.[Material] = t.[Material]
 )

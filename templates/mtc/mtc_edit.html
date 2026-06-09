@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Chỉnh sửa Nhãn - {{ order.SO_Number }}{% endblock %}
+
+{% block content %}
+<style>
+    .mtc-form-wrapper { font-family: Arial, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; padding-top: 50px; min-height: 85vh; border-radius: 8px;}
+    .mtc-edit-card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 500px; height: fit-content; }
+    .mtc-form-group { margin-bottom: 15px; }
+    .mtc-edit-card label { font-weight: bold; display: block; margin-bottom: 5px; color: #004b93; }
+    .mtc-edit-card input[type="text"], .mtc-edit-card textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+    .mtc-edit-card textarea { height: 150px; resize: vertical; }
+    .mtc-btn-save { background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; font-weight: bold;}
+    .mtc-btn-save:hover { background: #218838; }
+    .mtc-btn-back { display: block; text-align: center; margin-top: 15px; color: #666; text-decoration: none; font-weight: bold;}
+    .mtc-btn-back:hover { color: #333; }
+</style>
+
+<div class="mtc-form-wrapper">
+    <div class="mtc-edit-card">
+        <h2 style="text-align: center; color: #004b93; margin-top: 0; font-weight: bold; font-size: 1.8rem;">Sửa Nội Dung MTC</h2>
+        <form id="editForm">
+            <div class="mtc-form-group">
+                <label>Mã SO {% if order.Loai_MTC == 'NONE' %}<span style="color: #6c757d; font-weight: normal;">(Tùy chọn)</span>{% endif %}:</label>
+                <input type="text" name="so_number" value="{{ order.SO_Number }}" {% if order.Loai_MTC != 'NONE' %}required{% endif %}>
+            </div>
+            <div class="mtc-form-group">
+                <label>Mác Thép:</label>
+                <input type="text" name="mac_thep" value="{{ order.Mac_Thep }}">
+            </div>
+            <div class="mtc-form-group">
+                <label>Nhãn Màu:</label>
+                <input type="text" name="nhan_mau" value="{{ order.nhan_mau or '' }}">
+            </div>
+            <div class="mtc-form-group">
+                <label>Người Tạo (PIC):</label>
+                <input type="text" name="pic" value="{{ order.pic or '' }}">
+            </div>
+            <div class="mtc-form-group">
+                <label>Tên Tàu:</label>
+                <input type="text" name="ten_tau" value="{{ order.ten_tau or '' }}">
+            </div>
+            <div class="mtc-form-group">
+                <label>Ghi Chú:</label>
+                <textarea name="ghi_chu" style="height: 80px;">{{ order.ghi_chu or '' }}</textarea>
+            </div>
+            <div class="mtc-form-group">
+                <label>Nội Dung Chính:</label>
+                <textarea name="noi_dung_chinh" required>{{ order.Noi_Dung_Chinh }}</textarea>
+            </div>
+            <button type="submit" class="mtc-btn-save">💾 Lưu Cập Nhật</button>
+            <a href="/mtc" class="mtc-btn-back">⬅ Quay lại trang MTC</a>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.getElementById('editForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const res = await fetch('/api/update-order/mtc/{{ order.ID }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            body: formData
+        });
+        const result = await res.json();
+        
+        if(result.status === 'success') {
+            alert('Đã cập nhật dữ liệu thành công!');
+            window.location.href = '/mtc'; // Trả về trang MTC
+        }
+    });
+</script>
+{% endblock %}
