@@ -626,7 +626,7 @@ def sync_order_production_rules_via_pandas(engine):
                 SELECT [Order], [TDC_Code], [SO Mapping], [CW], [Target_Weight], 
                        [Material description], [KySanXuat], [is_skin_required],
                        [material_code], [thickness], [width], [alloc_thick], 
-                       [gradeSteel], [purpose]
+                       [gradeSteel], [purpose],[XNDH]
                 FROM dbo.so_request WITH (NOLOCK) 
                 WHERE [Order] IS NOT NULL 
             """, conn)
@@ -701,13 +701,13 @@ def sync_order_production_rules_via_pandas(engine):
             df_to_so_details = df_so_details[[
                 'so_number', 'material_code', 'Material description', 'gradeSteel',
                 'thickness', 'alloc_thick', 'width', 'Target_Weight', 'master_id',
-                'req_min_w', 'req_max_w', 'purpose'
+                'req_min_w', 'req_max_w', 'purpose','XNDH'
             ]].copy()
             
             df_to_so_details.columns = [
                 'so_number', 'material_code', 'description', 'grade',
                 'thickness', 'alloc_thick', 'width', 'total_weight', 'tdc_id',
-                'min_weight', 'max_weight', 'usage_purpose'
+                'min_weight', 'max_weight', 'usage_purpose','XNDH'
             ]
 
             if not df_to_so_details.empty:
@@ -717,7 +717,8 @@ def sync_order_production_rules_via_pandas(engine):
                                          'tdc_id': types.BigInteger(),
                                          'description': types.NVARCHAR(1000),
                                          'usage_purpose': types.NVARCHAR(1000),
-                                         'grade': types.VARCHAR(100)
+                                         'grade': types.VARCHAR(100),
+                                         'XNDH': types.NVARCHAR(255)
                                      })
                 transaction_conn.execute(text("""
                     MERGE [dbo].[so_details] AS target
@@ -733,12 +734,12 @@ def sync_order_production_rules_via_pandas(engine):
                             target.total_weight = source.total_weight,
                             target.min_weight = source.min_weight,
                             target.max_weight = source.max_weight,
-                            target.tdc_id = ISNULL(source.tdc_id, target.tdc_id),
-                            
-                            target.usage_purpose = source.usage_purpose
+                            target.tdc_id = ISNULL(source.tdc_id, target.tdc_id),                           
+                            target.usage_purpose = source.usage_purpose,
+                            target.XNDH = source.XNDH                  
                     WHEN NOT MATCHED THEN
-                        INSERT (so_number, material_code, description, grade, thickness, alloc_thick, width, total_weight, min_weight, max_weight, tdc_id, usage_purpose, status)
-                        VALUES (source.so_number, source.material_code, source.description, source.grade, source.thickness, source.alloc_thick, source.width, source.total_weight, source.min_weight, source.max_weight, source.tdc_id, source.usage_purpose, 'Hidden');
+                        INSERT (so_number, material_code, description, grade, thickness, alloc_thick, width, total_weight, min_weight, max_weight, tdc_id, usage_purpose, status, XNDH)
+                        VALUES (source.so_number, source.material_code, source.description, source.grade, source.thickness, source.alloc_thick, source.width, source.total_weight, source.min_weight, source.max_weight, source.tdc_id, source.usage_purpose, 'Hidden',source.XNDH);
                 """))
                 transaction_conn.execute(text("DROP TABLE IF EXISTS staging_so_details"))
 
@@ -749,14 +750,14 @@ def sync_order_production_rules_via_pandas(engine):
                 'Order', 'tdc_version_id', 'master_id', 'req_min_w', 'req_max_w', 
                 'SO Mapping', 'Target_Weight', 'Material description', 
                 'KySanXuat', 'is_skin_required', 'production_status',
-                'thickness', 'width', 'alloc_thick' 
+                'thickness', 'width', 'alloc_thick' ,'XNDH'
             ]].copy()
             
             df_to_sql.columns = [
                 'Order', 'tdc_version_id', 'master_id', 'req_min_w', 'req_max_w', 
                 'SO Mapping', 'Target_Weight', 'material_desc', 
                 'KySanXuat', 'is_skin_required', 'production_status',
-                'req_thick', 'req_width', 'alloc_thick'
+                'req_thick', 'req_width', 'alloc_thick', 'XNDH'
             ]
             
             df_to_sql['Order'] = df_to_sql['Order'].astype(str).str.replace(r'\.0$', '', regex=True)
@@ -769,9 +770,36 @@ def sync_order_production_rules_via_pandas(engine):
                                  'tdc_version_id': types.BigInteger(), 
                                  'master_id': types.BigInteger(), 
                                  'SO Mapping': types.BigInteger(),
-                                 'material_desc': types.NVARCHAR(1000)
+                                 'material_desc': types.NVARCHAR(1000),
+                                 'XNDH': types.NVARCHAR(255)
                              })
             transaction_conn.execute(text("CREATE CLUSTERED INDEX IX_Stag ON staging_order_rules([Order])"))
+            sync_coil_sql = text("""
+                UPDATE c
+                SET 
+                    c.req_min_w = s.req_min_w,
+                    c.req_max_w = s.req_max_w,
+                    c.target_tdc_version_id = s.tdc_version_id -- Bổ sung cập nhật mã TDC
+                FROM [dbo].[coil_data] c
+                INNER JOIN staging_order_rules s ON c.[Order] = s.[Order] COLLATE DATABASE_DEFAULT
+                LEFT JOIN [dbo].[order_production_rules] r WITH (NOLOCK) ON c.[Order] = r.[Order]
+                WHERE 
+                    -- Tôn trọng chốt chặn: Không update cuộn nếu quy tắc đang bị khóa tay (override)
+                    ISNULL(r.is_manual_override, 0) = 0
+                    AND (
+                        ISNULL(c.req_min_w, -1) <> ISNULL(s.req_min_w, -1)
+                        OR ISNULL(c.req_max_w, -1) <> ISNULL(s.req_max_w, -1)
+                        OR ISNULL(c.target_tdc_version_id, -1) <> ISNULL(s.tdc_version_id, -1) -- Bổ sung điều kiện kích hoạt
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1 
+                        FROM [dbo].[sanluong] sl 
+                        WHERE sl.[ID Cuộn bó] = c.coil_id 
+                          AND sl.[Đã nhập kho] = N'Yes'
+                    );
+                    
+            """)
+            transaction_conn.execute(sync_coil_sql)
             
             # 🌟 ĐOẠN MERGE SQL SAU ĐÂY ĐÃ ĐƯỢC KIỂM TRA KHÔNG TRÙNG LẶP BẤT KỲ CỘT NÀO
             merge_sql = text("""
@@ -829,13 +857,13 @@ def sync_order_production_rules_via_pandas(engine):
                         target.production_status = source.production_status,
                         target.req_thick = source.req_thick,
                         target.req_width = source.req_width,
-                        target.alloc_thick = source.alloc_thick
-
+                        target.alloc_thick = source.alloc_thick,
+                        target.XNDH = source.XNDH
                 WHEN NOT MATCHED THEN
                     INSERT ([Order], [target_tdc_version_id], [req_min_w], [req_max_w], is_manual_override, is_conflict,
-                            [SO_mapping], [total_weight], [fulfilled_weight], [material_desc], [KySanXuat], [is_skin_required], [production_status], [req_thick], [req_width], [alloc_thick])
+                            [SO_mapping], [total_weight], [fulfilled_weight], [material_desc], [KySanXuat], [is_skin_required], [production_status], [req_thick], [req_width], [alloc_thick], [XNDH])
                     VALUES (CAST(source.[Order] AS VARCHAR(50)), source.tdc_version_id, source.req_min_w, source.req_max_w, 0, 0,
-                            source.[SO Mapping], ISNULL(source.Target_Weight, 0), 0, source.material_desc, source.KySanXuat, ISNULL(source.is_skin_required, 0), source.production_status, source.req_thick, source.req_width, source.alloc_thick);
+                            source.[SO Mapping], ISNULL(source.Target_Weight, 0), 0, source.material_desc, source.KySanXuat, ISNULL(source.is_skin_required, 0), source.production_status, source.req_thick, source.req_width, source.alloc_thick, source.XNDH);
             """)
             transaction_conn.execute(merge_sql)
             transaction_conn.execute(text("DROP TABLE staging_order_rules"))
@@ -895,7 +923,7 @@ def evaluate_tdc_stage_1(scores_json, criteria_json, coil_weight, min_w, max_w):
 
     return {
         'stage1_penalty': penalty,
-        'stage1_msg': ', '.join(failed_reasons) if failed_reasons else "Đạt",
+        'stage1_msg': ', '.join(failed_reasons) if failed_reasons else "",
         'status': 'PASSNOCHEM' if penalty == 0 else 'FAILNOCHEM'
     }
 def evaluate_tdc_stage_2(scores_json, criteria_json):
@@ -932,7 +960,7 @@ def evaluate_tdc_stage_2(scores_json, criteria_json):
         'stage2_msg': ', '.join(failed_reasons) if failed_reasons else ""
     }
 def process_etl_qc_lifecycle(engine):
-    """Điều phối vòng đời QC (Đã đồng bộ chuẩn logic qc_msg từ save_manual_data)"""
+    """Điều phối vòng đời QC (Tối ưu Optimistic Allocation & Bảo toàn Quyết định KCS)"""
     try:
         with engine.begin() as conn:
             # ==========================================
@@ -942,61 +970,168 @@ def process_etl_qc_lifecycle(engine):
                 SELECT 
                     c.coil_id, c.weight, c.scores, v.criteria_json,
                     ISNULL(c.req_min_w, 0) as min_w, 
-                    ISNULL(c.req_max_w, 0) as max_w
-                FROM coil_data c WITH (NOLOCK)
+                    ISNULL(c.req_max_w, 0) as max_w,
+                    c.rework_status as old_rework,
+                    c.quality_class as old_q_class,
+                    c.prime_status as old_prime,
+                    c.mapped_po as old_mapped_po,
+                    c.qc_msg as old_qc_msg,
+                    c.ID_xuly,
+                    r.[Order] as order_id, r.production_status, r.SO_mapping,
+                    ISNULL(r.is_skin_required, 0) as is_skin_required,
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1 FROM audit_log_qlcl a WITH (NOLOCK) 
+                            WHERE a.coil_id = c.coil_id AND a.defect_key = 'REMOVE_MAPPED_PO'
+                        ) THEN 1 
+                        ELSE 0 
+                    END AS is_po_removed
+                FROM coil_data c WITH (NOLOCK) 
                 JOIN tdc_versions v WITH (NOLOCK) ON c.target_tdc_version_id = v.id
-                WHERE c.qc_stage IS NULL 
+                LEFT JOIN order_production_rules r WITH (NOLOCK) ON c.[Order] = r.[Order]
+                WHERE c.qc_stage IS NULL and c.production_date >='2026-07-01 08:00:00'
                   AND c.target_tdc_version_id IS NOT NULL
             """)
             new_coils = conn.execute(sql_case_1).mappings().fetchall()
             
             if new_coils:
-                update_stage1_payload = []
                 for row in new_coils:
+                    cid = row['coil_id']
+                    
+                    check_lock_s1 = conn.execute(text("""
+                        SELECT qc_stage FROM coil_data WITH (UPDLOCK, ROWLOCK) WHERE coil_id = :cid
+                    """), {"cid": cid}).fetchone()
+                    
+                    if not check_lock_s1 or check_lock_s1[0] is not None:
+                        continue 
+                    
                     scores_dict = json.loads(row['scores']) if row['scores'] else {}
                     if 'is_thick_pass' not in scores_dict:
-                        scores_dict['is_thick_pass'] = 1 # Mặc định luôn là Đạt
+                        scores_dict['is_thick_pass'] = 1 
                     
                     new_scores_json = json.dumps(scores_dict)
                     res1 = evaluate_tdc_stage_1(new_scores_json, row['criteria_json'], row['weight'], row['min_w'], row['max_w'])
                     
-                    # 🌟 VÁ LỖI 1: Xử lý qc_msg cho STAGE 1 (Nếu đạt thì rỗng, nếu lỗi thì lấy stage1_msg)
-                    final_qc_msg = "" if res1['stage1_penalty'] == 0 else res1['stage1_msg']
+                    final_qc_msg = res1['stage1_msg']
                     
-                    update_stage1_payload.append({
-                        'cid': row['coil_id'], 
+                    # --- XỬ LÝ BIẾN TRẠNG THÁI ---
+                    is_downgraded = row['old_prime'] in ['NON_PRIME', 'SCRAP']
+                    c_weight = float(row['weight'] or 0)
+                    order_id = row['order_id']                  
+                    final_qc_msg = res1['stage1_msg']
+                    final_mapped_po = row['old_mapped_po'] if (row['old_mapped_po'] and row['old_mapped_po'] != '0') else '0'
+                    
+                    # Cờ kiểm tra từ Audit Log
+                    is_locked_by_user = (row['is_po_removed'] == 1)
+
+                    if is_downgraded:
+                        final_q_class = row['old_q_class']
+                        final_p_status = row['old_prime']
+                        final_rework = row['old_rework']
+                        final_qc_status = 'PASS'
+                        
+                        if final_p_status == 'NON_PRIME' and order_id:
+                            check_room = conn.execute(text("SELECT fulfilled_weight, total_weight FROM order_production_rules WITH (UPDLOCK, ROWLOCK) WHERE [Order] = :oid"), {"oid": order_id}).fetchone()
+                            
+                            if check_room:
+                                curr_fulfilled = float(check_room[0] or 0)
+                                total_allowed = float(check_room[1] or 0)
+                                new_fulfilled = curr_fulfilled + c_weight
+                                
+                                conn.execute(text("UPDATE order_production_rules SET fulfilled_weight = :w WHERE [Order] = :oid"), {"w": new_fulfilled, "oid": order_id})
+                                
+                                # Chỉ tự động tìm SO nếu cờ bằng '0' VÀ chưa bị con người khóa (is_locked_by_user = False)
+                                if row['production_status'] == 'MTO' and not is_locked_by_user:
+                                    max_allowed = total_allowed * 1.20 if total_allowed <= 100000 else total_allowed * 1.10
+                                    
+                                    if final_mapped_po == '0' and new_fulfilled <= max_allowed:
+                                        final_mapped_po = row['SO_mapping'] if row['SO_mapping'] else '1'
+                                elif not is_locked_by_user:
+                                    final_mapped_po = '0'
+                                    
+                    else:
+                        final_qc_status = res1['status']
+                        if res1['stage1_penalty'] == 0:
+                            final_q_class = 'LOAI_1'
+                            final_p_status = 'PRIME'
+                            
+                            if row['old_rework'] in ['NULL', None, '']:
+                                final_rework = 'SKIN_CUST' if (row['is_skin_required'] == 1 and not row['ID_xuly']) else 'FINAL'
+                            else:
+                                final_rework = row['old_rework']
+                                
+                            if order_id:
+                                check_room = conn.execute(text("SELECT fulfilled_weight, total_weight FROM order_production_rules WITH (UPDLOCK, ROWLOCK) WHERE [Order] = :oid"), {"oid": order_id}).fetchone()
+                                
+                                if check_room:
+                                    curr_fulfilled = float(check_room[0] or 0)
+                                    total_allowed = float(check_room[1] or 0)
+                                    new_fulfilled = curr_fulfilled + c_weight
+                                    
+                                    conn.execute(text("UPDATE order_production_rules SET fulfilled_weight = :w WHERE [Order] = :oid"), {"w": new_fulfilled, "oid": order_id})
+                                    
+                                    # Chỉ tự động tìm SO nếu cờ bằng '0' VÀ chưa bị con người khóa
+                                    if row['production_status'] == 'MTO' and not is_locked_by_user:
+                                        max_allowed = total_allowed * 1.20 if total_allowed <= 100000 else total_allowed * 1.10
+                                        
+                                        if final_mapped_po == '0' and new_fulfilled <= max_allowed:
+                                            final_mapped_po = row['SO_mapping'] if row['SO_mapping'] else '1'
+                                    elif not is_locked_by_user:
+                                        final_mapped_po = '0'
+                        else:
+                            # FAILNOCHEM
+                            final_q_class = None
+                            final_p_status = None
+                            if row['old_rework'] in ['FINAL', None, 'NULL', '']:
+                                final_rework = 'SKIN_CUST' if (row['is_skin_required'] == 1 and not row['ID_xuly']) else None
+                            else:
+                                final_rework = row['old_rework']
+                            final_mapped_po = '0'
+                    conn.execute(text("""
+                        UPDATE coil_data 
+                        SET stage1_penalty = :pen1, 
+                            stage1_msg = :msg1, 
+                            qc_msg = :qc_msg, 
+                            qc_status = :status, 
+                            qc_stage = 'STAGE_1',
+                            scores = :new_scores,
+                            quality_class = :q_class,
+                            prime_status = :p_status,
+                            rework_status = :rework,
+                            mapped_po = :mpo
+                        WHERE coil_id = :cid
+                    """), {
+                        'cid': cid, 
                         'pen1': res1['stage1_penalty'],
                         'msg1': res1['stage1_msg'], 
-                        'status': res1['status'],
+                        'status': final_qc_status,
                         'qc_msg': final_qc_msg,
-                        'new_scores': new_scores_json # Truyền thêm qc_msg
+                        'new_scores': new_scores_json,
+                        'q_class': final_q_class,
+                        'p_status': final_p_status,
+                        'rework': final_rework,
+                        'mpo': final_mapped_po
                     })
-                
-                # 🌟 VÁ LỖI SQL: Thêm qc_msg vào lệnh UPDATE
-                conn.execute(text("""
-                    UPDATE coil_data 
-                    SET stage1_penalty = :pen1, 
-                        stage1_msg = :msg1, 
-                        qc_msg = :qc_msg, 
-                        qc_status = :status, 
-                        qc_stage = 'STAGE_1',
-                        scores = :new_scores         
-                    WHERE coil_id = :cid
-                """), update_stage1_payload)
-                logger.info(f"✅ [ETL-QC] Đã hoàn thành Stage 1 cho {len(update_stage1_payload)} cuộn mới.")
+                logger.info("✅ [ETL-QC] Đã hoàn thành Stage 1.")
 
             # ==========================================
-            # BLOCK 2: ĐÁNH GIÁ STAGE 2 & PHÂN BỔ (CÓ CƠ TÍNH)
+            # BLOCK 2: ĐÁNH GIÁ STAGE 2 & ROLLBACK KHỐI LƯỢNG
             # ==========================================
             sql_case_3 = text("""
                 SELECT 
-                    c.coil_id, c.weight, c.scores, v.criteria_json,
+                    c.coil_id, c.weight, c.scores, v.criteria_json, c.ID_xuly,
                     c.stage1_penalty, c.stage1_msg,
-                    r.[Order] as order_id, r.production_status, r.total_weight, r.fulfilled_weight, r.SO_mapping
+                    c.rework_status as old_rework, 
+                    c.quality_class as old_q_class, 
+                    c.prime_status as old_prime,
+                    c.mapped_po as old_mapped_po,
+                    c.qc_msg as old_qc_msg,
+                    r.[Order] as order_id, r.production_status, r.SO_mapping,
+                    ISNULL(r.is_skin_required, 0) as is_skin_required
                 FROM coil_data c WITH (NOLOCK)
                 JOIN tdc_versions v WITH (NOLOCK) ON c.target_tdc_version_id = v.id
-                JOIN order_production_rules r WITH (NOLOCK) ON c.[Order] = r.[Order]
-                WHERE c.qc_stage = 'STAGE_1'
+                LEFT JOIN order_production_rules r WITH (NOLOCK) ON c.[Order] = r.[Order]
+                WHERE c.qc_stage = 'STAGE_1' and c.production_date >='2026-07-01 08:00:00'
                   AND JSON_VALUE(c.scores, '$.YieldPoint') != '0'
                   AND JSON_VALUE(c.scores, '$.Tensile') != '0'
                   AND JSON_VALUE(c.scores, '$.Elongation') != '0'
@@ -1005,52 +1140,70 @@ def process_etl_qc_lifecycle(engine):
             
             if ready_coils:
                 for row in ready_coils:
+                    cid = row['coil_id']
+                    
+                    check_lock = conn.execute(text("""
+                        SELECT qc_stage FROM coil_data WITH (UPDLOCK, ROWLOCK) WHERE coil_id = :cid
+                    """), {"cid": cid}).fetchone()
+                    
+                    if not check_lock or check_lock[0] != 'STAGE_1':
+                        continue
+                    
                     res2 = evaluate_tdc_stage_2(row['scores'], row['criteria_json'])
                     total_penalty = row['stage1_penalty'] + res2['stage2_penalty']
                     
-                    cid = row['coil_id']
-                    c_weight = row['weight'] or 0
+                    c_weight = float(row['weight'] or 0)
                     order_id = row['order_id']
-                    
-                    # 🌟 VÁ LỖI 2: Logic xử lý tin nhắn ĐẠT/LỖI chuẩn như dashboard.py
-                    if total_penalty == 0:
+                    is_downgraded = row['old_prime'] in ['NON_PRIME', 'SCRAP']
+                    msgs = [m for m in [row['stage1_msg'], res2['stage2_msg']] if m]
+                    calc_combined_msg = " | ".join(msgs)
+                    # Nếu KCS đã chốt hạ cấp -> Bảo toàn trạng thái, chỉ cập nhật stage
+                    if is_downgraded:
                         qc_status = 'PASS'
-                        final_q_class = 'LOAI_1'
-                        final_p_status = 'PRIME'
-                        final_msg = "" # Xóa sạch tin nhắn nếu Pass hoàn toàn
+                        final_msg = calc_combined_msg
+                        final_q_class = row['old_q_class']
+                        final_p_status = row['old_prime']
+                        final_mapped_po = row['old_mapped_po']
+                        final_rework = row['old_rework']
                     else:
-                        qc_status = 'FAIL'
-                        final_q_class = None
-                        final_p_status = None
-                        # Lọc bỏ chữ "Đạt" và nối chuỗi thông minh
-                        msgs = [m for m in [row['stage1_msg'], res2['stage2_msg']] if m and m != "Đạt"]
-                        final_msg = " | ".join(msgs)
-                        
-                    # --- Logic phân bổ Room (Giữ nguyên) ---
-                    final_mapped_po = None
-                    if final_q_class == 'LOAI_1' and order_id:
-                        check_room = conn.execute(text("""
-                            SELECT fulfilled_weight, total_weight 
-                            FROM order_production_rules WITH (UPDLOCK, ROWLOCK) 
-                            WHERE [Order] = :oid
-                        """), {"oid": order_id}).fetchone()
-                        
-                        if check_room:
-                            curr_fulfilled = float(check_room[0] or 0)
-                            total_allowed = float(check_room[1] or 0)
-                            new_fulfilled = curr_fulfilled + c_weight
+                        if total_penalty == 0:
+                            # PASS HOÀN TOÀN
+                            qc_status = 'PASS'
+                            final_msg = ""
+                            final_q_class = row['old_q_class'] # Giữ nguyên LOAI_1 từ STAGE_1
+                            final_p_status = row['old_prime']
+                            final_mapped_po = row['old_mapped_po']
                             
-                            conn.execute(text("UPDATE order_production_rules SET fulfilled_weight = :w WHERE [Order] = :oid"), {"w": new_fulfilled, "oid": order_id})
-                            
-                            if row['production_status'] == 'MTO':
-                                if new_fulfilled <= total_allowed:
-                                    final_mapped_po = row['SO_mapping'] if row['SO_mapping'] else '1'
-                                else:
-                                    final_mapped_po = '0'
+                            # Giải phóng lệnh khi đã PASS
+                            if row['old_rework'] in ['NULL', None, '']:
+                                final_rework = 'SKIN_CUST' if (row['is_skin_required'] == 1 and not row['ID_xuly']) else 'FINAL'
                             else:
-                                final_mapped_po = '0'
+                                final_rework = row['old_rework']
+                        else:
+                            # RỚT
+                            qc_status = 'FAIL'
+                            final_msg = calc_combined_msg
+                            
+                            final_q_class = None
+                            final_p_status = None
+                            final_mapped_po = '0'
+                            
+                            if row['old_rework'] in ['FINAL', None, 'NULL', '']:
+                                if row['is_skin_required'] == 1 and not row['ID_xuly']:
+                                    final_rework = 'SKIN_CUST'
+                                else:
+                                    final_rework = None
+                            else:
+                                final_rework = row['old_rework']
 
-                    # 🌟 VÁ LỖI 3: Update đúng biến vào đúng cột (Đã thêm qc_msg)
+                            # ROLLBACK SẢN LƯỢNG 
+                            if row['stage1_penalty'] == 0 and order_id:
+                                check_room = conn.execute(text("SELECT fulfilled_weight FROM order_production_rules WITH (UPDLOCK, ROWLOCK) WHERE [Order] = :oid"), {"oid": order_id}).fetchone()
+                                if check_room:
+                                    curr_fulfilled = float(check_room[0] or 0)
+                                    new_fulfilled = max(0, curr_fulfilled - c_weight)
+                                    conn.execute(text("UPDATE order_production_rules SET fulfilled_weight = :w WHERE [Order] = :oid"), {"w": new_fulfilled, "oid": order_id})
+                                    
                     conn.execute(text("""
                         UPDATE coil_data 
                         SET stage2_penalty = :pen2, 
@@ -1061,18 +1214,7 @@ def process_etl_qc_lifecycle(engine):
                             qc_stage = 'STAGE_2',
                             quality_class = :q_class, 
                             prime_status = :p_status,
-                            
-                            rework_status = CASE 
-                                WHEN :status <> 'PASS' THEN NULL
-                                WHEN :status = 'PASS' AND ISNULL((
-                                    SELECT TOP 1 is_skin_required 
-                                    FROM order_production_rules 
-                                    WHERE [Order] = coil_data.[Order]
-                                ), 0) = 1 THEN 'SKIN_CUST'
-                                WHEN :status = 'PASS' THEN 'FINAL'
-                                ELSE NULL 
-                            END
-                            
+                            rework_status = :rework
                         WHERE coil_id = :cid
                     """), {
                         "pen2": res2['stage2_penalty'], 
@@ -1082,10 +1224,11 @@ def process_etl_qc_lifecycle(engine):
                         "mpo": final_mapped_po, 
                         "q_class": final_q_class, 
                         "p_status": final_p_status, 
+                        "rework": final_rework,
                         "cid": cid
                     })
                 
-                logger.info(f"✅ [ETL-QC] Đã hoàn thành Stage 2 và Phân bổ cho {len(ready_coils)} cuộn.")
+                logger.info(f"✅ [ETL-QC] Đã hoàn thành Stage 2.")
 
     except Exception as e:
         logger.error(f"❌ [ETL-QC] Lỗi khi chạy lifecycle: {str(e)}")

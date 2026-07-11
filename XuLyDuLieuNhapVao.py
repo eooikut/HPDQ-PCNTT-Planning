@@ -471,29 +471,36 @@ def _rename_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 def _normalize_cw(value):
     """
-    Chuẩn hóa giá trị cột CW.
-    - '18-24' -> '18-24'
-    - 'max25', '<25', '25' -> '0-25'
+    Chuẩn hóa giá trị cột CW, hỗ trợ cả số thập phân (dấu chấm hoặc dấu phẩy).
+    - '18.5-25.5', '18,5-25.5' -> '18.5-25.5'
+    - 'max25.5', '<25.5', '25.5' -> '0-25.5'
     - Các giá trị khác -> ''
     """
     if pd.isna(value):
         return ""
 
     s_value = str(value).strip().lower()
+    
+    # 0. Tiền xử lý: Đổi dấu phẩy (,) thành dấu chấm (.) để chuẩn hóa phân cách thập phân
+    s_value = s_value.replace(',', '.')
 
-    # 1. Ưu tiên tìm kiếm định dạng min-max ở bất kỳ đâu trong chuỗi (ví dụ: '19-23mt')
-    # re.search sẽ tìm kiếm thay vì khớp từ đầu đến cuối như re.match
-    range_match = re.search(r'(\d+)\s*-\s*(\d+)', s_value)
+    # 1. Tìm kiếm định dạng min-max (VD: '18.5-25.5')
+    # \d+(?:\.\d+)? dùng để bắt cả số nguyên (vd: 18) lẫn số thập phân (vd: 18.5)
+    range_match = re.search(r'(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)', s_value)
     if range_match:
-        num1 = int(range_match.group(1))
-        num2 = int(range_match.group(2))
-        return f"{min(num1, num2)}-{max(num1, num2)}"
+        # Chuyển đổi sang float thay vì int
+        num1 = float(range_match.group(1))
+        num2 = float(range_match.group(2))
+        
+        # Dùng format {:g} để in số gọn gàng (vd: 25.0 thành 25, 25.5 vẫn là 25.5)
+        return f"{min(num1, num2):g}-{max(num1, num2):g}"
 
-    # 2. Nếu không có định dạng trên, mới tìm số đơn lẻ đầu tiên trong chuỗi (ví dụ: 'max25', '<=25')
-    numbers = re.findall(r'\d+', s_value)
+    # 2. Tìm số đơn lẻ (VD: 'max25.5', '<=25.5')
+    numbers = re.findall(r'\d+(?:\.\d+)?', s_value)
     if numbers:
-        num = int(numbers[0])
-        return f"0-{num}"
+        # Lấy số đầu tiên tìm thấy và chuyển sang float
+        num = float(numbers[0])
+        return f"0-{num:g}"
 
     # 3. Nếu không tìm thấy bất kỳ số nào, trả về chuỗi rỗng
     return ""
@@ -544,14 +551,36 @@ def process_so_details(file_paths: list[str]):
     # --- CHUẨN HÓA TÊN CỘT ĐỂ MAPPING ---
     # Thay thế các ký tự xuống dòng (\n, \r) trong tên cột thành khoảng trắng
     df_combined.columns = [str(c).replace('\n', ' ').replace('\r', '').strip() for c in df_combined.columns]
-
+    possible_order_cols = ['order hrc/hspm', 'po cán 204', 'po skin 206']
+    
+    # 2. Xóa sạch khoảng trắng dư thừa (xuống dòng, khoảng trắng kép) thành 1 dấu cách chuẩn
+    exist_order_cols = [c for c in df_combined.columns if re.sub(r'\s+', ' ', str(c).lower().strip()) in possible_order_cols]
+    
+    if exist_order_cols:
+        def join_orders(row):
+            vals = []
+            for c in exist_order_cols:
+                val = row[c]
+                if pd.notna(val):
+                    val_str = str(val).strip()
+                    # Bỏ qua nếu dữ liệu rỗng
+                    if val_str not in ['', 'nan', 'None', '<NA>']:
+                        # XỬ LÝ LỖI .0 NGAY TẠI ĐÂY CHO TỪNG GIÁ TRỊ TRƯỚC KHI NỐI
+                        val_str = re.sub(r'\.0$', '', val_str)
+                        vals.append(val_str)
+                        
+            # Nối chúng lại bằng ' / ' (Ví dụ: "123 / 456 / 789")
+            return ' / '.join(vals) if vals else pd.NA
+            
+        # Tạo thẳng cột 'Order' mới chứa dữ liệu đã gộp
+        df_combined['Order'] = df_combined.apply(join_orders, axis=1)
     rename_map = {
-        'Order HRC/HSPM': 'Order',
-        'PO cán 204 nguội': 'Order', 
         # Đã xóa 'Tên KH' và 'XN'
         'Mã TDC': 'TDC_Code',          # <-- MỚI THÊM
         'TDC code': 'TDC_Code',  
-        'TDC Code': 'TDC_Code',        # <-- MỚI THÊM
+        'TDC Code': 'TDC_Code',   
+        'XNĐH': 'XNDH',
+        'Tên KH': 'XNDH',    # <-- MỚI THÊM
         'Mác thép': 'gradeSteel',
         'Mục đích sử dụng': 'purpose',
         'Material Description': 'Material description',
@@ -635,7 +664,8 @@ def process_so_details(file_paths: list[str]):
         "gradeSteel", "purpose", "Target_Weight", 
         "KySanXuat", "is_skin_required", "production_status",
         "thickness", "width", "alloc_thick",
-        "material_code"
+        "material_code",
+        "XNDH"
     ]
     for col in required_cols:
         if col not in df_combined.columns:
@@ -671,7 +701,7 @@ def process_so_details(file_paths: list[str]):
     
     # 🚨 ĐÃ XÓA logic làm sạch cột Customer cũ ở đây
 
-    text_cols = ["CW", "NHÓM", "Material description", "gradeSteel", "purpose"]
+    text_cols = ["CW", "NHÓM", "Material description", "gradeSteel", "purpose", "XNDH"]
     for col in text_cols:
         if col in df_final.columns:
             df_final[col] = df_final[col].astype(str).replace(['nan', 'None', '<NA>'], '').fillna('')
@@ -698,7 +728,8 @@ def process_so_details(file_paths: list[str]):
         'thickness': Float(),
         'width': Float(),
         'alloc_thick': Float(),
-        'material_code': NVARCHAR(100)
+        'material_code': NVARCHAR(100),
+        'XNDH': NVARCHAR(255)
     }
     
     # Lệnh replace sẽ tự động tạo bảng mới với cột TDC_Code, xóa mất cột Customer cũ
