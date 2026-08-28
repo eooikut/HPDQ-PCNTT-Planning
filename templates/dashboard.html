@@ -103,67 +103,22 @@
             {% set day_str = day.strftime('%Y-%m-%d') %}
             {% if day_str in dates %}
               {% set data = dates[day_str] %}
-              <div class="progress-container">
+              <div class="progress-container" 
+                   data-ship="{{ ship_name }}" 
+                   data-eta="{{ day.strftime('%d/%m/%Y') }}"
+                   data-tong="{{ data.tongkhoiluong }}"
+                   data-kltong="{{ data.khoi_luong_tong }}"
+                   data-pct="{{ data.percentage }}">
+                   
                 <div class="progress position-relative" style="height: 24px; font-size: 0.8rem;">
                   <div class="progress-bar {{ data.color }}" role="progressbar" style="width: {{ data.percentage }}%;" aria-valuenow="{{ data.percentage }}" aria-valuemin="0" aria-valuemax="100">
                   </div>
-                  <!-- Phần text được đặt ở đây để luôn hiển thị đầy đủ -->
                   <span style="position: absolute; width: 100%; text-align: center; line-height: 24px; font-weight: bold; color: #212529; left: 0;">
                       {{ data.tongkhoiluong }}/{{ data.khoi_luong_tong }}
                   </span>
                 </div>
-                <!-- Tooltip chi tiết -->
-                <div class="custom-tooltip">
-                    <strong>Tàu:</strong> {{ ship_name }}<br>
-                    <strong>ETA:</strong> {{ day.strftime('%d/%m/%Y') }}<br>
-                    <strong>Tổng tiến độ:</strong> {{ data.tongkhoiluong }} / {{ data.khoi_luong_tong }} tấn ({{ "%.1f"|format(data.percentage) }}%)
-                    <hr>
-                    <strong>Chi tiết SO:</strong>
-                    <ul class="so-details-list">
-                        {% for so_number, so_detail in data.so_details.items() %}
-                            <li class="so-item" data-so-id="{{ so_number }}">
-                                <div class="so-info">
-                                    <i class="fas fa-chevron-right so-toggle-icon"></i>
-                                    SO {{ so_number }}: {{ so_detail.summary.progress_text }} T (Phân bổ : {{ so_detail.summary.so_phan_bo }} / {{ (so_detail.summary.klyeucau / 1000)|int }} T)
-                                </div>
-                                {% set target_tan = (so_detail.summary.klyeucau / 1000)|int %}
-								{% set export_pct = (so_detail.summary.thucte_xuat_tan / target_tan * 100) if target_tan > 0 else 0 %}
-								
-								<div class="so-info mt-1" style="font-size: 0.9em; font-weight: bold; color: {% if so_detail.is_exported_finished %}#0dcaf0{% else %}#adb5bd{% endif %};">
-									↳ Đã xuất tàu: {{ so_detail.summary.thucte_xuat_tan }} / {{ target_tan }} T ({{ "%.1f"|format(export_pct) }}%)
-									{% if so_detail.is_exported_finished %}
-										<i class="fas fa-check-circle ms-1"></i> (Đã xong)
-									{% endif %}
-								</div>
-                                <div class="progress progress-sm position-relative">
-                                    {# Nếu SO có material < 90% thì màu vàng, ngược lại màu xanh #}
-                                    <div class="progress-bar {% if so_detail.has_underperforming_material %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ so_detail.summary.progress_percent }}%;" aria-valuenow="{{ so_detail.summary.progress_percent }}" aria-valuemin="0" aria-valuemax="100">
-                                    </div>
-                                    <span style="position: absolute; width: 100%; text-align: center; line-height: 12px; font-weight: bold; color: #212529; left: 0; font-size: 10px;">
-                                        {{ "%.1f"|format(so_detail.summary.progress_percent) }}%
-                                    </span>
-                                </div>
-                                <!-- Danh sách material (ẩn ban đầu) -->
-                                <ul class="material-details-list">
-                                    {% for material in so_detail.materials %}
-                                        <li class="material-item">
-                                            <div class="material-info">{{ material.name }}: {{ material.progress_text }} T</div>
-                                            {# Nếu material < 90% thì màu vàng, ngược lại màu xanh #}
-                                            {# Logic màu mới theo quantity #}
-                                            {% set success_threshold = 80 if material.qty_kg <= 100000 else 90 %}
-                                            <div class="progress progress-xs">
-                                                <div class="progress-bar 
-                                                    {% if material.progress_percent < 30 %}bg-danger
-                                                    {% elif material.progress_percent < success_threshold %}bg-warning
-                                                    {% else %}bg-success{% endif %}" style="width: {{ material.progress_percent }}%;"></div>
-                                            </div>
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
+                <!-- Dữ liệu JSON ẩn, cực nhẹ, an toàn tuyệt đối thay thế cho hàng ngàn thẻ HTML -->
+                <script type="application/json" class="tooltip-data">{{ data.so_details | tojson | safe }}</script>
               </div>
             {% endif %}
           </td>
@@ -174,7 +129,8 @@
     </tbody>
   </table>
 </div>
-
+<!-- Khung Tooltip duy nhất cho toàn bộ trang -->
+<div id="global-tooltip" class="custom-tooltip" style="visibility: hidden; opacity: 0; position: fixed;"></div>
 <!-- Modal for Missing Details -->
 <div class="modal fade" id="missingDetailsModal" tabindex="-1" aria-labelledby="missingDetailsModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-xl">
@@ -213,8 +169,7 @@
     width: 100%;
     position: relative; /* Cần thiết để sticky hoạt động đúng */
   }
-
-  .progress-container .custom-tooltip {
+ .custom-tooltip {
     visibility: hidden;
     width: 420px; /* Tăng chiều rộng để dễ nhìn hơn */
     background-color: #2c3e50;
@@ -388,76 +343,140 @@
   document.addEventListener("DOMContentLoaded", function() {
     const filterForm = document.getElementById("filterForm");
     const filterSheetMonth = document.getElementById("filter-sheetmonth");
+// --- Logic hiển thị Tooltip bằng Click (Render Client-Side) ---
+    document.querySelectorAll('.progress-container').forEach(container => {
+        container.addEventListener('click', function(event) {
+            event.stopPropagation(); // Ngăn sự kiện click lan ra document
 
-    // Khi thay đổi tháng, tự động tải lại trang với tháng mới và reset bộ lọc ngày
-    // filterSheetMonth.addEventListener("change", function() {
-    //   const selectedMonth = this.value;
-    //   window.location.href = `{{ url_for('dashboard_bp.dashboard') }}?sheetmonth=${selectedMonth}`;
-    // });
+            const tooltip = document.getElementById('global-tooltip');
+            if (!tooltip) return;
 
-    // Form submission sẽ xử lý việc lọc theo ngày trong tháng đã chọn
-    // Action mặc định của form là GET, sẽ tự động thêm các tham số vào URL
-
-    // Thêm sự kiện click cho các SO item trong tooltip
-    document.querySelectorAll('.so-item').forEach(item => {
-        item.addEventListener('click', function(event) {
-            event.stopPropagation(); // Ngăn tooltip bị đóng khi click vào SO
-            this.classList.toggle('expanded');
-            const materialList = this.querySelector('.material-details-list');
-            if (materialList) {
-                materialList.style.display = this.classList.contains('expanded') ? 'block' : 'none';
+            // Ẩn tooltip nếu click lại vào ô đang mở
+            if (tooltip.style.visibility === 'visible' && tooltip.dataset.activeCell === this.dataset.ship + this.dataset.eta) {
+                tooltip.style.visibility = 'hidden';
+                tooltip.style.opacity = '0';
+                tooltip.dataset.activeCell = '';
+                return;
             }
+
+            // 1. Lấy thông tin từ data attributes
+            const shipName = this.getAttribute('data-ship');
+            const eta = this.getAttribute('data-eta');
+            const tong = this.getAttribute('data-tong');
+            const kltong = this.getAttribute('data-kltong');
+            const pct = parseFloat(this.getAttribute('data-pct')).toFixed(1);
+            
+            // 2. Parse JSON an toàn từ thẻ script ẩn
+            const soDetails = JSON.parse(this.querySelector('.tooltip-data').textContent);
+
+            // 3. Dựng chuỗi HTML cho Tooltip
+            let htmlContent = `
+                <strong>Tàu:</strong> ${shipName}<br>
+                <strong>ETA:</strong> ${eta}<br>
+                <strong>Tổng tiến độ:</strong> ${tong} / ${kltong} tấn (${pct}%)
+                <hr>
+                <strong>Chi tiết SO:</strong>
+                <ul class="so-details-list">
+            `;
+
+            for (const [soNumber, soDetail] of Object.entries(soDetails)) {
+                const summary = soDetail.summary;
+                const targetTan = Math.floor(summary.klyeucau / 1000);
+                const exportPct = targetTan > 0 ? (summary.thucte_xuat_tan / targetTan * 100) : 0;
+                
+                const soColor = soDetail.is_exported_finished ? '#0dcaf0' : '#adb5bd';
+                const checkIcon = soDetail.is_exported_finished ? '<i class="fas fa-check-circle ms-1"></i> (Đã xong)' : '';
+                const pbColor = soDetail.has_underperforming_material ? 'bg-warning' : 'bg-success';
+
+                htmlContent += `
+                    <li class="so-item" data-so-id="${soNumber}">
+                        <div class="so-info">
+                            <i class="fas fa-chevron-right so-toggle-icon"></i>
+                            SO ${soNumber}: ${summary.progress_text} T (Phân bổ : ${summary.so_phan_bo} / ${targetTan} T)
+                        </div>
+                        <div class="so-info mt-1" style="font-size: 0.9em; font-weight: bold; color: ${soColor};">
+                            ↳ Đã xuất tàu: ${summary.thucte_xuat_tan} / ${targetTan} T (${exportPct.toFixed(1)}%) ${checkIcon}
+                        </div>
+                        <div class="progress progress-sm position-relative">
+                            <div class="progress-bar ${pbColor}" role="progressbar" style="width: ${summary.progress_percent}%;"></div>
+                            <span style="position: absolute; width: 100%; text-align: center; line-height: 12px; font-weight: bold; color: #212529; left: 0; font-size: 10px;">
+                                ${summary.progress_percent.toFixed(1)}%
+                            </span>
+                        </div>
+                        <ul class="material-details-list" style="display: none;">
+                `;
+
+                // Render chi tiết từng Material
+                soDetail.materials.forEach(material => {
+                    const successThreshold = material.qty_kg <= 100000 ? 80 : 90;
+                    let matColor = 'bg-success';
+                    if (material.progress_percent < 30) matColor = 'bg-danger';
+                    else if (material.progress_percent < successThreshold) matColor = 'bg-warning';
+
+                    htmlContent += `
+                        <li class="material-item">
+                            <div class="material-info">${material.name}: ${material.progress_text} T</div>
+                            <div class="progress progress-xs">
+                                <div class="progress-bar ${matColor}" style="width: ${material.progress_percent}%;"></div>
+                            </div>
+                        </li>
+                    `;
+                });
+                htmlContent += `</ul></li>`;
+            }
+            htmlContent += `</ul>`;
+
+            // 4. Đổ HTML vào Tooltip và gắn lại sự kiện click cho SO (để mở rộng)
+            tooltip.innerHTML = htmlContent;
+            tooltip.dataset.activeCell = shipName + eta;
+
+            tooltip.querySelectorAll('.so-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    this.classList.toggle('expanded');
+                    const materialList = this.querySelector('.material-details-list');
+                    if (materialList) {
+                        materialList.style.display = this.classList.contains('expanded') ? 'block' : 'none';
+                    }
+                });
+            });
+
+            // 5. Tính toán toạ độ hiển thị thông minh (Giữ nguyên logic của bạn)
+            const rect = this.getBoundingClientRect();
+            tooltip.style.display = 'block'; // Cần bật display block để tính kích thước
+            const tooltipRect = tooltip.getBoundingClientRect(); 
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            let left = rect.right + 5;
+            if (rect.right + tooltipRect.width > viewportWidth) {
+                left = rect.left - tooltipRect.width - 5;
+            }
+
+            let top = rect.top; 
+            if (top + tooltipRect.height > viewportHeight) {
+                top = viewportHeight - tooltipRect.height - 10;
+            }
+            if (top < 10) top = 10;
+
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
+            tooltip.style.position = 'fixed';
+            tooltip.style.visibility = 'visible';
+            tooltip.style.opacity = '1';
         });
     });
 
-   // --- Logic hiển thị Tooltip bằng Click ---
-document.querySelectorAll('.progress-container').forEach(container => {
-    const tooltip = container.querySelector('.custom-tooltip');
-    if (!tooltip) return;
-
-    container.addEventListener('click', function(event) {
-        event.stopPropagation(); // Ngăn sự kiện click lan ra document
-
-        // Ẩn tất cả các tooltip khác trước khi hiển thị tooltip mới
-        document.querySelectorAll('.custom-tooltip').forEach(otherTooltip => {
-            if (otherTooltip !== tooltip) {
-                otherTooltip.style.visibility = 'hidden';
-                otherTooltip.style.opacity = '0';
-            }
-        });
-
-        const rect = container.getBoundingClientRect();
-        const tooltipRect = tooltip.getBoundingClientRect(); // Lấy kích thước thật của tooltip
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-
-        // --- Tính toán vị trí ngang (Left) ---
-        let left = rect.right + 5;
-        if (rect.right + tooltipRect.width > viewportWidth) {
-            left = rect.left - tooltipRect.width - 5;
+    // Click ra ngoài hoặc click vào tooltip để ẩn
+    document.addEventListener('click', function(event) {
+        const tooltip = document.getElementById('global-tooltip');
+        if (tooltip && tooltip.style.visibility === 'visible') {
+            tooltip.style.visibility = 'hidden';
+            tooltip.style.opacity = '0';
+            tooltip.dataset.activeCell = '';
         }
-
-        // --- Tính toán vị trí dọc (Top) thông minh ---
-        let top = rect.top; // Vị trí mặc định
-        // Nếu tooltip bị tràn xuống dưới
-        if (top + tooltipRect.height > viewportHeight) {
-            // Đẩy tooltip lên trên, căn chỉnh đáy của nó với đáy màn hình (có khoảng đệm)
-            top = viewportHeight - tooltipRect.height - 10;
-        }
-        // Đảm bảo tooltip không bị đẩy lên quá cao (tràn lên trên)
-        if (top < 10) top = 10;
-
-        tooltip.style.left = `${left}px`;
-        tooltip.style.top = `${top}px`;
-        tooltip.style.position = 'fixed';
-        tooltip.style.visibility = 'visible';
-        tooltip.style.opacity = '1';
     });
 
-    tooltip.addEventListener('click', function(event) {
-        event.stopPropagation(); // Ngăn click bên trong tooltip làm ẩn nó
-    });
-});
 
 // Click ra ngoài để ẩn tất cả tooltip
 document.addEventListener('click', function() {
@@ -585,11 +604,12 @@ document.addEventListener('click', function() {
       });
     }
 
-    async function updateCharts() {
-        const params = new URLSearchParams(window.location.search);
+    const initialChartData = {{ chart_data | tojson | safe }};
+
+    function updateCharts() {
         try {
-            const response = await fetch(`/api/dashboard-charts?${params.toString()}`);
-            const data = await response.json();
+            // Không cần fetch API nữa, dùng trực tiếp biến initialChartData
+            const data = initialChartData;
 
             // Cập nhật biểu đồ nhà máy
             factoryProductionChart.data.labels = data.factory_production.labels;

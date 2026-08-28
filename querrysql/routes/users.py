@@ -88,11 +88,8 @@ def edit_user(id):
             status = request.form.get('status', 1) # Mặc định là 1 nếu không có
             
             # Cập nhật thông tin cơ bản
-            conn.execute(text("""
-                UPDATE users 
-                SET role=:r, full_name=:fn, status=:st, session_version = session_version + 1 
-                WHERE id=:i
-            """), {"r": role, "fn": full_name, "st": status, "i": id})
+            conn.execute(text("UPDATE users SET role=:r, full_name=:fn, status=:st WHERE id=:i"), 
+                         {"r": role, "fn": full_name, "st": status, "i": id})
 
             # Cập nhật quyền chi tiết
             # Xóa hết quyền cũ
@@ -141,11 +138,7 @@ def reset_password(id):
 
         password_hash = generate_password_hash(new_password)
         with engine.begin() as conn:
-            conn.execute(text("""
-                UPDATE users 
-                SET password_hash = :p, session_version = session_version + 1 
-                WHERE id = :id
-            """), {"p": password_hash, "id": id})
+            conn.execute(text("UPDATE users SET password_hash = :p WHERE id = :id"), {"p": password_hash, "id": id})
         
         flash(f"Đã đặt lại mật khẩu cho tài khoản '{user['username']}' thành công!", "success")
         log_activity('reset_password', user_id=session.get('user_id'), username=session.get('username'), target_type='user', target_id=id, details=f"Đặt lại mật khẩu cho user ID {id} ({user['username']})", ip_address=request.remote_addr)
@@ -166,11 +159,7 @@ def delete_user(id):
         # Lấy username để ghi log trước khi xóa
         user_to_delete = conn.execute(text("SELECT username FROM users WHERE id=:i"), {"i": id}).scalar()
         # Thực hiện xóa mềm: cập nhật status = 0
-        conn.execute(text("""
-            UPDATE users 
-            SET status = 0, session_version = session_version + 1 
-            WHERE id=:i
-        """), {"i": id})
+        conn.execute(text("UPDATE users SET status = 0 WHERE id=:i"), {"i": id})
 
     flash(f"Đã xóa tài khoản '{user_to_delete}' thành công!", "success")
     log_activity('delete_user', user_id=session.get('user_id'), username=session.get('username'), target_type='user', target_id=id, details=f"Xóa tài khoản ID {id} ({user_to_delete})", ip_address=request.remote_addr)

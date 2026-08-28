@@ -1,0 +1,670 @@
+{% extends "base.html" %} 
+
+{% block title %}Dashboard Phôi Vuông{% endblock %} 
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+<div class="container-fluid py-3">
+    <!-- Hàng 1: Header, Upload Form & Thời gian Update -->
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-4">
+            <h4 class="text-primary fw-bold"><i class="fas fa-cubes"></i> TỒN KHO PHÔI VUÔNG</h4>
+            <span class="badge bg-info text-dark fs-6" id="update-time-badge">Cập nhật: Đang tải...</span>
+        </div>
+        <div class="col-md-8 text-end">
+            {% if session.get('role') == 'admin' or ('permissions' in session and 'upload_pv' in session['permissions']) %}
+            <form action="{{ url_for('phoivuong_bp.upload_mapping') }}" method="POST" enctype="multipart/form-data" class="d-inline-flex align-items-center border p-2 rounded bg-light shadow-sm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="file" name="file" class="form-control form-control-sm me-2" required accept=".xlsx, .xls">
+                <button type="submit" class="btn btn-sm btn-success text-nowrap"><i class="fas fa-upload"></i> Upload Mapping KH</button>
+            </form>
+            {% endif %}
+            <small class="d-block text-muted mt-1 text-end">Excel cần 2 cột: ma_vat_tu, ten_khach_hang</small>
+        </div>
+    </div>
+
+    <ul class="nav nav-pills mb-4 mt-2 justify-content-center bg-light py-2 rounded shadow-sm" id="pills-phoivuong">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold px-4 filter-pv-btn" onclick="filterPvView('all')" id="btn-pv-all">
+                <i class="fas fa-layer-group"></i> TẤT CẢ
+            </button>
+        </li>
+        <li class="nav-item mx-2" role="presentation">
+            <button class="nav-link fw-bold px-4 filter-pv-btn" onclick="filterPvView('row1')" id="btn-pv-row1">
+                <i class="fas fa-chart-pie"></i> TỔNG QUAN & SẢN XUẤT
+            </button>
+        </li>
+        <li class="nav-item mx-2" role="presentation">
+            <button class="nav-link fw-bold px-4 filter-pv-btn" onclick="filterPvView('row2')" id="btn-pv-row2">
+                <i class="fas fa-users"></i> CHI TIẾT KHÁCH HÀNG
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold px-4 filter-pv-btn" onclick="filterPvView('row3')" id="btn-pv-row3">
+                <i class="fas fa-sort-amount-up-alt"></i> PHÂN LOẠI & TUỔI TỒN
+            </button>
+        </li>
+    </ul>
+
+    <!-- ========================================== -->
+    <!-- KHU VỰC NỘI DUNG BIỂU ĐỒ (SẼ BẬT/TẮT BẰNG JS) -->
+    <!-- ========================================== -->
+    <div id="view-phoivuong-content">
+        
+        <!-- ================= HÀNG 1: TỔNG QUAN & SẢN XUẤT ================= -->
+        <div id="khuvuc-row1">
+            <div class="row mb-4">
+                <!-- KHU VỰC TỒN KHO -->
+                <div class="col-md-5">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-white fw-bold text-secondary">Tỷ Lệ Nhóm Khách Hàng</div>
+                        <div class="card-body">
+                            <div class="row h-100 align-items-center">
+                                <div class="col-2" style="height: 350px; position: relative;">
+                                    <canvas id="totalTonChart"></canvas>
+                                </div>
+                                <div class="col-10" style="height: 350px; position: relative;">
+                                    <canvas id="pieChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KHU VỰC DỮ LIỆU SẢN XUẤT (CONTAINER BẮT LỖI) -->
+                <div class="col-md-7" id="mysql-container">
+                    <div class="row">
+                        <!-- SP1: Sản lượng Ngày & Ca -->
+                        <div class="col-12 mb-3">
+                            <div class="card shadow-sm border-info">
+                                <div class="card-header bg-info text-white fw-bold py-1 px-3 d-flex justify-content-between align-items-center">
+                                    <span>Sản lượng Phôi đúc theo Ngày & Ca</span>
+                                    <span class="badge bg-light text-info" id="txt-tong-sx">Tháng này: 0 Tấn</span>
+                                </div>
+                                <div class="card-body p-2" style="overflow-x: auto; width: 100%;">
+                                    <div id="wrapper-prodDateShiftChart" style="position: relative; height: 260px;">
+                                        <canvas id="prodDateShiftChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SP2 & SP3: Mác thép và Máy đúc -->
+                        <div class="col-12">
+                            <div class="row">
+                                <!-- SP2: Cơ cấu Mác Thép & Kích thước (Cuộn dọc độc lập) -->
+                                <div class="col-7">
+                                    <div class="card shadow-sm border-info">
+                                        <div class="card-header bg-info text-white fw-bold py-1 px-3" style="font-size: 13px;">Cơ cấu Mác Thép & Kích thước</div>
+                                        <div class="card-body p-2" style="height: 350px; overflow-y: auto; overflow-x: hidden;">
+                                            <div id="wrapper-prodGradeSizeChart" style="position: relative; width: 100%;">
+                                                <canvas id="prodGradeSizeChart"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- SP3: Tỷ trọng Máy Đúc -->
+                                <div class="col-5">
+                                    <div class="card shadow-sm border-info" style="height: 100%;">
+                                        <div class="card-header bg-info text-white fw-bold py-1 px-3" style="font-size: 13px;">Tỷ trọng Máy Đúc</div>
+                                        <div class="card-body p-2 d-flex align-items-center justify-content-center" style="height: 350px; position: relative;">
+                                            <canvas id="prodMachineChart"></canvas>
+                                            <div id="prodTotalText" style="position:absolute; text-align:center; pointer-events:none; font-weight:bold; color:#495057; transform: translate(-50%, -50%);"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= HÀNG 2: CHI TIẾT KHÁCH HÀNG ================= -->
+        <div id="khuvuc-row2">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-primary">
+                        <div class="card-header bg-primary text-white fw-bold" id="header-clc">KH Chất Lượng Cao (CLC)</div>
+                        <div class="card-body">
+                            <div id="wrapper-clcChart" style="position: relative; width: 100%;">
+                                <canvas id="clcChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-success">
+                        <div class="card-header bg-success text-white fw-bold" id="header-dd">KH Phôi Dân Dụng</div>
+                        <div class="card-body"><canvas id="ddChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= HÀNG 3: PHÂN LOẠI & TUỔI TỒN ================= -->
+        <div id="khuvuc-row3">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white fw-bold text-secondary">Phân loại 1, 2 theo Khách Hàng</div>
+                        <div class="card-body"><canvas id="typeChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white fw-bold text-secondary">Tuổi hàng tồn kho</div>
+                        <div class="card-body"><canvas id="ageChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    Chart.register(ChartDataLabels);
+    Chart.defaults.plugins.tooltip.callbacks.label = function(context) {
+        let label = context.dataset.label || '';
+        
+        // Xử lý riêng cho nhãn của biểu đồ tròn (Pie/Doughnut)
+        if (context.chart.config.type === 'pie' || context.chart.config.type === 'doughnut') {
+            label = context.label || '';
+        }
+
+        if (label) {
+            label += ': ';
+        }
+        
+        // Ép kiểu dữ liệu gốc (raw) về chuỗi làm tròn 0 chữ số thập phân
+        if (typeof context.raw === 'number') {
+            label += context.raw.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' Tấn';
+        } else {
+            label += context.raw;
+        }
+        
+        return label;
+    };
+    const colorLoai1 = 'rgba(54, 162, 235, 0.8)';
+    const colorLoai2 = 'rgba(255, 159, 64, 0.8)';
+    const prodColors = [
+        '#007bff', // Xanh dương
+        '#28a745', // Xanh lá
+        '#ffc107', // Vàng
+        '#dc3545', // Đỏ
+        '#6f42c1', // Tím
+        '#17a2b8', // Xanh lơ (Cyan)
+        '#fd7e14', // Cam
+        '#20c997', // Xanh ngọc
+        '#e83e8c', // Hồng
+        '#343a40'  // Xám đen
+    ];
+    const clcRowspanPlugin = {
+        id: 'clcRowspan',
+        beforeInit: (chart) => {
+            if (chart.data.customGroups && chart.data.customGroups.length > 0) {
+                // Tăng padding trái 85px để có chỗ ghi tên KH nằm ngang
+                chart.options.layout = { padding: { left: 85, right: 30 } };
+            }
+        },
+        afterDraw: (chart) => {
+            if (!chart.data.customGroups || chart.data.customGroups.length === 0) return;
+            const ctx = chart.ctx;
+            const yAxis = chart.scales.y;
+            const rightX = yAxis.right;         
+            const leftX = yAxis.left - 85; // Mép ngoài cùng      
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = 'bold 11px Arial';
+            ctx.fillStyle = '#333';
+
+            // Kẻ viền dọc ngoài cùng
+            ctx.beginPath();
+            ctx.moveTo(leftX, yAxis.top);
+            ctx.lineTo(leftX, yAxis.bottom);
+            ctx.strokeStyle = '#dee2e6';
+            ctx.stroke();
+
+            // Kẻ viền ngang trên đỉnh
+            ctx.beginPath();
+            ctx.moveTo(leftX, yAxis.top);
+            ctx.lineTo(rightX, yAxis.top);
+            ctx.stroke();
+
+            // Hàm bẻ dòng chữ (Giúp chữ ngang không bị tràn/bóp méo)
+            const wrapText = (text, x, y, maxWidth, lineHeight) => {
+                let words = text.split(' ');
+                let line = '';
+                let lines = [];
+                for(let n = 0; n < words.length; n++) {
+                    let testLine = line + words[n] + ' ';
+                    let metrics = ctx.measureText(testLine);
+                    if (metrics.width > maxWidth && n > 0) {
+                        lines.push(line);
+                        line = words[n] + ' ';
+                    } else {
+                        line = testLine;
+                    }
+                }
+                lines.push(line);
+                let startY = y - ((lines.length - 1) * lineHeight) / 2;
+                lines.forEach(l => {
+                    ctx.fillText(l.trim(), x, startY);
+                    startY += lineHeight;
+                });
+            };
+
+            // Vẽ từng nhóm Khách Hàng
+            chart.data.customGroups.forEach(group => {
+                const startY = yAxis.getPixelForTick(group.start);
+                const endY = yAxis.getPixelForTick(group.end);
+                const midY = (startY + endY) / 2;
+
+                // Viết chữ Ngang, căn giữa, rộng tối đa 80px, cao mỗi dòng 14px
+                wrapText(group.label, leftX + 42, midY, 80, 14);
+
+                let bottomY;
+                if (group.end === yAxis.ticks.length - 1) {
+                    bottomY = yAxis.bottom;
+                } else {
+                    const currentTickY = yAxis.getPixelForTick(group.end);
+                    const nextTickY = yAxis.getPixelForTick(group.end + 1);
+                    bottomY = (currentTickY + nextTickY) / 2;
+                }
+
+                // Kẻ đường gạch ngang phân tách
+                ctx.beginPath();
+                ctx.moveTo(leftX, bottomY);
+                ctx.lineTo(rightX, bottomY);
+                ctx.strokeStyle = '#adb5bd'; 
+                ctx.stroke();
+            });
+            ctx.restore();
+        }
+    };
+    function renderRowspanBarChart(ctxId, data) {
+        const rowHeight = 45; // Cao hơn CTD một chút vì có 2 cột (Loại 1, 2) trên 1 dòng
+        const minHeight = 350; 
+        const numRows = data.labels ? data.labels.length : 0;
+        const calculatedHeight = numRows * rowHeight;
+        
+        document.getElementById('wrapper-' + ctxId).style.height = Math.max(minHeight, calculatedHeight) + 'px';
+
+        let maxVal = Math.max(...(data.loai1.length ? data.loai1 : [0]), ...(data.loai2.length ? data.loai2 : [0]));
+
+        new Chart(document.getElementById(ctxId), {
+            type: 'bar',
+            data: {
+                labels: data.labels, 
+                customGroups: data.groups, 
+                datasets: [
+                    { label: 'Loại 1', data: data.loai1, backgroundColor: colorLoai1, barPercentage: 0.8 },
+                    { label: 'Loại 2', data: data.loai2, backgroundColor: colorLoai2, barPercentage: 0.8 }
+                ]
+            },
+            plugins: [clcRowspanPlugin], 
+            options: {
+                indexAxis: 'y', 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', align: 'end' }, // Hiển thị legend vì có 2 loại 1 & 2
+                    datalabels: { 
+                        anchor: 'end', align: 'end', offset: 2, 
+                        color: (ctx) => ctx.dataset.backgroundColor, font: {weight: 'bold', size:11},
+                        formatter: (val) => val > 0 ? val.toLocaleString(undefined, {maximumFractionDigits: 0}) : '' 
+                    }
+                },
+                scales: {
+                    x: { display: false, max: maxVal * 1.25 }, 
+                    y: { 
+                        grid: { display: false, drawBorder: false }, 
+                        ticks: { font: {weight:'bold'}, color: '#495057' }
+                    }
+                }
+            }
+        });
+    }
+    // PHỤC HỒI CODE: Bỏ maintainAspectRatio để không làm bẹp biểu đồ cũ
+    function renderBarChart(ctxId, data, isHorizontal=false, hideRepeatedPrefix=false) {
+        let labels = data.labels;
+        if (hideRepeatedPrefix) {
+            let currentKhach = "";
+            labels = labels.map(label => {
+                let parts = label.split(" - ");
+                if (parts.length === 2) {
+                    if (parts[0] === currentKhach) { return "        " + parts[1]; } 
+                    else { currentKhach = parts[0]; return label; }
+                }
+                return label;
+            });
+        }
+        new Chart(document.getElementById(ctxId), {
+            type: 'bar',
+            data: { labels: labels, datasets: [ { label: 'Loại 1', data: data.loai1, backgroundColor: colorLoai1 }, { label: 'Loại 2', data: data.loai2, backgroundColor: colorLoai2 } ] },
+            options: {
+                indexAxis: isHorizontal ? 'y' : 'x', 
+                responsive: true,
+                // BỎ maintainAspectRatio ĐỂ CÁC CARD TỰ CO GIÃN ĐẸP
+                scales: { x: { stacked: false }, y: { stacked: false } },
+                plugins: {
+                    datalabels: { 
+                        anchor: 'end', align: 'end', offset: 2, color: (ctx) => ctx.dataset.backgroundColor, 
+                        font: {weight: 'bold', size: 11}, 
+                        formatter: (val) => val > 0 ? val.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : '' 
+                    }
+                }
+            }
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        fetch("{{ url_for('phoivuong_bp.get_dashboard_data') }}")
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'error') { alert("Lỗi truy vấn SQL: " + data.message); return; }
+                if(data.status === 'empty') { document.getElementById('update-time-badge').innerHTML = `<i class="fas fa-exclamation-triangle"></i> Kho chưa có dữ liệu`; return; }
+                if(data.status !== 'success') return;
+
+                document.getElementById('update-time-badge').innerHTML = `<i class="far fa-clock"></i> Cập nhật: ${data.last_update}`;
+                
+                // === KHU VỰC TỒN KHO ===
+                new Chart(document.getElementById('totalTonChart'), {
+                    type: 'bar',
+                    data: { labels: ['TỔNG TỒN\nKHO'], datasets: [{ data: [data.tong_ton], backgroundColor: colorLoai1, barThickness: 50 }] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, 
+                        plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', offset: 5, color: colorLoai1, font: {weight: 'bold', size: 14}, formatter: (val) => val.toLocaleString(undefined, {maximumFractionDigits: 0}) } },
+                        scales: { y: { display: false, max: data.tong_ton * 1.2 }, x: { grid: { display: false }, ticks: { font: {weight: 'bold'} } } }
+                    }
+                });
+
+                new Chart(document.getElementById('pieChart'), {
+                    type: 'pie',
+                    data: { 
+                        labels: data.pie_chart.labels, 
+                        datasets: [{ 
+                            data: data.pie_chart.values, 
+                            backgroundColor: [
+                                '#4bc0c0', '#ff9f40', '#36a2eb', '#ff6384', '#9966ff', '#ffcd56', 
+                                '#20c997', '#e83e8c', '#6f42c1', '#17a2b8', '#fd7e14', '#28a745', 
+                                '#6610f2', '#dc3545', '#007bff', '#6c757d'
+                            ]
+                        }] 
+                    },
+                    options: {
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        layout: { padding: 40 }, 
+                        plugins: { 
+                            legend: { display: false }, 
+                            datalabels: { 
+                                align: 'end', 
+                                anchor: 'end', 
+                                offset: 10, 
+                                backgroundColor: '#fff', 
+                                borderColor: '#ccc', 
+                                borderWidth: 1, 
+                                borderRadius: 3, 
+                                color: '#333', 
+                                font: {size: 11}, 
+                                padding: 4, 
+                                textAlign: 'center', // Canh giữa chữ trong thẻ
+                                formatter: (value, ctx) => { 
+                                    let sum = 0; 
+                                    ctx.chart.data.datasets[0].data.forEach(d => sum += d); 
+                                    let percentage = (value*100 / sum).toFixed(0) + "%"; 
+                                    let label = ctx.chart.data.labels[ctx.dataIndex]; 
+                                    let valStr = value.toLocaleString(undefined, {maximumFractionDigits: 0}); 
+                                    
+                                    if (value > 0) {
+                                        // TRẢ VỀ 1 MẢNG ĐỂ ÉP CHART.JS XUỐNG DÒNG
+                                        return [
+                                            label, // Dòng 1: Tên Khách hàng
+                                            `${valStr} Tấn (${percentage})` // Dòng 2: Giá trị và %
+                                        ];
+                                    }
+                                    return ''; 
+                                } 
+                            } 
+                        } 
+                    }
+                });
+
+                renderBarChart('typeChart', data.type_chart, false, false);
+                
+                new Chart(document.getElementById('ageChart'), {
+                    type: 'bar', data: { labels: data.age_chart.labels, datasets: [{ label: 'Khối lượng (Tấn)', data: data.age_chart.values, backgroundColor: '#36a2eb' }] },
+                    options: { responsive: true, plugins: { datalabels: { anchor: 'end', align: 'end', color: '#36a2eb', font: {weight: 'bold'}, formatter: (val) => val > 0 ? val.toLocaleString(undefined, {maximumFractionDigits: 0}) : '' } } }
+                });
+
+                renderRowspanBarChart('clcChart', data.clc_chart);
+                renderBarChart('ddChart', data.dd_chart, false, false);
+                const sumArray = (arr) => arr ? arr.reduce((a, b) => a + b, 0) : 0;
+
+                // 1. Tính tổng biểu đồ CLC
+                let clcTotal = sumArray(data.clc_chart.loai1) + sumArray(data.clc_chart.loai2);
+                document.getElementById('header-clc').innerText = `KH Chất Lượng Cao (CLC) - Tổng: ${clcTotal.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+
+                // 2. Tính tổng biểu đồ Dân Dụng
+                let ddTotal = sumArray(data.dd_chart.loai1) + sumArray(data.dd_chart.loai2);
+                document.getElementById('header-dd').innerText = `KH Phôi Dân Dụng - Tổng: ${ddTotal.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+                // === HIỂN THỊ LOG LỖI MYSQL (NẾU CÓ) ===
+                if (data.mysql_error) {
+                    document.getElementById('mysql-container').innerHTML = `
+                        <div class="alert alert-danger h-100 d-flex flex-column justify-content-center align-items-center text-center p-4">
+                            <h4><i class="fas fa-exclamation-triangle"></i> LỖI KẾT NỐI DỮ LIỆU SẢN XUẤT (MySQL)</h4>
+                            <hr class="w-100">
+                            <p class="mb-3 font-monospace text-start bg-white p-3 rounded border text-danger" style="font-size:13px; max-height:200px; overflow-y:auto;">
+                                ${data.mysql_error}
+                            </p>
+                            <a href="/phoivuong/test_mysql" target="_blank" class="btn btn-outline-danger shadow-sm">
+                                <i class="fas fa-plug"></i> Bấm vào đây để test kết nối trực tiếp
+                            </a>
+                        </div>
+                    `;
+                    return; // Ngừng vẽ biểu đồ MySQL nếu có lỗi
+                }
+
+                // === VẼ BIỂU ĐỒ MYSQL (NẾU DỮ LIỆU OK) ===
+                if (data.tong_sx > 0) {
+                    document.getElementById('txt-tong-sx').innerText = `Tháng này: ${data.tong_sx.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+
+                    let ds_datasets = data.prod_date_shift_chart.datasets.map((ds, index) => {
+                        ds.type = 'bar'; // Đảm bảo các ca là dạng cột
+                        ds.backgroundColor = prodColors[index % prodColors.length];
+                        return ds;
+                    });
+
+                    // BỔ SUNG: Dataset đường Line hiển thị Tổng Ngày
+                    ds_datasets.push({
+                        type: 'line',
+                        label: 'Tổng Ngày',
+                        data: data.prod_date_shift_chart.tong_ngay,
+                        borderColor: '#343a40', // Màu đường line (Xám đen)
+                        backgroundColor: '#343a40', // Màu điểm chấm
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3, // Làm đường line cong mềm mại
+                        pointRadius: 4,
+                        pointBackgroundColor: '#fff',
+                        datalabels: {
+                            color: '#343a40',
+                            align: 'top',
+                            anchor: 'end',
+                            offset: 4,
+                            font: {weight: 'bold', size: 12},
+                            formatter: (val) => val > 0 ? val.toLocaleString(undefined, {maximumFractionDigits: 0}) : ''
+                        }
+                    });
+
+                    const numDays = data.prod_date_shift_chart.labels.length;
+                    const minColWidth = 42; // Chiều rộng tối thiểu mỗi ngày
+                    const calculatedWidth = numDays * minColWidth;
+                    const wrapperDate = document.getElementById('wrapper-prodDateShiftChart');
+                    const parentWidth = wrapperDate.parentElement.offsetWidth || wrapperDate.parentElement.clientWidth;
+
+                    if (calculatedWidth > parentWidth) {
+                        wrapperDate.style.width = calculatedWidth + 'px';
+                    } else {
+                        wrapperDate.style.width = '100%';
+                    }
+
+                    new Chart(document.getElementById('prodDateShiftChart'), {
+                        data: { labels: data.prod_date_shift_chart.labels, datasets: ds_datasets },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            scales: { 
+                                x: { 
+                                    stacked: true,
+                                    ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } }
+                                }, 
+                                y: { 
+                                    stacked: true, 
+                                    suggestedMax: Math.max(...data.prod_date_shift_chart.tong_ngay) * 1.25 
+                                } 
+                            }, 
+                            plugins: { 
+                                datalabels: { 
+                                    color: '#fff', 
+                                    font: { weight: 'bold', size: 10 }, 
+                                    formatter: (val, ctx) => {
+                                        if (ctx.dataset.type === 'line') {
+                                            return val > 0 ? val.toLocaleString(undefined, {maximumFractionDigits: 0}) : '';
+                                        }
+                                        return val >= 3500 ? val.toLocaleString(undefined, {maximumFractionDigits: 0}) : '';
+                                    } 
+                                } 
+                            } 
+                        }
+                    });
+                    const numItems = data.prod_grade_size_chart.labels.length;
+                    const rowHeight = 26; // Tăng lên 26px để chữ và số liệu hiển thị thoáng hơn
+                    const dynamicHeight = Math.max(340, numItems * rowHeight);
+                    document.getElementById('wrapper-prodGradeSizeChart').style.height = dynamicHeight + 'px';
+
+                    new Chart(document.getElementById('prodGradeSizeChart'), {
+                        type: 'bar',
+                        data: { 
+                            labels: data.prod_grade_size_chart.labels, 
+                            datasets: [{ 
+                                label: 'Khối lượng (Tấn)', 
+                                data: data.prod_grade_size_chart.values, 
+                                backgroundColor: '#17a2b8',
+                                barThickness: 13
+                            }] 
+                        },
+                        options: { 
+                            indexAxis: 'y', 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            plugins: { 
+                                legend: { display: false }, 
+                                datalabels: { 
+                                    anchor: 'end', 
+                                    align: 'end', 
+                                    color: '#17a2b8', 
+                                    font: { weight: 'bold', size: 10 }, 
+                                    formatter: (val) => val > 0 ? Math.round(val).toLocaleString() : '' 
+                                } 
+                            }, 
+                            scales: { 
+                                x: { display: false, max: Math.max(...data.prod_grade_size_chart.values) * 1.25 }, 
+                                y: { 
+                                    grid: { display: false },
+                                    ticks: { 
+                                        autoSkip: false, 
+                                        font: { size: 10, weight: '500' } 
+                                    } 
+                                } 
+                            } 
+                        }
+                    });
+
+                    document.getElementById('prodTotalText').innerHTML = `Tổng SX<br><span class="text-primary fs-5">${data.tong_sx.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn</span>`;
+                    new Chart(document.getElementById('prodMachineChart'), {
+                        type: 'doughnut', 
+                        data: { 
+                            labels: data.prod_machine_chart.labels, 
+                            datasets: [{ 
+                                data: data.prod_machine_chart.values, 
+                                backgroundColor: ['#28a745', '#ffc107', '#dc3545'] 
+                            }] 
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            cutout: '65%', 
+                            plugins: { 
+                                legend: { position: 'right' }, 
+                                datalabels: { 
+                                    color: '#fff', 
+                                    font: {weight: 'bold'}, 
+                                    formatter: (value, ctx) => { 
+                                        let sum = 0; 
+                                        ctx.chart.data.datasets[0].data.map(d => { sum += d; }); 
+                                        return (value*100 / sum).toFixed(0) + "%"; 
+                                    } 
+                                } 
+                            } 
+                        },
+                        // THÊM ĐOẠN PLUGIN NÀY ĐỂ TỰ ĐỘNG CANH GIỮA
+                        plugins: [{
+                            id: 'center-text',
+                            afterDraw: (chart) => {
+                                const meta = chart.getDatasetMeta(0);
+                                if (meta.data.length > 0) {
+                                    // Lấy toạ độ X, Y chính xác của tâm vòng tròn
+                                    const centerX = meta.data[0].x;
+                                    const centerY = meta.data[0].y;
+                                    
+                                    // Di chuyển thẻ div tới đúng toạ độ đó
+                                    const textDiv = document.getElementById('prodTotalText');
+                                    textDiv.style.left = centerX + 'px';
+                                    textDiv.style.top = centerY + 'px';
+                                }
+                            }
+                        }]
+                    });
+                }
+            })
+            .catch(err => console.error("Lỗi tải dữ liệu Dashboard:", err));
+    });
+    window.filterPvView = function(view) {
+        // 1. Reset màu các nút
+        document.querySelectorAll('.filter-pv-btn').forEach(btn => btn.classList.remove('active'));
+        // 2. Bôi đậm nút click
+        document.getElementById('btn-pv-' + view).classList.add('active');
+
+        // Lấy ID của 3 hàng
+        const row1 = document.getElementById('khuvuc-row1');
+        const row2 = document.getElementById('khuvuc-row2');
+        const row3 = document.getElementById('khuvuc-row3');
+
+        // 3. Logic Ẩn/Hiện
+        if (view === 'all') {
+            row1.style.display = 'block';
+            row2.style.display = 'block';
+            row3.style.display = 'block';
+        } else if (view === 'row1') {
+            row1.style.display = 'block';
+            row2.style.display = 'none';
+            row3.style.display = 'none';
+        } else if (view === 'row2') {
+            row1.style.display = 'none';
+            row2.style.display = 'block';
+            row3.style.display = 'none';
+        } else if (view === 'row3') {
+            row1.style.display = 'none';
+            row2.style.display = 'none';
+            row3.style.display = 'block';
+        }
+    };
+</script>
+{% endblock %}

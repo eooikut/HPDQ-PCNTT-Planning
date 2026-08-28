@@ -12,8 +12,8 @@ import win32con
 # ===============================
 # Tên kết nối phải GIỐNG Y HỆT trong SAP Logon Pad của bạn (Ví dụ: "1. PRD - Production")
 SAP_CONNECTION_NAME = "PRD_UPGRADE" 
-SAP_USERNAME = "zit06"
-SAP_PASSWORD = "Vtkn2k167@1"
+SAP_USERNAME = "xx"
+SAP_PASSWORD = "xx@1"
 # Đường dẫn tới file chạy SAP (Thường mặc định như dưới, nếu khác hãy sửa lại)
 SAP_LOGON_PATH = r"C:\Program Files (x86)\SAP\FrontEnd\SAPgui\saplogon.exe"
 
@@ -159,7 +159,7 @@ L2_CHECKBOX_ID = "wnd[0]/usr/chkP_L2"
 DATE_FROM_ID_ZSD04A = "wnd[0]/usr/ctxtS_VDATU-LOW"
 DATE_TO_ID_ZSD04A = "wnd[0]/usr/ctxtS_VDATU-HIGH" 
 ORDER_TYPE_BUTTON_ID = "wnd[0]/usr/btn%_S_AUART_%_APP_%-VALU_PUSH" 
-
+CNK_CHECKBOX_ID = "wnd[0]/usr/chkP_CNK"
 # ===============================
 # 📝 CẤU HÌNH TÁC VỤ
 # ===============================
@@ -211,7 +211,62 @@ TASK_CONFIGS = [
         "output_filename": "sanluong_nm2.xlsx",
         "menu_export_path": "wnd[0]/mbar/menu[0]/menu[1]/menu[0]",
         "group": "FAST",
-        "params": { "DATE_FROM": "{ZBC04B_FROM}", "DATE_TO": "{ZBC04B_TO}", "PLANT_VALUE": "1600", "PRODUCT_GROUP_LIST": ["8", "7H"], "UNCHECK_L1_L2": True }
+        "params": { "DATE_FROM": "{ZBC04B_FROM}", "DATE_TO": "{ZBC04B_TO}", "PLANT_VALUE": "1600", "PRODUCT_GROUP_LIST": ["8", "7H", "8H2", "8H4"], "UNCHECK_L1_L2": True }
+    },
+    # 6. ZWM12 - KHO PHÔI VUÔNG
+    {
+        "name": "ZWM12_PHOIVUONG",
+        "tcode": "ZWM12",
+        "output_filename": "kho_phoivuong.xlsx",
+        "menu_export_path": "wnd[0]/mbar/menu[0]/menu[3]/menu[0]",
+        "group": "FAST",
+        "params": { 
+            "PLANT_VALUE": "1000", 
+            "STORAGE_LOC_LIST": ["1504"], 
+            "SELECT_BATCH": True 
+        }
+    },
+    
+    # 7. ZWM12 - KHO CTD
+    {
+        "name": "ZWM12_CTD",
+        "tcode": "ZWM12",
+        "output_filename": "kho_ctd.xlsx",
+        "menu_export_path": "wnd[0]/mbar/menu[0]/menu[3]/menu[0]",
+        "group": "FAST",
+        "params": { 
+            "PLANT_VALUE": "1000", 
+            "STORAGE_LOC_LIST": ["1505", "1506", "1515", "1520"], 
+            "SELECT_BATCH": True 
+        }
+    },
+    # 8. ZBC04B - NHAP KHO CTD
+    {
+        "name": "ZBC04B_NHAPKHO_CTD",
+        "tcode": "ZBC04B",
+        "output_filename": "nhapkho_ctd.xlsx",
+        "menu_export_path": "wnd[0]/mbar/menu[0]/menu[1]/menu[0]",
+        "group": "FAST",
+        "params": { 
+            "DATE_FROM": "{ZBC04B_FROM}", 
+            "DATE_TO": "{ZBC04B_TO}", 
+            "PLANT_VALUE": "1000", # Để trống nếu VBScript không yêu cầu điền Plant
+            "PRODUCT_GROUP_LIST": ["1", "2", "3"], 
+            "UNCHECK_L1_L2": True,
+            
+        }
+    },
+    {
+        "name": "ZSD04A_CTD",
+        "tcode": "ZSD04A",
+        "output_filename": "so_ctd.xlsx",
+        "menu_export_path": "wnd[0]/mbar/menu[0]/menu[3]/menu[0]",
+        "group": "FAST", 
+        "params": {
+            "DATE_FROM": "{ZSD04A_CTD_FROM}", 
+            "DATE_TO": "{ZSD04A_CTD_TO}",    
+            "ORDER_TYPES_LIST": ["ZOR0", "ZOR1", "ZOR2", "ZOR3", "ZOR4"], 
+        }
     },
 ]
 
@@ -228,10 +283,18 @@ def calculate_dynamic_dates():
     start_zsd04a = six_months_ago.replace(day=1).strftime("%d.%m.%Y")
     
     # ZBC04B
-    first_day_prev_month = (today - relativedelta(months=2)).replace(day=1)
+    first_day_prev_month = (today - relativedelta(months=1)).replace(day=1)
     start_zbc04b = first_day_prev_month.strftime("%d.%m.%Y")
-    
-    return {"ZSD04A_FROM": start_zsd04a, "ZSD04A_TO": tomorrow_sap, "ZBC04B_FROM": start_zbc04b, "ZBC04B_TO": tomorrow_sap}
+    three_days_ago = today - timedelta(days=3)
+    start_zsd04a_ctd = three_days_ago.strftime("%d.%m.%Y")
+    return {
+        "ZSD04A_FROM": start_zsd04a, 
+        "ZSD04A_TO": tomorrow_sap, 
+        "ZBC04B_FROM": start_zbc04b, 
+        "ZBC04B_TO": tomorrow_sap,
+        "ZSD04A_CTD_FROM": start_zsd04a_ctd,
+        "ZSD04A_CTD_TO": tomorrow_sap 
+    }
 
 def force_close_process(process_name):
     """Tắt cưỡng bức tiến trình."""
@@ -349,7 +412,9 @@ def run_tcode_and_fill_selections(session, config, dummy_wait=0):
             if params.get("UNCHECK_L1_L2"):
                 session.findById(L1_CHECKBOX_ID).selected = False
                 session.findById(L2_CHECKBOX_ID).selected = False
-
+            if params.get("CHECK_CNK"):
+                session.findById(CNK_CHECKBOX_ID).selected = True
+                session.findById(CNK_CHECKBOX_ID).setFocus()
         elif tcode == "ZSD04A":
             session.findById(DATE_FROM_ID_ZSD04A).text = params["DATE_FROM"]
             session.findById(DATE_TO_ID_ZSD04A).text = params["DATE_TO"]
@@ -361,7 +426,23 @@ def run_tcode_and_fill_selections(session, config, dummy_wait=0):
                     except: break
                 session.findById("wnd[1]/tbar[0]/btn[8]").press()
                 time.sleep(1)
+        elif tcode == "ZWM12":
+            session.findById("wnd[0]/usr/ctxtS_WERKS-LOW").text = params.get("PLANT_VALUE", "")
+            if params.get("STORAGE_LOC_LIST"):
+                session.findById(STORAGE_LOC_BUTTON_ID).press()
+                time.sleep(1)
+                for i, loc in enumerate(params["STORAGE_LOC_LIST"]):
+                    session.findById(f"{MULTI_SELECT_TABLE_PATH}/{MULTI_SELECT_INPUT_BASE}[0,{i}]").text = loc
+                session.findById("wnd[1]/tbar[0]/btn[8]").press()
+                time.sleep(1)
+            elif params.get("STORAGE_LOC_VALUE"):
+                session.findById("wnd[0]/usr/ctxtS_LGORT-LOW").text = params.get("STORAGE_LOC_VALUE", "")
 
+            # Chọn Batch Radio
+            if params.get("SELECT_BATCH"):
+                session.findById("wnd[0]/usr/radP_BATCH").setFocus()
+                session.findById("wnd[0]/usr/radP_BATCH").select()
+                time.sleep(1)
         # ---------------------------
         # 2. THỰC THI (F8)
         # ---------------------------
@@ -385,16 +466,16 @@ def run_tcode_and_fill_selections(session, config, dummy_wait=0):
             except: pass
 
             # Bấm Back (btn[3])
-            try:
-                session.findById("wnd[0]/tbar[0]/btn[3]").press()
-                log_message("-> Đã bấm nút Back. Đang chờ màn hình kết quả hiện ra...", level="INFO")
+            # try:
+            #     session.findById("wnd[0]/tbar[0]/btn[3]").press()
+            #     log_message("-> Đã bấm nút Back. Đang chờ màn hình kết quả hiện ra...", level="INFO")
                 
-                # 🔥 QUAN TRỌNG: Chờ 3 giây để màn hình chuyển từ Log về Grid kết quả
-                time.sleep(3) 
+            #     # 🔥 QUAN TRỌNG: Chờ 3 giây để màn hình chuyển từ Log về Grid kết quả
+            #     time.sleep(3) 
                 
-                # Check lại lần nữa xem SAP có bận không
-                wait_for_sap_ready(session, max_wait_minutes=2)
-            except: pass
+            #     # Check lại lần nữa xem SAP có bận không
+            #     wait_for_sap_ready(session, max_wait_minutes=2)
+            # except: pass
 
         else:
             # Các T-code khác

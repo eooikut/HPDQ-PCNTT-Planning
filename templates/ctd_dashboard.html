@@ -1,0 +1,1676 @@
+{% extends "base.html" %} 
+
+{% block title %}Dashboard Tồn Kho Cán Dài (CTD){% endblock %} 
+
+{% block content %}
+<style>
+    /* Tuỳ biến giao diện Popover tối màu sang trọng */
+    .gantt-popover {
+        --bs-popover-max-width: 320px;
+        --bs-popover-bg: #2d3748; /* Màu nền tối */
+        --bs-popover-border-color: #4a5568;
+        --bs-popover-header-bg: #1a202c; /* Màu nền header đậm hơn */
+        --bs-popover-header-color: #e2e8f0;
+        --bs-popover-body-color: #f7fafc;
+        --bs-popover-body-padding-x: 1rem;
+        --bs-popover-body-padding-y: 1rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+    }
+    .gantt-popover .popover-header {
+        border-bottom: 1px solid #4a5568;
+        font-size: 14px;
+        padding-bottom: 0.5rem;
+    }
+    /* Chỉnh màu mũi tên trỏ vào ô */
+    .gantt-popover.bs-popover-end .popover-arrow::after { border-right-color: #2d3748; }
+    .gantt-popover.bs-popover-start .popover-arrow::after { border-left-color: #2d3748; }
+    .gantt-popover.bs-popover-bottom .popover-arrow::after { border-bottom-color: #2d3748; }
+    .gantt-popover.bs-popover-top .popover-arrow::after { border-top-color: #2d3748; }
+
+    /* Badge Cán máy mini */
+    .badge-can {
+        font-size: 10px;
+        padding: 2px 4px;
+        border-radius: 3px;
+        margin-right: 4px;
+        background-color: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+<div class="container-fluid py-3">
+    <!-- Header & Upload Forms -->
+    <div class="row mb-3 align-items-center">
+        <div class="col-md-4">
+            <h4 class="text-primary fw-bold"><i class="fas fa-cubes"></i> DASHBOARD CTD (CÁN DÀI)</h4>
+            <span class="badge bg-info text-dark fs-6" id="update-time-badge">Cập nhật: Đang tải...</span>
+        </div>
+        <div class="col-md-8 text-end">
+            {% if session.get('role') == 'admin' or ('permissions' in session and 'upload_ctd' in session['permissions']) %}
+                <!-- FORM 1: UPLOAD TỒN KHO -->
+                <div id="uploadContainerTonKho">
+                    <form action="{{ url_for('ctd_bp.upload_mapping_ctd') }}" method="POST" enctype="multipart/form-data" class="d-inline-flex align-items-center border p-2 rounded bg-light shadow-sm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="file" name="file" class="form-control form-control-sm me-2" required accept=".xlsx, .xls">
+                        <button type="submit" class="btn btn-sm btn-success text-nowrap"><i class="fas fa-upload"></i> Upload Mapping CTD</button>
+                    </form>
+                    <small class="d-block text-muted mt-1 text-end">Yêu cầu 3 cột: ma_vat_tu, duong_kinh, mac_thep</small>
+                </div>
+
+                <!-- FORM 2: UPLOAD LỊCH TÀU -->
+                <div id="uploadContainerLichTau" class="d-none">
+                    <form action="{{ url_for('ctd_bp.upload_lichtau_ctd') }}" method="POST" enctype="multipart/form-data" class="d-inline-flex align-items-center border p-2 rounded bg-light shadow-sm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="file" name="file" class="form-control form-control-sm me-2" required accept=".xlsx, .xls">
+                        <button type="submit" class="btn btn-sm btn-primary text-nowrap"><i class="fas fa-upload"></i> Upload Excel Lịch Tàu</button>
+                    </form>
+                    <small class="d-block text-muted mt-1 text-end">Hệ thống sẽ tự nhận diện sheet của Tháng hiện tại.</small>
+                </div>
+
+                <!-- FORM 3: UPLOAD LỆNH SẢN XUẤT (3 CÁN) -->
+                <div id="uploadContainerLSX" class="d-none">
+                    <form action="{{ url_for('ctd_bp.upload_lsx_ctd') }}" method="POST" enctype="multipart/form-data" class="d-inline-flex align-items-center border p-2 rounded bg-light shadow-sm flex-wrap justify-content-end gap-1">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="input-group input-group-sm" style="width: 170px;">
+                            <span class="input-group-text bg-white fw-bold text-primary" style="font-size: 11px;">Cán 1</span>
+                            <input type="file" name="file_can1" class="form-control" accept=".xlsx, .xls">
+                        </div>
+
+                        <div class="input-group input-group-sm" style="width: 170px;">
+                            <span class="input-group-text bg-white fw-bold text-success" style="font-size: 11px;">Cán 2</span>
+                            <input type="file" name="file_can2" class="form-control" accept=".xlsx, .xls">
+                        </div>
+
+                        <div class="input-group input-group-sm" style="width: 170px;">
+                            <span class="input-group-text bg-white fw-bold text-warning" style="font-size: 11px;">Cán 3</span>
+                            <input type="file" name="file_can3" class="form-control" accept=".xlsx, .xls">
+                        </div>
+
+                        <button type="submit" class="btn btn-sm btn-danger text-nowrap fw-bold"><i class="fas fa-file-excel"></i> Upload LSX</button>
+                    </form>
+                    <small class="d-block text-muted mt-1 text-end">Tự động đọc từ dòng 9 và tìm sheet MM.YYYY (Ưu tiên 08.2026).</small>
+                </div>
+            {% else %}
+                <span class="badge bg-light text-secondary border px-3 py-2">
+                    <i class="fas fa-lock me-1"></i> Chế độ chỉ xem dữ liệu (Read-only)
+                </span>
+            {% endif %}
+
+            <div id="uploadContainerXuatHang" class="d-none">
+                <span class="text-muted fst-italic">Khu vực chức năng của tab Xuất Hàng</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- KHU VỰC ĐIỀU HƯỚNG TABS -->
+    <ul class="nav nav-tabs mb-4" id="ctdTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold text-primary" id="tonkho-tab" data-bs-toggle="tab" data-bs-target="#tonkho" type="button" role="tab" aria-controls="tonkho" aria-selected="true">
+                <i class="fas fa-chart-pie"></i> DỮ LIỆU TỒN KHO
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold text-secondary" id="lichtau-tab" data-bs-toggle="tab" data-bs-target="#lichtau" type="button" role="tab" aria-controls="lichtau" aria-selected="false">
+                <i class="fas fa-ship"></i> DỮ LIỆU LỊCH TÀU
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold text-success" id="xuathang-tab" data-bs-toggle="tab" data-bs-target="#xuathang" type="button" role="tab" aria-controls="xuathang" aria-selected="false">
+                <i class="fas fa-truck-loading"></i> DỮ LIỆU XUẤT HÀNG
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold text-danger" id="lsx-tab" data-bs-toggle="tab" data-bs-target="#lsx" type="button" role="tab" aria-controls="lsx" aria-selected="false">
+                <i class="fas fa-industry"></i> LỆNH SẢN XUẤT (LSX)
+            </button>
+        </li>
+    </ul>
+
+    <!-- NỘI DUNG CÁC TABS -->
+    <div class="tab-content" id="ctdTabContent">
+        
+        <!-- ========================================== -->
+        <!-- TAB 1: TỒN KHO -->
+        <!-- ========================================== -->
+        <div class="tab-pane fade show active" id="tonkho" role="tabpanel" aria-labelledby="tonkho-tab">
+            <ul class="nav nav-pills mb-4 justify-content-center bg-light py-2 rounded shadow-sm" id="pills-tonkho">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-bold px-4 filter-tonkho-btn" onclick="filterTonKhoView('all')" id="btn-tonkho-all"><i class="fas fa-layer-group"></i> TẤT CẢ</button>
+                </li>
+                <li class="nav-item mx-2" role="presentation">
+                    <button class="nav-link fw-bold px-4 filter-tonkho-btn" onclick="filterTonKhoView('tongquan')" id="btn-tonkho-tongquan"><i class="fas fa-globe"></i> TỔNG QUAN</button>
+                </li>
+                <li class="nav-item mx-2" role="presentation">
+                    <button class="nav-link fw-bold px-4 filter-tonkho-btn" onclick="filterTonKhoView('sanxuat')" id="btn-tonkho-sanxuat"><i class="fas fa-industry"></i> SẢN XUẤT</button>
+                </li>
+                <li class="nav-item mx-2" role="presentation">
+                    <button class="nav-link fw-bold px-4 filter-tonkho-btn" onclick="filterTonKhoView('loai1')" id="btn-tonkho-loai1"><i class="fas fa-box-open"></i> CHI TIẾT LOẠI 1</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold px-4 filter-tonkho-btn" onclick="filterTonKhoView('loai2')" id="btn-tonkho-loai2"><i class="fas fa-box"></i> CHI TIẾT LOẠI 2</button>
+                </li>
+            </ul>
+
+            <div id="view-tonkho-content">
+                <div id="khuvuc-tongquan">
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card shadow-sm h-100 border-primary">
+                                <div class="card-header bg-primary text-white fw-bold text-center" id="title-tong-ton">Tổng tồn kho Cán dài: 0</div>
+                                <div class="card-body" style="height: 350px;"><canvas id="pieChart"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-secondary">Chu kỳ tuổi tồn kho theo Nhóm</div>
+                                <div class="card-body" style="height: 350px;"><canvas id="ageChart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card shadow-sm h-100 border-success">
+                                <div class="card-header bg-success text-white fw-bold text-center" id="title-tong-cnk">Tổng Sản Lượng CNK: 0</div>
+                                <div class="card-body" style="height: 350px;"><canvas id="pieChartCNK"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card shadow-sm h-100 border-info">
+                                <div class="card-header bg-info text-white fw-bold">Tồn kho theo Thị trường</div>
+                                <div class="card-body" style="height: 350px;"><canvas id="marketChart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="khuvuc-sanxuat">
+                    <h5 class="fw-bold text-dark mb-3 mt-4 border-bottom pb-2" id="title-sanxuat"><i class="fas fa-industry"></i> DỮ LIỆU SẢN XUẤT TRONG THÁNG</h5>
+                    <div class="row mb-4" style="height: 750px;">
+                        <div class="col-md-12 h-100">
+                            <div class="col-12 mb-3" style="height: 48%;">
+                                <div class="card shadow-sm h-100 border-info">
+                                    <div class="card-header bg-info text-white fw-bold py-1 px-3 d-flex justify-content-between">
+                                        <span>Sản lượng Cán theo Ngày & Ca</span>
+                                        <span class="badge bg-light text-info fs-6" id="txt-tong-sx-ctd">Tháng này: 0 Tấn</span>
+                                    </div>
+                                    <div class="card-body p-2"><canvas id="ctdProdDateShiftChart"></canvas></div>
+                                </div>
+                            </div>
+                            <div class="col-12" style="height: 48%;">
+                                <div class="row h-100">
+                                    <div class="col-7 h-100">
+                                        <div class="card shadow-sm h-100 border-info">
+                                            <div class="card-header bg-info text-white fw-bold py-1 px-3">Cơ cấu Mác Thép</div>
+                                            <div class="card-body p-2"><canvas id="ctdProdGradeChart"></canvas></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-5 h-100">
+                                        <div class="card shadow-sm h-100 border-info">
+                                            <div class="card-header bg-info text-white fw-bold py-1 px-3">Tỷ trọng Máy Cán</div>
+                                            <div class="card-body p-2" style="position: relative;">
+                                                <canvas id="ctdProdMachineChart"></canvas>
+                                                <div id="ctdProdTotalText" style="position:absolute; text-align:center; pointer-events:none; font-weight:bold; color:#495057; transform: translate(-50%, -50%);"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>    
+
+                <div id="khuvuc-loai1">
+                    <h5 class="fw-bold text-dark mb-3 mt-2 border-bottom pb-2" id="title-loai1-6m"><i class="fas fa-filter"></i> CHI TIẾT HÀNG LOẠI 1 (DƯỚI 6 THÁNG)</h5>
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-center text-primary" style="font-size:14px;" id="header-thanh-nd">Thép Thanh - Nội Địa</div>
+                                <div class="card-body"><div id="wrapper-thanhNdChart" style="position: relative; width: 100%;"><canvas id="thanhNdChart"></canvas></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-center text-success" style="font-size:14px;" id="header-cuon-nd">Thép Cuộn - Nội Địa</div>
+                                <div class="card-body"><div id="wrapper-cuonNdChart" style="position: relative; width: 100%;"><canvas id="cuonNdChart"></canvas></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-center text-danger" style="font-size:14px;" id="header-clc-ctd">Thép CLC (Chung)</div>
+                                <div class="card-body"><div id="wrapper-clcChart" style="position: relative; width: 100%;"><canvas id="clcChart"></canvas></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold text-dark mb-3 mt-4 border-bottom pb-2" id="title-loai1-over6m"><i class="fas fa-filter"></i> CHI TIẾT HÀNG LOẠI 1 (TRÊN 6 THÁNG)</h5>
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-center text-primary" style="font-size:14px;" id="header-thanh-nd-l1-over6m">Thép Thanh - Nội Địa</div>
+                                <div class="card-body"><div id="wrapper-thanhNdChart_l1_over6m" style="position: relative; width: 100%;"><canvas id="thanhNdChart_l1_over6m"></canvas></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-center text-success" style="font-size:14px;" id="header-cuon-nd-l1-over6m">Thép Cuộn - Nội Địa</div>
+                                <div class="card-body"><div id="wrapper-cuonNdChart_l1_over6m" style="position: relative; width: 100%;"><canvas id="cuonNdChart_l1_over6m"></canvas></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-center text-danger" style="font-size:14px;" id="header-clc-l1-over6m">Thép CLC (Chung)</div>
+                                <div class="card-body"><div id="wrapper-clcChart_l1_over6m" style="position: relative; width: 100%;"><canvas id="clcChart_l1_over6m"></canvas></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="khuvuc-loai2">
+                    <h5 class="fw-bold text-dark mb-3 mt-2 border-bottom pb-2" id="title-loai2"><i class="fas fa-filter"></i> CHI TIẾT HÀNG LOẠI 2 (TẤT CẢ)</h5>
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-center text-primary" style="font-size:14px;" id="header-thanh-nd-l2">Thép Thanh - Nội Địa</div>
+                                <div class="card-body"><div id="wrapper-thanhNdChart_l2" style="position: relative; width: 100%;"><canvas id="thanhNdChart_l2"></canvas></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-center text-success" style="font-size:14px;" id="header-cuon-nd-l2">Thép Cuộn - Nội Địa</div>
+                                <div class="card-body"><div id="wrapper-cuonNdChart_l2" style="position: relative; width: 100%;"><canvas id="cuonNdChart_l2"></canvas></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-center text-danger" style="font-size:14px;" id="header-clc-l2">Thép CLC (Chung)</div>
+                                <div class="card-body"><div id="wrapper-clcChart_l2" style="position: relative; width: 100%;"><canvas id="clcChart_l2"></canvas></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+            
+        <!-- ========================================== -->
+        <!-- TAB 2: LỊCH TÀU -->
+        <!-- ========================================== -->
+        <div class="tab-pane fade" id="lichtau" role="tabpanel" aria-labelledby="lichtau-tab">
+            <div class="card shadow-sm mb-4 border-0 bg-light">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <label class="fw-bold text-secondary mb-1" style="font-size:12px;">Tìm tên tàu</label>
+                            <input type="text" id="filterTau" class="form-control form-control-sm" placeholder="VD: Vinh Quang...">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="fw-bold text-secondary mb-1" style="font-size:12px;">Cảng dỡ</label>
+                            <select id="filterCang" class="form-select form-select-sm">
+                                <option value="">-- Tất cả Cảng --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="fw-bold text-secondary mb-1" style="font-size:12px;">Khoảng thời gian (Có mặt tại Cảng)</label>
+                            <div class="d-flex align-items-center">
+                                <input type="date" id="filterTuNgay" class="form-control form-control-sm me-2">
+                                <span class="text-muted">-</span>
+                                <input type="date" id="filterDenNgay" class="form-control form-control-sm ms-2">
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-end mt-4">
+                            <button id="btnFilterLichTau" class="btn btn-sm btn-secondary w-100 fw-bold"><i class="fas fa-filter"></i> LỌC DỮ LIỆU</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card border-primary text-center shadow-sm h-100">
+                        <div class="card-body py-2">
+                            <h6 class="text-primary fw-bold mb-1" style="font-size: 13px;">Tổng KL Tàu Yêu Cầu</h6>
+                            <h5 class="fw-bold mb-0 text-dark" id="stat-tong-yeu-cau">0 Tấn</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-success text-center shadow-sm h-100">
+                        <div class="card-body py-2">
+                            <h6 class="text-success fw-bold mb-1" style="font-size: 13px;">Tổng KL Đã Xuất</h6>
+                            <h5 class="fw-bold mb-0 text-dark" id="stat-tong-da-xuat">0 Tấn</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-danger text-center shadow-sm h-100">
+                        <div class="card-body py-2">
+                            <h6 class="text-danger fw-bold mb-1" style="font-size: 13px;">KL Xuất Còn Lại</h6>
+                            <h5 class="fw-bold mb-0 text-dark" id="stat-tong-con-lai">0 Tấn</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card shadow-sm border-secondary">
+                <div class="card-header bg-dark text-white fw-bold">
+                    <i class="fas fa-table"></i> TIẾN ĐỘ TÀU LÀM HÀNG TẠI CẢNG (GANTT MATRIX)
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                        <table class="table table-bordered table-sm text-center align-middle mb-0" id="ganttTable" style="min-width: 1000px;">
+                            <thead style="position: sticky; top: 0; z-index: 10; background-color: #343a40;">
+                                <tr id="ganttTheadRow"></tr>
+                            </thead>
+                            <tbody id="ganttTbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 3: XUẤT HÀNG -->
+        <!-- ========================================== -->
+        <div class="tab-pane fade" id="xuathang" role="tabpanel" aria-labelledby="xuathang-tab">
+            <ul class="nav nav-pills mb-4 mt-3 justify-content-center bg-light py-2 rounded shadow-sm" id="pills-xuathang">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-bold px-4 filter-xuat-btn" onclick="filterXuatHangView('all')" id="btn-xuat-all"><i class="fas fa-layer-group"></i> TẤT CẢ</button>
+                </li>
+                <li class="nav-item mx-2" role="presentation">
+                    <button class="nav-link fw-bold px-4 filter-xuat-btn" onclick="filterXuatHangView('tiendo')" id="btn-xuat-tiendo"><i class="fas fa-truck-loading"></i> TIẾN ĐỘ XUẤT HÀNG</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold px-4 filter-xuat-btn" onclick="filterXuatHangView('atp')" id="btn-xuat-atp"><i class="fas fa-boxes"></i> TỒN KHO DỰ KIẾN (ATP)</button>
+                </li>
+            </ul>
+
+            <div id="view-xuathang-content">
+                <div id="khuvuc-tiendo">
+                    <h5 class="fw-bold text-dark mb-3 border-bottom pb-2"><i class="fas fa-truck-loading"></i> TIẾN ĐỘ XUẤT ĐƠN HÀNG HÔM NAY</h5>
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card border-secondary text-center shadow-sm h-100">
+                                <div class="card-body py-2">
+                                    <h6 class="text-secondary fw-bold mb-1" style="font-size: 13px;">Tổng KL Cần Xuất</h6>
+                                    <h5 class="fw-bold mb-0 text-dark" id="stat-xuat-can">0 Tấn</h5>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-success text-center shadow-sm h-100">
+                                <div class="card-body py-2">
+                                    <h6 class="text-success fw-bold mb-1" style="font-size: 13px;">Tổng KL Đã Xuất</h6>
+                                    <h5 class="fw-bold mb-0 text-dark" id="stat-xuat-da-ship">0 Tấn</h5>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-warning text-center shadow-sm h-100">
+                                <div class="card-body py-2">
+                                    <h6 class="text-warning fw-bold mb-1" style="font-size: 13px;">Tổng KL Còn Xuất</h6>
+                                    <h5 class="fw-bold mb-0 text-dark" id="stat-xuat-con-lai">0 Tấn</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-center text-primary" style="font-size:14px;" id="header-xuat-thanh">Thép Thanh - Đơn Hàng</div>
+                                <div class="card-body"><div id="wrapper-xuatThanhChart" style="position: relative; width: 100%;"><canvas id="xuatThanhChart"></canvas></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-header bg-white fw-bold text-center text-success" style="font-size:14px;" id="header-xuat-cuon">Thép Cuộn - Đơn Hàng</div>
+                                <div class="card-body"><div id="wrapper-xuatCuonChart" style="position: relative; width: 100%;"><canvas id="xuatCuonChart"></canvas></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="khuvuc-atp">
+                    <h5 class="fw-bold text-dark mb-3 border-bottom pb-2"><i class="fas fa-boxes"></i> DỰ KIẾN TỒN KHO LOẠI 1 (ATP)</h5>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card shadow-sm h-100 border-primary">
+                                <div class="card-header bg-light fw-bold text-center text-primary" style="font-size:14px;">Thép Thanh - Tồn Dự Kiến</div>
+                                <div class="card-body"><div id="wrapper-atpThanhChart" style="position: relative; width: 100%;"><canvas id="atpThanhChart"></canvas></div></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card shadow-sm h-100 border-success">
+                                <div class="card-header bg-light fw-bold text-center text-success" style="font-size:14px;">Thép Cuộn - Tồn Dự Kiến</div>
+                                <div class="card-body"><div id="wrapper-atpCuonChart" style="position: relative; width: 100%;"><canvas id="atpCuonChart"></canvas></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 4: LỆNH SẢN XUẤT (LSX - MATRIX GANTT) -->
+        <!-- ========================================== -->
+        <div class="tab-pane fade" id="lsx" role="tabpanel" aria-labelledby="lsx-tab">
+            <!-- 1. BỘ LỌC ĐA NĂNG -->
+            <div class="card shadow-sm mb-3 border-0 bg-light">
+                <div class="card-body py-2">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-3">
+                            <label class="fw-bold text-secondary mb-1" style="font-size:12px;">Khoảng thời gian (Kế hoạch)</label>
+                            <div class="d-flex align-items-center">
+                                <input type="date" id="filterLsxTuNgay" class="form-control form-control-sm me-1">
+                                <span class="text-muted">-</span>
+                                <input type="date" id="filterLsxDenNgay" class="form-control form-control-sm ms-1">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="fw-bold text-secondary mb-1" style="font-size:12px;">Máy Cán</label>
+                            <select id="filterLsxMayCan" class="form-select form-select-sm">
+                                <option value="">-- Tất cả Cán --</option>
+                                <option value="1">Cán 1</option>
+                                <option value="2">Cán 2</option>
+                                <option value="3">Cán 3</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="fw-bold text-secondary mb-1" style="font-size:12px;">Kích cỡ (Đường kính)</label>
+                            <select id="filterLsxDuongKinh" class="form-select form-select-sm">
+                                <option value="">-- Tất cả cỡ --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="fw-bold text-secondary mb-1" style="font-size:12px;">Mác Thép</label>
+                            <select id="filterLsxMacThep" class="form-select form-select-sm">
+                                <option value="">-- Tất cả mác --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="fw-bold text-secondary mb-1" style="font-size:12px;">Tìm Order / Batch</label>
+                            <input type="text" id="filterLsxOrder" class="form-control form-control-sm" placeholder="Nhập số Order hoặc Batch...">
+                        </div>
+                        <div class="col-md-1 text-end mt-4">
+                            <button id="btnFilterLsx" class="btn btn-sm btn-danger w-100 fw-bold"><i class="fas fa-filter"></i> LỌC</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 3 Ô KPI THỐNG KÊ -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="card border-primary text-center shadow-sm h-100">
+                        <div class="card-body py-2">
+                            <h6 class="text-primary fw-bold mb-1" style="font-size: 13px;">Yêu Cầu Sản Xuất (Kế hoạch)</h6>
+                            <h5 class="fw-bold mb-0 text-dark" id="stat-lsx-yeu-cau">0 Tấn</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-success text-center shadow-sm h-100">
+                        <div class="card-body py-2">
+                            <h6 class="text-success fw-bold mb-1" style="font-size: 13px;">Đã Sản Xuất (Thực tế)</h6>
+                            <h5 class="fw-bold mb-0 text-dark" id="stat-lsx-da-sx">0 Tấn</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-danger text-center shadow-sm h-100">
+                        <div class="card-body py-2">
+                            <h6 class="text-danger fw-bold mb-1" style="font-size: 13px;">Cần Sản Xuất (Còn lại)</h6>
+                            <h5 class="fw-bold mb-0 text-dark" id="stat-lsx-con-lai">0 Tấn</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. BIỂU ĐỒ MATRIX GANTT -->
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-stream"></i> TIẾN ĐỘ LỆNH SẢN XUẤT (GANTT MATRIX)</span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-light active" id="btnModeVattu" onclick="switchLsxMode('vattu')">
+                            <i class="fas fa-th-large"></i> Theo Vật Tư
+                        </button>
+                        <button type="button" class="btn btn-outline-light" id="btnModeTimeline" onclick="switchLsxMode('timeline')">
+                            <i class="fas fa-stream"></i> Theo Dòng Thời Gian
+                        </button>
+                    </div>
+                    <div>
+                        <span class="badge bg-success me-2"><i class="fas fa-check-circle"></i> Đã xong (&ge;98%)</span>
+                        <span class="badge bg-warning text-dark"><i class="fas fa-spinner"></i> Đang chạy (&lt;98%)</span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 650px; overflow-y: auto;">
+                        <table class="table table-bordered table-sm text-center align-middle mb-0" id="lsxGanttTable" style="min-width: 1100px;">
+                            <thead style="position: sticky; top: 0; z-index: 10; background-color: #212529;">
+                                <tr id="lsxGanttTheadRow"></tr>
+                            </thead>
+                            <tbody id="lsxGanttTbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    Chart.register(ChartDataLabels);
+    Chart.defaults.plugins.tooltip.callbacks.label = function(context) {
+        let label = context.dataset.label || '';
+        if (context.chart.config.type === 'pie' || context.chart.config.type === 'doughnut') {
+            label = context.label || '';
+        }
+        if (label) label += ': ';
+        if (typeof context.raw === 'number') {
+            label += context.raw.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' Tấn';
+        } else {
+            label += context.raw;
+        }
+        return label;
+    };
+    const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6c757d'];
+
+    // PLUGIN CUSTOM: ROWSPAN TRỤC Y
+    const excelRowspanPlugin = {
+        id: 'excelRowspan',
+        beforeInit: (chart) => {
+            if (chart.data.customGroups && chart.data.customGroups.length > 0) {
+                chart.options.layout = { padding: { left: 45, right: 30 } };
+            }
+        },
+        afterDraw: (chart) => {
+            if (!chart.data.customGroups || chart.data.customGroups.length === 0) return;
+            const ctx = chart.ctx;
+            const yAxis = chart.scales.y;
+            const rightX = yAxis.right;
+            const leftX = yAxis.left - 45;
+
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillStyle = '#333';
+
+            ctx.beginPath();
+            ctx.moveTo(leftX, yAxis.top);
+            ctx.lineTo(leftX, yAxis.bottom);
+            ctx.strokeStyle = '#dee2e6';
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(leftX, yAxis.top);
+            ctx.lineTo(rightX, yAxis.top);
+            ctx.stroke();
+
+            chart.data.customGroups.forEach(group => {
+                const startY = yAxis.getPixelForTick(group.start);
+                const endY = yAxis.getPixelForTick(group.end);
+                const midY = (startY + endY) / 2;
+
+                ctx.save();
+                ctx.translate(leftX + 22, midY);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText(group.label, 0, 0);
+                ctx.restore();
+
+                let bottomY;
+                if (group.end === yAxis.ticks.length - 1) {
+                    bottomY = yAxis.bottom;
+                } else {
+                    const currentTickY = yAxis.getPixelForTick(group.end);
+                    const nextTickY = yAxis.getPixelForTick(group.end + 1);
+                    bottomY = (currentTickY + nextTickY) / 2;
+                }
+
+                ctx.beginPath();
+                ctx.moveTo(leftX, bottomY);
+                ctx.lineTo(rightX, bottomY);
+                ctx.strokeStyle = '#adb5bd'; 
+                ctx.stroke();
+            });
+            ctx.restore();
+        }
+    };
+
+    function renderHorizBar(ctxId, data, color) {
+        const rowHeight = 40;
+        const minHeight = 400;
+        const numRows = data.values ? data.values.length : 0;
+        document.getElementById('wrapper-' + ctxId).style.height = Math.max(minHeight, numRows * rowHeight) + 'px';
+
+        new Chart(document.getElementById(ctxId), {
+            type: 'bar',
+            data: {
+                labels: data.labels, 
+                customGroups: data.groups, 
+                datasets: [{ 
+                    data: data.values, 
+                    backgroundColor: color,
+                    barPercentage: 0.65,
+                    categoryPercentage: 0.9
+                }]
+            },
+            plugins: [excelRowspanPlugin], 
+            options: {
+                indexAxis: 'y', 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    datalabels: { 
+                        anchor: 'end', align: 'end', offset: 4, color: color, font: {weight: 'bold', size:11},
+                        formatter: (val) => val > 0 ? val.toLocaleString(undefined, {maximumFractionDigits: 0}) : '' 
+                    }
+                },
+                scales: {
+                    x: { display: false, max: Math.max(...(data.values.length ? data.values : [0])) * 1.3 }, 
+                    y: { grid: { display: false, drawBorder: false }, ticks: { font: {weight:'bold'}, color: '#495057' } }
+                }
+            }
+        });
+    }
+
+    function renderMultiHorizBar(ctxId, data) {
+        const rowHeight = 70;
+        const minHeight = 400;
+        const numRows = data.labels ? data.labels.length : 0;
+        document.getElementById('wrapper-' + ctxId).style.height = Math.max(minHeight, numRows * rowHeight) + 'px';
+
+        new Chart(document.getElementById(ctxId), {
+            type: 'bar',
+            data: {
+                labels: data.labels, customGroups: data.groups,
+                datasets: [
+                    { label: 'KL Cần', data: data.kl_can, backgroundColor: '#6c757d', categoryPercentage: 0.9, barPercentage: 0.9 },
+                    { label: 'Đã Ship', data: data.kl_da_ship, backgroundColor: '#28a745', categoryPercentage: 0.9, barPercentage: 0.9 },
+                    { label: 'Cần Xuất', data: data.kl_can_xuat, backgroundColor: '#ffc107', categoryPercentage: 0.9, barPercentage: 0.9 }
+                ]
+            },
+            plugins: [excelRowspanPlugin],
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    datalabels: { 
+                        anchor: 'end', align: 'end', offset: 2, font: {weight: 'bold', size:10},
+                        formatter: (val) => val > 0 ? val.toLocaleString(undefined, {maximumFractionDigits: 1}) : '' 
+                    }
+                },
+                scales: {
+                    x: { display: false, suggestedMax: Math.max(...(data.kl_can.length ? data.kl_can : [0])) * 1.2 }, 
+                    y: { grid: { display: false, drawBorder: false }, ticks: { font: {weight:'bold'} } }
+                }
+            }
+        });
+    }
+
+    function renderAtpHorizBar(ctxId, data, safeColor) {
+        const rowHeight = 40;
+        const minHeight = 400;
+        const numRows = data.values ? data.values.length : 0;
+        document.getElementById('wrapper-' + ctxId).style.height = Math.max(minHeight, numRows * rowHeight) + 'px';
+
+        const dynamicColors = data.values ? data.values.map(v => v < 0 ? '#dc3545' : safeColor) : [];
+
+        new Chart(document.getElementById(ctxId), {
+            type: 'bar',
+            data: {
+                labels: data.labels, customGroups: data.groups,
+                datasets: [{ 
+                    data: data.values, 
+                    backgroundColor: dynamicColors,
+                    barPercentage: 0.65, categoryPercentage: 0.9
+                }]
+            },
+            plugins: [excelRowspanPlugin],
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    datalabels: { 
+                        anchor: (ctx) => ctx.dataset.data[ctx.dataIndex] < 0 ? 'start' : 'end', 
+                        align: (ctx) => ctx.dataset.data[ctx.dataIndex] < 0 ? 'start' : 'end',
+                        offset: 4, font: {weight: 'bold', size:11},
+                        formatter: (val) => val !== 0 ? val.toLocaleString(undefined, {maximumFractionDigits: 1}) : '' 
+                    }
+                },
+                scales: {
+                    x: { display: false },
+                    y: { grid: { display: false, drawBorder: false }, ticks: { font: {weight:'bold'} } }
+                }
+            }
+        });
+    }
+
+    // ==============================================================
+    // KHỞI TẠO TỒN KHO & XUẤT HÀNG
+    // ==============================================================
+    document.addEventListener("DOMContentLoaded", function () {
+        fetch("{{ url_for('ctd_bp.get_data_ctd') }}")
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'error') { alert("Lỗi truy vấn SQL: " + data.message); return; }
+                if(data.status === 'empty') { document.getElementById('update-time-badge').innerHTML = `<i class="fas fa-exclamation-triangle"></i> Kho trống`; return; }
+
+                document.getElementById('update-time-badge').innerHTML = `<i class="far fa-clock"></i> Cập nhật: ${data.last_update}`;
+                
+                let tongTonFmt = data.tong_ton.toLocaleString(undefined, {maximumFractionDigits: 0});
+                document.getElementById('title-tong-ton').innerText = `Tổng tồn kho Cán dài: ${tongTonFmt} Tấn`;
+                
+                new Chart(document.getElementById('pieChart'), {
+                    type: 'pie',
+                    data: { labels: data.pie_chart.labels, datasets: [{ data: data.pie_chart.values, backgroundColor: ['#007bff', '#28a745', '#ffc107'] }] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, layout: { padding: 20 },
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            datalabels: {
+                                color: '#fff', font: {weight: 'bold', size:12}, textAlign: 'center',
+                                formatter: (val, ctx) => {
+                                    if (val === 0) return ''; 
+                                    let sum = 0; ctx.chart.data.datasets[0].data.forEach(d => sum += d);
+                                    let p = (val * 100 / sum).toFixed(1) + "%";
+                                    return [`${val.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`, `(${p})`];
+                                }
+                            }
+                        }
+                    }
+                });
+
+                let ageDatasets = data.age_chart.datasets.map((ds, idx) => { ds.backgroundColor = colors[idx % colors.length]; return ds; });
+                new Chart(document.getElementById('ageChart'), {
+                    type: 'bar',
+                    data: { labels: data.age_chart.labels, datasets: ageDatasets },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { datalabels: { anchor: 'end', align: 'end', font:{weight:'bold'}, formatter: (v)=> v>0?v.toLocaleString(undefined, {maximumFractionDigits:0}):'' } }
+                    }
+                });
+
+                let tongCnkFmt = data.tong_cnk.toLocaleString(undefined, {maximumFractionDigits: 0});
+                document.getElementById('title-tong-cnk').innerText = `Tổng Sản Lượng CNK: ${tongCnkFmt} Tấn`;
+                
+                let bgColorsCNK = data.pie_chart_cnk.labels.map(label => label === 'Thép thanh' ? '#28a745' : (label === 'Thép cuộn' ? '#007bff' : '#6c757d'));
+                new Chart(document.getElementById('pieChartCNK'), {
+                    type: 'pie',
+                    data: { labels: data.pie_chart_cnk.labels, datasets: [{ data: data.pie_chart_cnk.values, backgroundColor: bgColorsCNK }] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, layout: { padding: 20 },
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            datalabels: {
+                                color: '#fff', font: {weight: 'bold', size:12}, textAlign: 'center',
+                                formatter: (val, ctx) => {
+                                    if (val === 0) return ''; 
+                                    let sum = 0; ctx.chart.data.datasets[0].data.forEach(d => sum += d);
+                                    let p = (val * 100 / sum).toFixed(1) + "%";
+                                    return [`${val.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`, `(${p})`];
+                                }
+                            }
+                        }
+                    }
+                });
+
+                new Chart(document.getElementById('marketChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.market_chart.labels,
+                        datasets: [
+                            { label: 'Nội địa', data: data.market_chart.noidia, backgroundColor: '#007bff' },
+                            { label: 'Xuất khẩu', data: data.market_chart.xuatkhau, backgroundColor: '#28a745' },
+                            { label: 'Thép CLC', data: data.market_chart.clc, backgroundColor: '#dc3545' }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { datalabels: { anchor: 'end', align: 'end', font:{weight:'bold'}, formatter: (v)=> v>0?v.toLocaleString(undefined, {maximumFractionDigits:0}):'' } }
+                    }
+                });
+
+                renderHorizBar('thanhNdChart', data.chart_thanh_nd, '#007bff');
+                renderHorizBar('cuonNdChart', data.chart_cuon_nd, '#28a745');
+                renderHorizBar('clcChart', data.chart_clc, '#dc3545');
+
+                const sumArray = (arr) => arr && arr.length ? arr.reduce((a, b) => a + b, 0) : 0;
+                let thanhNdTotal = sumArray(data.chart_thanh_nd.values);
+                let cuonNdTotal = sumArray(data.chart_cuon_nd.values);
+                let clcTotal = sumArray(data.chart_clc.values);
+                document.getElementById('header-thanh-nd').innerText = `Thép Thanh - Nội Địa - Tổng: ${thanhNdTotal.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+                document.getElementById('header-cuon-nd').innerText = `Thép Cuộn - Nội Địa - Tổng: ${cuonNdTotal.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+                document.getElementById('header-clc-ctd').innerText = `Thép CLC (Chung) - Tổng: ${clcTotal.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+
+                let totalLoai1_6m = thanhNdTotal + cuonNdTotal + clcTotal;
+                let phanTram = data.tong_ton > 0 ? (totalLoai1_6m / data.tong_ton) * 100 : 0;
+                document.getElementById('title-loai1-6m').innerHTML = `<i class="fas fa-filter"></i> CHI TIẾT HÀNG LOẠI 1 (DƯỚI 6 THÁNG) - Tổng: ${totalLoai1_6m.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn (Chiếm ${phanTram.toFixed(1)}% Tổng tồn kho CTD)`;
+
+                renderHorizBar('thanhNdChart_l1_over6m', data.chart_thanh_nd_l1_over6m, '#007bff');
+                renderHorizBar('cuonNdChart_l1_over6m', data.chart_cuon_nd_l1_over6m, '#28a745');
+                renderHorizBar('clcChart_l1_over6m', data.chart_clc_l1_over6m, '#dc3545');
+
+                let t1 = sumArray(data.chart_thanh_nd_l1_over6m.values);
+                let c1 = sumArray(data.chart_cuon_nd_l1_over6m.values);
+                let clc1 = sumArray(data.chart_clc_l1_over6m.values);
+                document.getElementById('header-thanh-nd-l1-over6m').innerText = `Thép Thanh - Nội Địa - Tổng: ${t1.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+                document.getElementById('header-cuon-nd-l1-over6m').innerText = `Thép Cuộn - Nội Địa - Tổng: ${c1.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+                document.getElementById('header-clc-l1-over6m').innerText = `Thép CLC (Chung) - Tổng: ${clc1.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+
+                let totalLoai1_over6m = t1 + c1 + clc1;
+                let ptLoai1_over6m = data.tong_ton > 0 ? (totalLoai1_over6m / data.tong_ton) * 100 : 0;
+                document.getElementById('title-loai1-over6m').innerHTML = `<i class="fas fa-filter"></i> CHI TIẾT HÀNG LOẠI 1 (TRÊN 6 THÁNG) - Tổng: ${totalLoai1_over6m.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn (Chiếm ${ptLoai1_over6m.toFixed(1)}% Tổng tồn kho CTD)`;
+
+                renderHorizBar('thanhNdChart_l2', data.chart_thanh_nd_l2, '#007bff');
+                renderHorizBar('cuonNdChart_l2', data.chart_cuon_nd_l2, '#28a745');
+                renderHorizBar('clcChart_l2', data.chart_clc_l2, '#dc3545');
+
+                let t2 = sumArray(data.chart_thanh_nd_l2.values);
+                let c2 = sumArray(data.chart_cuon_nd_l2.values);
+                let clc2 = sumArray(data.chart_clc_l2.values);
+                document.getElementById('header-thanh-nd-l2').innerText = `Thép Thanh - Nội Địa - Tổng: ${t2.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+                document.getElementById('header-cuon-nd-l2').innerText = `Thép Cuộn - Nội Địa - Tổng: ${c2.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+                document.getElementById('header-clc-l2').innerText = `Thép CLC (Chung) - Tổng: ${clc2.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+
+                let totalLoai2 = t2 + c2 + clc2;
+                let ptLoai2 = data.tong_ton > 0 ? (totalLoai2 / data.tong_ton) * 100 : 0;
+                document.getElementById('title-loai2').innerHTML = `<i class="fas fa-filter"></i> CHI TIẾT HÀNG LOẠI 2 (TẤT CẢ) - Tổng: ${totalLoai2.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn (Chiếm ${ptLoai2.toFixed(1)}% Tổng tồn kho CTD)`;
+
+                let canThanh = sumArray(data.chart_xuat_thanh.kl_can);
+                let shipThanh = sumArray(data.chart_xuat_thanh.kl_da_ship);
+                let conThanh = sumArray(data.chart_xuat_thanh.kl_can_xuat);
+                let canCuon = sumArray(data.chart_xuat_cuon.kl_can);
+                let shipCuon = sumArray(data.chart_xuat_cuon.kl_da_ship);
+                let conCuon = sumArray(data.chart_xuat_cuon.kl_can_xuat);
+
+                document.getElementById('header-xuat-thanh').innerText = `Thép Thanh - Đơn Hàng (Cần: ${canThanh.toLocaleString(undefined, {maximumFractionDigits: 0})} T - Còn xuất: ${conThanh.toLocaleString(undefined, {maximumFractionDigits: 0})} T)`;
+                document.getElementById('header-xuat-cuon').innerText = `Thép Cuộn - Đơn Hàng (Cần: ${canCuon.toLocaleString(undefined, {maximumFractionDigits: 0})} T - Còn xuất: ${conCuon.toLocaleString(undefined, {maximumFractionDigits: 0})} T)`;
+
+                document.getElementById('stat-xuat-can').innerText = (canThanh + canCuon).toLocaleString(undefined, {maximumFractionDigits: 0}) + ' Tấn';
+                document.getElementById('stat-xuat-da-ship').innerText = (shipThanh + shipCuon).toLocaleString(undefined, {maximumFractionDigits: 0}) + ' Tấn';
+                document.getElementById('stat-xuat-con-lai').innerText = (conThanh + conCuon).toLocaleString(undefined, {maximumFractionDigits: 0}) + ' Tấn';
+                
+                renderMultiHorizBar('xuatThanhChart', data.chart_xuat_thanh);
+                renderMultiHorizBar('xuatCuonChart', data.chart_xuat_cuon);
+                renderAtpHorizBar('atpThanhChart', data.chart_atp_thanh, '#007bff');
+                renderAtpHorizBar('atpCuonChart', data.chart_atp_cuon, '#28a745');
+
+                if (data.tong_sx_ctd > 0) {
+                    document.getElementById('txt-tong-sx-ctd').innerText = `Tháng này: ${data.tong_sx_ctd.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn`;
+
+                    const shiftColors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#17a2b8', '#fd7e14', '#20c997', '#e83e8c', '#343a40'];
+                    let ds_datasets = data.prod_date_shift_chart.datasets.map((ds, index) => {
+                        ds.type = 'bar'; ds.backgroundColor = shiftColors[index % shiftColors.length]; return ds;
+                    });
+
+                    ds_datasets.push({
+                        type: 'line', label: 'Tổng Ngày', data: data.prod_date_shift_chart.tong_ngay,
+                        borderColor: '#343a40', backgroundColor: '#343a40', borderWidth: 2, fill: false, tension: 0.3, pointRadius: 4, pointBackgroundColor: '#fff',
+                        datalabels: { color: '#343a40', align: 'top', anchor: 'end', offset: 4, font: {weight: 'bold', size: 11}, formatter: (val) => val > 0 ? val.toLocaleString(undefined, {maximumFractionDigits: 0}) : '' }
+                    });
+
+                    new Chart(document.getElementById('ctdProdDateShiftChart'), {
+                        data: { labels: data.prod_date_shift_chart.labels, datasets: ds_datasets },
+                        options: { 
+                            responsive: true, maintainAspectRatio: false, 
+                            scales: { x: { stacked: true }, y: { stacked: true, suggestedMax: Math.max(...data.prod_date_shift_chart.tong_ngay) * 1.2 } }, 
+                            plugins: { datalabels: { color: '#fff', font: {weight: 'bold', size: 10}, formatter: (val) => val > 0 ? val.toLocaleString(undefined, {maximumFractionDigits: 0}) : '' } } 
+                        }
+                    });
+
+                    new Chart(document.getElementById('ctdProdGradeChart'), {
+                        type: 'bar', 
+                        data: { labels: data.prod_grade_chart.labels, datasets: [{ data: data.prod_grade_chart.values, backgroundColor: '#17a2b8' }] },
+                        options: { 
+                            indexAxis: 'y', responsive: true, maintainAspectRatio: false, 
+                            plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: '#17a2b8', font: {weight: 'bold', size: 11}, formatter: (val) => val > 0 ? val.toLocaleString(undefined, {maximumFractionDigits: 0}) : '' } }, 
+                            scales: { x: { display: false, max: Math.max(...data.prod_grade_chart.values) * 1.3 }, y: { grid: { display: false }, ticks: { autoSkip: false, font: {size: 11} } } } 
+                        }
+                    });
+
+                    document.getElementById('ctdProdTotalText').innerHTML = `Tổng SX<br><span class="text-primary fs-5">${data.tong_sx_ctd.toLocaleString(undefined, {maximumFractionDigits: 0})} T</span>`;
+                    new Chart(document.getElementById('ctdProdMachineChart'), {
+                        type: 'doughnut', 
+                        data: { labels: data.prod_machine_chart.labels, datasets: [{ data: data.prod_machine_chart.values, backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#007bff'] }] },
+                        options: { 
+                            responsive: true, maintainAspectRatio: false, cutout: '65%', 
+                            plugins: { 
+                                legend: { position: 'right' }, 
+                                datalabels: { color: '#fff', font: {weight: 'bold'}, formatter: (value, ctx) => { let sum = 0; ctx.chart.data.datasets[0].data.map(d => { sum += d; }); return (value*100 / sum).toFixed(0) + "%"; } } 
+                            } 
+                        },
+                        plugins: [{
+                            id: 'center-text',
+                            afterDraw: (chart) => {
+                                const meta = chart.getDatasetMeta(0);
+                                if (meta.data.length > 0) {
+                                    const textDiv = document.getElementById('ctdProdTotalText');
+                                    textDiv.style.left = meta.data[0].x + 'px';
+                                    textDiv.style.top = meta.data[0].y + 'px';
+                                }
+                            }
+                        }]
+                    });
+                }    
+            })
+            .catch(err => console.error("Lỗi:", err));
+    });
+
+    // ==============================================================
+    // CHỨC NĂNG LỊCH TÀU (GANTT MATRIX)
+    // ==============================================================
+    let originalGanttData = [];
+    function renderGanttMatrix(data) {
+        const theadRow = document.getElementById('ganttTheadRow');
+        const tbody = document.getElementById('ganttTbody');
+        theadRow.innerHTML = ''; tbody.innerHTML = '';
+        let tongYeuCau = 0, tongDaXuat = 0;
+
+        if (data && data.length > 0) {
+            data.forEach(tau => {
+                tongYeuCau += tau.khoi_luong ? parseFloat(tau.khoi_luong) : 0;
+                tongDaXuat += tau.da_xuat ? parseFloat(tau.da_xuat) : 0;
+            });
+        }
+        let conLai = Math.max(0, tongYeuCau - tongDaXuat);
+        document.getElementById('stat-tong-yeu-cau').innerText = tongYeuCau.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' Tấn';
+        document.getElementById('stat-tong-da-xuat').innerText = tongDaXuat.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' Tấn';
+        document.getElementById('stat-tong-con-lai').innerText = conLai.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' Tấn';
+
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td class="text-center p-3 text-muted">Không tìm thấy dữ liệu tàu phù hợp</td></tr>';
+            return;
+        }
+
+        function getLocalTime(dateStr) {
+            if (!dateStr) return 0;
+            let parts = dateStr.split('-');
+            return new Date(parts[0], parts[1] - 1, parts[2]).getTime();
+        }
+
+        let minTime = getLocalTime(data[0].start_date);
+        let maxTime = getLocalTime(data[0].end_date);
+        data.forEach(d => {
+            let st = getLocalTime(d.start_date);
+            let et = getLocalTime(d.end_date);
+            if (st < minTime) minTime = st;
+            if (et > maxTime) maxTime = et;
+        });
+
+        let allDates = [];
+        let curr = new Date(minTime);
+        let endLimit = new Date(maxTime);
+        while (curr <= endLimit) {
+            allDates.push(new Date(curr));
+            curr.setDate(curr.getDate() + 1);
+        }
+
+        let thTau = document.createElement('th');
+        thTau.className = "align-middle bg-dark text-white";
+        thTau.style = "width: 180px; position: sticky; left: 0; z-index: 11; border-right: 2px solid #dee2e6;";
+        thTau.innerText = "Tàu";
+        theadRow.appendChild(thTau);
+
+        allDates.forEach(dateObj => {
+            let th = document.createElement('th');
+            th.className = "align-middle bg-dark text-white";
+            th.style = "min-width: 60px;";
+            th.innerHTML = `<span style="font-size: 11px; color: #adb5bd;">Th.${(dateObj.getMonth() + 1).toString().padStart(2, '0')}</span><br><span style="font-size: 14px;">${dateObj.getDate()}</span>`;
+            theadRow.appendChild(th);
+        });
+
+        data.forEach((tau) => {
+            let tr = document.createElement('tr');
+            let tdName = document.createElement('td');
+            tdName.className = "fw-bold text-start bg-light text-dark";
+            tdName.style = "position: sticky; left: 0; z-index: 5; border-right: 2px solid #dee2e6; font-size: 13px;";
+            tdName.innerText = tau.ten_tau;
+            tr.appendChild(tdName);
+
+            let startD = getLocalTime(tau.start_date);
+            let endD = getLocalTime(tau.end_date);
+            let kl_tong = tau.khoi_luong ? parseFloat(tau.khoi_luong) : 0;
+            let kl_xuat = tau.da_xuat ? parseFloat(tau.da_xuat) : 0;
+            let percent = kl_tong > 0 ? (kl_xuat / kl_tong) * 100 : 0;
+            let bgColor = percent >= 98 ? '#28a745' : '#ffc107';
+            let textColor = percent >= 98 ? '#ffffff' : '#000000';
+
+            let i = 0;
+            while (i < allDates.length) {
+                let currTime = allDates[i].getTime();
+                if (currTime >= startD && currTime <= endD) {
+                    let spanCount = 0;
+                    for (let j = i; j < allDates.length; j++) {
+                        if (allDates[j].getTime() <= endD) spanCount++;
+                        else break;
+                    }
+
+                    let td = document.createElement('td');
+                    td.colSpan = spanCount;
+                    td.style.padding = "4px"; 
+                    
+                    let block = document.createElement('div');
+                    block.style.backgroundColor = bgColor;
+                    block.style.color = textColor;
+                    block.style.fontWeight = 'bold';
+                    block.style.borderRadius = '4px';
+                    block.style.padding = '5px 2px';
+                    block.style.fontSize = '12px';
+                    block.style.cursor = 'pointer';
+                    block.style.height = '100%';
+                    block.style.display = 'flex';
+                    block.style.alignItems = 'center';
+                    block.style.justifyContent = 'center'; 
+                    block.style.whiteSpace = 'nowrap';
+                    block.style.overflow = 'hidden';
+                    block.innerText = kl_tong.toLocaleString('en-US', {maximumFractionDigits: 0});
+                    
+                    block.tabIndex = 0; 
+                    block.setAttribute('data-bs-toggle', 'popover');
+                    block.setAttribute('data-bs-trigger', 'focus');
+                    block.setAttribute('data-bs-placement', 'auto');
+                    block.setAttribute('data-bs-html', 'true');
+                    block.setAttribute('data-bs-custom-class', 'gantt-popover');
+                    block.setAttribute('title', `<strong class="text-info"><i class="fas fa-ship"></i> Tàu: ${tau.ten_tau}</strong>`);
+                    
+                    let detailListHtml = '';
+                    if (tau.chi_tiet && tau.chi_tiet.length > 0) {
+                        detailListHtml = `<ul style="padding-left: 15px; margin-top: 5px; margin-bottom: 0; max-height: 120px; overflow-y: auto; font-size: 11.5px; color: #cbd5e0; list-style-type: square;">`;
+                        tau.chi_tiet.forEach(item => {
+                            detailListHtml += `<li style="margin-bottom: 3px;">${item.SAPDescription || 'Không rõ'}: <span style="color: #48bb78; font-weight: bold;">${item.khoi_luong_xuat ? item.khoi_luong_xuat.toLocaleString('en-US', {maximumFractionDigits: 1}) : 0} T</span></li>`;
+                        });
+                        detailListHtml += `</ul>`;
+                    } else {
+                        detailListHtml = `<div style="font-size: 11.5px; color: #a0aec0; font-style: italic; margin-top: 5px;">Chưa có dữ liệu xuất</div>`;
+                    }
+
+                    block.setAttribute('data-bs-content', `
+                        <div style="font-size: 13px; line-height: 1.8;">
+                            <strong>ETA:</strong> ${tau.ngay_du_kien || '--'}<br>
+                            <strong>Tổng tiến độ:</strong> <span style="color: ${percent >= 98 ? '#48bb78' : '#ecc94b'}; font-weight: bold;">${percent.toFixed(1)}%</span><br>
+                            <hr style="margin: 8px 0; border-color: #4a5568;">
+                            <strong style="color: #63b3ed;">Tiến độ làm hàng:</strong><br>
+                            <span style="color: #a0aec0;">> Tổng xuất:</span> <span class="fw-bold">${kl_xuat.toLocaleString('en-US', {maximumFractionDigits: 0})} / ${kl_tong.toLocaleString('en-US', {maximumFractionDigits: 0})} T</span><br>                           
+                            ${detailListHtml}
+                            <hr style="margin: 8px 0; border-color: #4a5568;">
+                            <strong style="color: #63b3ed;">Thông tin Tàu:</strong><br>
+                            <span style="color: #a0aec0;">> Cảng dỡ:</span> ${tau.cang_do || '--'}<br>
+                            <span style="color: #a0aec0;">> ĐVVT:</span> ${tau.don_vi_van_tai || '--'}
+                        </div>
+                    `);
+
+                    td.appendChild(block);
+                    tr.appendChild(td);
+                    new bootstrap.Popover(block);
+                    i += spanCount; 
+                } else {
+                    let td = document.createElement('td');
+                    tr.appendChild(td);
+                    i++;
+                }
+            }
+            tbody.appendChild(tr);
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        fetch("{{ url_for('ctd_bp.get_lichtau_ctd') }}")
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    originalGanttData = data.data; 
+                    const selectCang = document.getElementById('filterCang');
+                    data.filters.cang_do.forEach(cang => {
+                        let opt = document.createElement('option');
+                        opt.value = cang; opt.innerHTML = cang;
+                        selectCang.appendChild(opt);
+                    });
+                    renderGanttMatrix(originalGanttData);
+                }
+            })
+            .catch(err => console.error("Lỗi Lịch tàu:", err));
+
+        document.getElementById('btnFilterLichTau').addEventListener('click', function() {
+            const valTau = document.getElementById('filterTau').value.toLowerCase().trim();
+            const valCang = document.getElementById('filterCang').value;
+            const valTuNgay = document.getElementById('filterTuNgay').value;
+            const valDenNgay = document.getElementById('filterDenNgay').value;
+
+            let filteredData = originalGanttData.filter(d => {
+                let matchTau = valTau === '' || d.ten_tau.toLowerCase().includes(valTau);
+                let matchCang = valCang === '' || d.cang_do === valCang;
+                let matchDate = true;
+                if (valTuNgay) matchDate = matchDate && (d.end_date >= valTuNgay);
+                if (valDenNgay) matchDate = matchDate && (d.start_date <= valDenNgay);
+                return matchTau && matchCang && matchDate;
+            });
+            renderGanttMatrix(filteredData);
+        });
+    });
+
+    // ==============================================================
+    // CHỨC NĂNG LỆNH SẢN XUẤT (LSX - MATRIX & TIMELINE GANTT)
+    // ==============================================================
+    let originalLsxData = [];
+    let currentLsxFilteredData = [];
+    let currentLsxMode = 'vattu'; // 'vattu' hoặc 'timeline'
+
+    function sortDiameterKey(dk) {
+        if (!dk) return 9999;
+        let str = dk.toString().trim();
+        let isCuon = str.startsWith('Ø') || str.toLowerCase().startsWith('o');
+        let num = parseFloat(str.replace(/[^\d.]/g, '')) || 0;
+        return (isCuon ? 1000 : 2000) + num;
+    }
+
+    function getLocalTime(dateStr) {
+        if (!dateStr) return 0;
+        let parts = dateStr.split('-');
+        return new Date(parts[0], parts[1] - 1, parts[2]).getTime();
+    }
+
+    // 1. HÀM CHUYỂN MODE
+    window.switchLsxMode = function(mode) {
+        currentLsxMode = mode;
+        const btnVattu = document.getElementById('btnModeVattu');
+        const btnTimeline = document.getElementById('btnModeTimeline');
+        
+        if (mode === 'vattu') {
+            btnVattu.classList.add('active');
+            btnTimeline.classList.remove('active');
+        } else {
+            btnTimeline.classList.add('active');
+            btnVattu.classList.remove('active');
+        }
+        
+        renderLsxGanttMatrix(currentLsxFilteredData.length > 0 ? currentLsxFilteredData : originalLsxData);
+    };
+
+    // 2. HÀM ĐIỀU PHỐI CHÍNH (GỌI MODE TƯƠNG ỨNG)
+    function renderLsxGanttMatrix(lsxList) {
+        currentLsxFilteredData = lsxList || [];
+        const theadRow = document.getElementById('lsxGanttTheadRow');
+        const tbody = document.getElementById('lsxGanttTbody');
+        theadRow.innerHTML = '';
+        tbody.innerHTML = '';
+
+        // TÍNH TOÁN KPI
+        let tongYeuCau = 0, tongDaSx = 0;
+        if (lsxList && lsxList.length > 0) {
+            lsxList.forEach(item => {
+                tongYeuCau += item.san_luong_ke_hoach ? parseFloat(item.san_luong_ke_hoach) : 0;
+                tongDaSx += item.da_san_xuat ? parseFloat(item.da_san_xuat) : 0;
+            });
+        }
+        let conLai = Math.max(0, tongYeuCau - tongDaSx);
+        let pctDaSx = tongYeuCau > 0 ? (tongDaSx / tongYeuCau * 100) : 0;
+        let pctConLai = tongYeuCau > 0 ? (conLai / tongYeuCau * 100) : 0;
+
+        document.getElementById('stat-lsx-yeu-cau').innerText = 
+            tongYeuCau.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' Tấn';
+
+        document.getElementById('stat-lsx-da-sx').innerHTML = 
+            `${tongDaSx.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn <span class="badge bg-light text-success fs-6 ms-1">(${pctDaSx.toFixed(1)}%)</span>`;
+
+        document.getElementById('stat-lsx-con-lai').innerHTML = 
+            `${conLai.toLocaleString(undefined, {maximumFractionDigits: 0})} Tấn <span class="badge bg-light text-danger fs-6 ms-1">(${pctConLai.toFixed(1)}%)</span>`;
+
+        if (!lsxList || lsxList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="25" class="text-center p-3 text-muted">Không tìm thấy Lệnh sản xuất phù hợp</td></tr>';
+            return;
+        }
+
+        // TẠO TRỤC X (DẢI NGÀY)
+        let minTime = getLocalTime(lsxList[0].start_date);
+        let maxTime = getLocalTime(lsxList[0].end_date);
+        lsxList.forEach(d => {
+            let st = getLocalTime(d.start_date);
+            let et = getLocalTime(d.end_date);
+            if (st > 0 && st < minTime) minTime = st;
+            if (et > 0 && et > maxTime) maxTime = et;
+        });
+
+        let allDates = [];
+        let curr = new Date(minTime);
+        let endLimit = new Date(maxTime);
+        while (curr <= endLimit) {
+            allDates.push(new Date(curr));
+            curr.setDate(curr.getDate() + 1);
+        }
+
+        // HEADER CỘT CỐ ĐỊNH
+        let thDk = document.createElement('th');
+        thDk.className = "align-middle bg-dark text-white text-center";
+        thDk.style = "width: 75px; min-width: 75px; position: sticky; left: 0; z-index: 12; border-right: 1px solid #4a5568;";
+        thDk.innerText = "Cỡ";
+        theadRow.appendChild(thDk);
+
+        let thMac = document.createElement('th');
+        thMac.className = "align-middle bg-dark text-white text-center";
+        thMac.style = "width: 150px; min-width: 150px; position: sticky; left: 75px; z-index: 12; border-right: 2px solid #dee2e6;";
+        thMac.innerText = "Mác Thép";
+        theadRow.appendChild(thMac);
+
+        allDates.forEach(dateObj => {
+            let th = document.createElement('th');
+            th.className = "align-middle bg-dark text-white text-center";
+            th.style = "min-width: 60px;";
+            th.innerHTML = `<span style="font-size: 11px; color: #adb5bd;">Th.${(dateObj.getMonth() + 1).toString().padStart(2, '0')}</span><br><span style="font-size: 14px;">${dateObj.getDate()}</span>`;
+            theadRow.appendChild(th);
+        });
+
+        // RẼ NHÁNH VẼ THEO MODE ĐƯỢC CHỌN
+        if (currentLsxMode === 'timeline') {
+            renderTimelineBody(lsxList, allDates);
+        } else {
+            renderVattuBody(lsxList, allDates);
+        }
+
+        // KHỞI TẠO TẤT CẢ POPOVER
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('#lsxGanttTable [data-bs-toggle="popover"]'));
+        popoverTriggerList.map(el => new bootstrap.Popover(el));
+    }
+
+    // 3. MODE 1: THEO VẬT TƯ (GOM THEO ĐƯỜNG KÍNH -> MÁC THÉP -> CÁN)
+    function renderVattuBody(lsxList, allDates) {
+        const tbody = document.getElementById('lsxGanttTbody');
+        let groupMap = {};
+        
+        lsxList.forEach(item => {
+            let dk = (item.duong_kinh || 'N/A').toString().trim();
+            let mac = (item.mac_thep || 'N/A').toString().trim();
+            let can = item.may_can || 1;
+            let key = `${dk}|||${mac}|||${can}`;
+            
+            if (!groupMap[key]) {
+                groupMap[key] = { duong_kinh: dk, mac_thep: mac, may_can: can, orders: [] };
+            }
+            groupMap[key].orders.push(item);
+        });
+
+        let rowGroups = Object.values(groupMap);
+        rowGroups.sort((a, b) => {
+            let orderA = sortDiameterKey(a.duong_kinh);
+            let orderB = sortDiameterKey(b.duong_kinh);
+            if (orderA !== orderB) return orderA - orderB;
+            let cmpMac = a.mac_thep.localeCompare(b.mac_thep);
+            if (cmpMac !== 0) return cmpMac;
+            return a.may_can - b.may_can;
+        });
+
+        let dkCountMap = {};
+        rowGroups.forEach(rg => { dkCountMap[rg.duong_kinh] = (dkCountMap[rg.duong_kinh] || 0) + 1; });
+        let renderedDk = {};
+
+        rowGroups.forEach(rg => {
+            let tr = document.createElement('tr');
+
+            if (!renderedDk[rg.duong_kinh]) {
+                let tdDk = document.createElement('td');
+                tdDk.rowSpan = dkCountMap[rg.duong_kinh];
+                tdDk.className = "fw-bold text-center bg-secondary text-white align-middle";
+                tdDk.style = "width: 75px; min-width: 75px; position: sticky; left: 0; z-index: 6; border-right: 1px solid #dee2e6; font-size: 13px;";
+                tdDk.innerText = rg.duong_kinh;
+                tr.appendChild(tdDk);
+                renderedDk[rg.duong_kinh] = true;
+            }
+
+            let tdMac = document.createElement('td');
+            tdMac.className = "fw-bold text-start bg-light text-dark align-middle px-2";
+            tdMac.style = "width: 150px; min-width: 150px; position: sticky; left: 75px; z-index: 5; border-right: 2px solid #dee2e6; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;";
+            tdMac.innerText = rg.mac_thep;
+            tdMac.title = rg.mac_thep;
+            tr.appendChild(tdMac);
+
+            let i = 0;
+            while (i < allDates.length) {
+                let currTime = allDates[i].getTime();
+                let activeOrders = rg.orders.filter(ord => {
+                    let st = getLocalTime(ord.start_date);
+                    let et = getLocalTime(ord.end_date);
+                    return currTime >= st && currTime <= et;
+                });
+
+                if (activeOrders.length > 0) {
+                    let primaryOrder = activeOrders[0];
+                    let et = getLocalTime(primaryOrder.end_date);
+                    let spanCount = 0;
+                    for (let j = i; j < allDates.length; j++) {
+                        if (allDates[j].getTime() <= et) spanCount++;
+                        else break;
+                    }
+                    if (spanCount === 0) spanCount = 1;
+
+                    let td = document.createElement('td');
+                    td.colSpan = spanCount;
+                    td.style.padding = "3px";
+
+                    let kl_yeucau = primaryOrder.san_luong_ke_hoach || 0;
+                    let kl_dasx = primaryOrder.da_san_xuat || 0;
+                    let kl_conlai = primaryOrder.con_lai || 0;
+                    let pct = primaryOrder.percent !== undefined ? parseFloat(primaryOrder.percent) : 0;
+                    let isCompleted = primaryOrder.is_completed;
+                    let bgColor = isCompleted ? '#28a745' : '#fd7e14';
+                    let canLabel = `C${primaryOrder.may_can || 1}`;
+
+                    let labelText = `${kl_yeucau.toLocaleString('en-US', {maximumFractionDigits: 0})} T`;
+                    if (!isCompleted) labelText += ` (${pct.toFixed(0)}%)`;
+
+                    let block = createGanttBlock(primaryOrder, bgColor, canLabel, labelText, kl_yeucau, kl_dasx, kl_conlai, pct, isCompleted);
+                    td.appendChild(block);
+                    tr.appendChild(td);
+                    i += spanCount;
+                } else {
+                    let td = document.createElement('td');
+                    tr.appendChild(td);
+                    i++;
+                }
+            }
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 4. MODE 2: THEO DÒNG THỜI GIAN (BẬC THANG THEO NGÀY CHẠY)
+    function renderTimelineBody(lsxList, allDates) {
+        const tbody = document.getElementById('lsxGanttTbody');
+
+        // Sắp xếp theo: Ngày bắt đầu -> Cán -> Cỡ
+        let sortedList = [...lsxList].sort((a, b) => {
+            let tA = getLocalTime(a.start_date);
+            let tB = getLocalTime(b.start_date);
+            if (tA !== tB) return tA - tB;
+            if (a.may_can !== b.may_can) return a.may_can - b.may_can;
+            return sortDiameterKey(a.duong_kinh) - sortDiameterKey(b.duong_kinh);
+        });
+
+        // Gom các lệnh chạy cùng đợt (cùng ngày & cỡ & cán)
+        let runs = [];
+        sortedList.forEach(item => {
+            let key = `${item.start_date}_${item.end_date}_${item.duong_kinh}_${item.may_can}`;
+            let existing = runs.find(r => r.key === key);
+            if (existing) {
+                existing.items.push(item);
+            } else {
+                runs.push({
+                    key: key,
+                    duong_kinh: item.duong_kinh,
+                    start_date: item.start_date,
+                    end_date: item.end_date,
+                    may_can: item.may_can,
+                    items: [item]
+                });
+            }
+        });
+
+        runs.forEach(run => {
+            run.items.forEach((item, idx) => {
+                let tr = document.createElement('tr');
+
+                // Cột Kích cỡ (Gộp ô theo đợt chạy)
+                if (idx === 0) {
+                    let tdDk = document.createElement('td');
+                    tdDk.rowSpan = run.items.length;
+                    tdDk.className = "fw-bold text-center bg-secondary text-white align-middle";
+                    tdDk.style = "width: 75px; min-width: 75px; position: sticky; left: 0; z-index: 6; border-right: 1px solid #dee2e6; font-size: 13px;";
+                    tdDk.innerText = run.duong_kinh;
+                    tr.appendChild(tdDk);
+                }
+
+                // Cột Mác Thép
+                let tdMac = document.createElement('td');
+                tdMac.className = "fw-bold text-start bg-light text-dark align-middle px-2";
+                tdMac.style = "width: 150px; min-width: 150px; position: sticky; left: 75px; z-index: 5; border-right: 2px solid #dee2e6; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;";
+                tdMac.innerText = item.mac_thep;
+                tdMac.title = item.mac_thep;
+                tr.appendChild(tdMac);
+
+                let st = getLocalTime(item.start_date);
+                let et = getLocalTime(item.end_date);
+                let i = 0;
+
+                while (i < allDates.length) {
+                    let currTime = allDates[i].getTime();
+
+                    if (currTime >= st && currTime <= et) {
+                        let spanCount = 0;
+                        for (let j = i; j < allDates.length; j++) {
+                            if (allDates[j].getTime() <= et) spanCount++;
+                            else break;
+                        }
+                        if (spanCount === 0) spanCount = 1;
+
+                        let td = document.createElement('td');
+                        td.colSpan = spanCount;
+                        td.style.padding = "3px";
+
+                        let kl_yeucau = item.san_luong_ke_hoach || 0;
+                        let kl_dasx = item.da_san_xuat || 0;
+                        let kl_conlai = item.con_lai || 0;
+                        let pct = item.percent !== undefined ? parseFloat(item.percent) : 0;
+                        let isCompleted = item.is_completed;
+                        let bgColor = isCompleted ? '#28a745' : '#fd7e14';
+                        let canLabel = `C${item.may_can || 1}`;
+
+                        let labelText = `${kl_yeucau.toLocaleString('en-US', {maximumFractionDigits: 0})} T`;
+                        if (!isCompleted) labelText += ` (${pct.toFixed(0)}%)`;
+
+                        let block = createGanttBlock(item, bgColor, canLabel, labelText, kl_yeucau, kl_dasx, kl_conlai, pct, isCompleted);
+                        td.appendChild(block);
+                        tr.appendChild(td);
+                        i += spanCount;
+                    } else {
+                        let td = document.createElement('td');
+                        tr.appendChild(td);
+                        i++;
+                    }
+                }
+                tbody.appendChild(tr);
+            });
+        });
+    }
+
+    // HELPER: TẠO BLOCK GANTT & POPOVER
+    function createGanttBlock(item, bgColor, canLabel, labelText, kl_yeucau, kl_dasx, kl_conlai, pct, isCompleted) {
+        let block = document.createElement('div');
+        block.className = "lsx-gantt-block";
+        block.style.backgroundColor = bgColor;
+        block.style.color = '#ffffff';
+        block.style.fontWeight = 'bold';
+        block.style.borderRadius = '4px';
+        block.style.padding = '5px 2px';
+        block.style.fontSize = '11px';
+        block.style.cursor = 'pointer';
+        block.style.height = '100%';
+        block.style.display = 'flex';
+        block.style.alignItems = 'center';
+        block.style.justifyContent = 'center';
+        block.style.whiteSpace = 'nowrap';
+        block.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+
+        block.innerHTML = `<span class="badge-can">[${canLabel}]</span> ${labelText}`;
+
+        block.tabIndex = 0;
+        block.setAttribute('data-bs-toggle', 'popover');
+        block.setAttribute('data-bs-trigger', 'focus');
+        block.setAttribute('data-bs-placement', 'auto');
+        block.setAttribute('data-bs-html', 'true');
+        block.setAttribute('data-bs-custom-class', 'gantt-popover');
+        block.setAttribute('title', `<strong class="text-warning"><i class="fas fa-industry"></i> ${item.mac_thep} - ${item.duong_kinh} (Cán ${item.may_can})</strong>`);
+
+        let popoverContent = `
+            <div style="font-size: 12.5px; line-height: 1.7;">
+                <strong>Số Order:</strong> <span class="text-info fw-bold">${item.so_order || '--'}</span><br>
+                <strong>Số Batch:</strong> ${item.so_batch || '--'}<br>
+                <strong>Kế hoạch:</strong> ${item.thoi_gian_du_kien || '--'}<br>
+                <hr style="margin: 6px 0; border-color: #4a5568;">
+                <strong style="color: #63b3ed;">Tiến độ sản xuất:</strong><br>
+                <span style="color: #a0aec0;">> Kế hoạch:</span> <span class="fw-bold">${kl_yeucau.toLocaleString('en-US', {maximumFractionDigits: 1})} Tấn</span><br>
+                <span style="color: #a0aec0;">> Đã cán:</span> <span class="fw-bold text-success">${kl_dasx.toLocaleString('en-US', {maximumFractionDigits: 1})} Tấn</span><br>
+                <span style="color: #a0aec0;">> Còn lại:</span> <span class="fw-bold text-warning">${kl_conlai.toLocaleString('en-US', {maximumFractionDigits: 1})} Tấn</span><br>
+                <span style="color: #a0aec0;">> Tỷ lệ:</span> <span class="fw-bold" style="color: ${isCompleted ? '#48bb78' : '#ecc94b'};">${pct.toFixed(1)}% (${isCompleted ? 'Hoàn thành' : 'Đang cán'})</span>
+            </div>
+        `;
+        block.setAttribute('data-bs-content', popoverContent);
+        return block;
+    }
+
+    // 5. FETCH VÀ KHỞI TẠO TAB LSX
+    document.addEventListener("DOMContentLoaded", function () {
+        fetch("{{ url_for('ctd_bp.get_lsx_ctd') }}")
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    originalLsxData = data.data;
+                    currentLsxFilteredData = data.data;
+
+                    const sortedDkList = [...data.filters.duong_kinh].sort((a, b) => sortDiameterKey(a) - sortDiameterKey(b));
+                    const selectDk = document.getElementById('filterLsxDuongKinh');
+                    sortedDkList.forEach(dk => {
+                        let opt = document.createElement('option');
+                        opt.value = dk; opt.innerText = dk;
+                        selectDk.appendChild(opt);
+                    });
+
+                    const selectMac = document.getElementById('filterLsxMacThep');
+                    data.filters.mac_thep.forEach(mac => {
+                        let opt = document.createElement('option');
+                        opt.value = mac; opt.innerText = mac;
+                        selectMac.appendChild(opt);
+                    });
+
+                    renderLsxGanttMatrix(originalLsxData);
+                }
+            })
+            .catch(err => console.error("Lỗi tải LSX:", err));
+
+        // SỰ KIỆN LỌC
+        document.getElementById('btnFilterLsx').addEventListener('click', function() {
+            const valTuNgay = document.getElementById('filterLsxTuNgay').value;
+            const valDenNgay = document.getElementById('filterLsxDenNgay').value;
+            const valMayCan = document.getElementById('filterLsxMayCan').value;
+            const valDk = document.getElementById('filterLsxDuongKinh').value;
+            const valMac = document.getElementById('filterLsxMacThep').value;
+            const valOrder = document.getElementById('filterLsxOrder').value.toLowerCase().trim();
+
+            let filtered = originalLsxData.filter(item => {
+                let matchCan = valMayCan === '' || String(item.may_can) === String(valMayCan);
+                let matchDk = valDk === '' || item.duong_kinh === valDk;
+                let matchMac = valMac === '' || item.mac_thep === valMac;
+                let matchOrder = valOrder === '' || 
+                    (item.so_order && item.so_order.toLowerCase().includes(valOrder)) ||
+                    (item.so_batch && item.so_batch.toLowerCase().includes(valOrder));
+
+                let matchDate = true;
+                if (valTuNgay) matchDate = matchDate && (item.end_date >= valTuNgay);
+                if (valDenNgay) matchDate = matchDate && (item.start_date <= valDenNgay);
+
+                return matchCan && matchDk && matchMac && matchOrder && matchDate;
+            });
+
+            currentLsxFilteredData = filtered;
+            renderLsxGanttMatrix(filtered);
+        });
+    });
+
+    // ==============================================================
+    // ĐIỀU HƯỚNG TAB & LƯU VÀO LOCAL STORAGE
+    // ==============================================================
+    document.addEventListener("DOMContentLoaded", function () {
+        const tonkhoTab = document.getElementById('tonkho-tab');
+        const lichtauTab = document.getElementById('lichtau-tab');
+        const xuathangTab = document.getElementById('xuathang-tab');
+        const lsxTab = document.getElementById('lsx-tab');
+
+        const uploadTonKho = document.getElementById('uploadContainerTonKho');
+        const uploadLichTau = document.getElementById('uploadContainerLichTau');
+        const uploadXuatHang = document.getElementById('uploadContainerXuatHang');
+        const uploadLSX = document.getElementById('uploadContainerLSX');
+
+        function hideAllUploads() {
+            uploadTonKho?.classList.add('d-none');
+            uploadLichTau?.classList.add('d-none');
+            uploadXuatHang?.classList.add('d-none');
+            uploadLSX?.classList.add('d-none');
+        }
+
+        tonkhoTab?.addEventListener('shown.bs.tab', function () {
+            hideAllUploads();
+            uploadTonKho?.classList.remove('d-none');
+        });
+
+        lichtauTab?.addEventListener('shown.bs.tab', function () {
+            hideAllUploads();
+            uploadLichTau?.classList.remove('d-none');
+        });
+
+        xuathangTab?.addEventListener('shown.bs.tab', function () {
+            hideAllUploads();
+            uploadXuatHang?.classList.remove('d-none');
+        });
+
+        lsxTab?.addEventListener('shown.bs.tab', function () {
+            hideAllUploads();
+            uploadLSX?.classList.remove('d-none');
+        });
+
+        const tabElements = document.querySelectorAll('button[data-bs-toggle="tab"]');
+        tabElements.forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                localStorage.setItem('activeCtdTab', event.target.id);
+            });
+        });
+
+        const activeTabId = localStorage.getItem('activeCtdTab');
+        if (activeTabId) {
+            const triggerEl = document.getElementById(activeTabId);
+            if (triggerEl) {
+                const tabInstance = new bootstrap.Tab(triggerEl);
+                tabInstance.show();
+            }
+        }
+    });
+
+    window.filterXuatHangView = function(view) {
+        document.querySelectorAll('.filter-xuat-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('btn-xuat-' + view).classList.add('active');
+        const kvTiendo = document.getElementById('khuvuc-tiendo');
+        const kvAtp = document.getElementById('khuvuc-atp');
+        if (view === 'all') {
+            kvTiendo.style.display = 'block'; kvAtp.style.display = 'block';
+        } else if (view === 'tiendo') {
+            kvTiendo.style.display = 'block'; kvAtp.style.display = 'none';
+        } else if (view === 'atp') {
+            kvTiendo.style.display = 'none'; kvAtp.style.display = 'block';
+        }
+    };
+
+    window.filterTonKhoView = function(view) {
+        document.querySelectorAll('.filter-tonkho-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('btn-tonkho-' + view).classList.add('active');
+        const kvTongQuan = document.getElementById('khuvuc-tongquan');
+        const kvSanXuat = document.getElementById('khuvuc-sanxuat');
+        const kvLoai1 = document.getElementById('khuvuc-loai1');
+        const kvLoai2 = document.getElementById('khuvuc-loai2');
+        [kvTongQuan, kvSanXuat, kvLoai1, kvLoai2].forEach(kv => kv.style.display = 'none');
+
+        if (view === 'all') {
+            kvTongQuan.style.display = 'block'; kvSanXuat.style.display = 'block'; kvLoai1.style.display = 'block'; kvLoai2.style.display = 'block';
+        } else if (view === 'tongquan') {
+            kvTongQuan.style.display = 'block';
+        } else if (view === 'sanxuat') {
+            kvSanXuat.style.display = 'block';
+        } else if (view === 'loai1') {
+            kvLoai1.style.display = 'block';
+        } else if (view === 'loai2') {
+            kvLoai2.style.display = 'block';
+        }
+    }; 
+</script>
+{% endblock %}

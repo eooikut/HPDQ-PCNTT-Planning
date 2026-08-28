@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, jsonify
 from auth.decorator import permission_required
 from db import engine
 from extensions import cache
-from sqlalchemy import text
+
 # Tạo Blueprint
 dashboard_so_bp = Blueprint("dashboard_so_bp", __name__, template_folder='../templates')
 
@@ -130,16 +130,15 @@ def get_future_plans():
         return []
 # Bảng tra dung sai chiều dày (Theo ảnh bạn cung cấp)
 THICKNESS_STD_MAP = {
-    1.2: [0.13, 0.14, 0.15], # Áp dụng cho 1.2 <= T < 1.5
-    1.5: [0.14, 0.15, 0.16], # Áp dụng cho 1.5 <= T < 1.8
-    1.8: [0.16, 0.17, 0.18], # Áp dụng cho 1.8 <= T < 2.0
-    2.0: [0.17, 0.19, 0.20], # Áp dụng cho 2.0 <= T < 2.3
-    2.3: [0.17, 0.19, 0.20], # Áp dụng cho 2.3 <= T < 3.0
-    3.0: [0.19, 0.21, 0.22], # Áp dụng cho 3.0 <= T < 4.0
-    4.0: [0.24, 0.26, 0.28], # Áp dụng cho 4.0 <= T < 5.0
-    5.0: [0.26, 0.28, 0.29], # Áp dụng cho 5.0 <= T < 8.0
-    8.0: [0.32, 0.33, 0.34], # Áp dụng cho 8.0 <= T < 12.0
-    12.0: [0.35, 0.36, 0.37] # Áp dụng cho T >= 12.0
+    1.5: [0.14, 0.15, 0.16],
+    1.8: [0.16, 0.17, 0.18],
+    2.0: [0.17, 0.19, 0.20],
+    2.3: [0.17, 0.19, 0.20],
+    3.0: [0.19, 0.21, 0.22],
+    4.0: [0.24, 0.26, 0.28],
+    5.0: [0.26, 0.28, 0.29],
+    8.0: [0.32, 0.33, 0.34],
+    12.0: [0.35, 0.36, 0.37]
 }
 
 def parse_material_desc(desc):
@@ -198,35 +197,23 @@ def _group_chieu_day(thickness):
     return "Ngoài khoảng"
 
 def get_specs_thickness(df_subset, nominal_target):
-    if not nominal_target: return None, None, nominal_target
-    try: t = float(nominal_target)
-    except: return None, None, nominal_target
-
-    avg_width = 1200
-    if not df_subset.empty:
-        if 'kho_rong_num' in df_subset.columns:
-             val = df_subset['kho_rong_num'].mean()
-             if pd.notna(val): avg_width = val
-        elif 'kho_rong' in df_subset.columns:
-             val = pd.to_numeric(df_subset['kho_rong'], errors='coerce').mean()
-             if pd.notna(val): avg_width = val
-
-    sorted_keys = sorted(THICKNESS_STD_MAP.keys())
-    selected_key = sorted_keys[0]
+    """Tính LSL/USL chiều dày dựa vào bảng tra."""
+    if df_subset.empty: return None, None, nominal_target
     
-    for k in sorted_keys:
-        if k <= t: selected_key = k
-        else: break
-            
-    tolerances_list = THICKNESS_STD_MAP[selected_key]
+    available_nominals = np.array(list(THICKNESS_STD_MAP.keys()))
+    closest_nominal = available_nominals[np.abs(available_nominals - nominal_target).argmin()]
     
-    if avg_width < 1250: tol = tolerances_list[0]
-    elif avg_width < 1500: tol = tolerances_list[1]
-    else: tol = tolerances_list[2]
+    avg_width = df_subset['kho_rong_num'].mean()
+    tolerances = THICKNESS_STD_MAP[closest_nominal]
+    
+    if avg_width < 1250: tol = tolerances[0]
+    elif avg_width < 1500: tol = tolerances[1]
+    else: tol = tolerances[2]
+        
+    lsl = round(closest_nominal - tol, 3)
+    usl = round(closest_nominal + tol, 3)
+    return lsl, usl, closest_nominal
 
-    lsl = round(t - tol, 3)
-    usl = round(t + tol, 3)
-    return lsl, usl, t
 def get_specs_width(nominal_width):
     """Tính LSL/USL khổ rộng (Asymmetric: +0/+Max)."""
     lsl = nominal_width
@@ -274,75 +261,56 @@ def dashboard_inventory():
     return render_template('dashboard_inventory.html')
 
 @dashboard_so_bp.route('/api/inventory-data')
+@cache.cached(timeout=1800) 
 def get_inventory_api():
     try:
         with engine.connect() as conn:
             # 1. SQL CHỈ LẤY TỒN KHO & CHỜ NHẬP (Bỏ khối UNION thứ 3 về 'Đã bán')
             sql_inventory = """
                 /* KHỐI 1: Sanluong - Chờ nhập kho */
-                WITH Raw_Data AS (
-                /* --- KHỐI 1: Sản lượng (Đã lọc trùng với kho) --- */
                 SELECT DISTINCT
-                                s.[ID Cuộn Bó], s.[Material Description], s.[Nhóm], s.[Vị trí], s.[Lô phôi],
-                                s.[Khối lượng], s.[Ngày sản xuất], s.Ca, s.[Order], s.Batch, s.[Mác thép],
-                                CASE WHEN s.[Tp loại 2] = '1' THEN 1 ELSE 0 END AS TpLoai2,
-                                N'Chờ nhập kho' AS TrangThai,
-                                CASE
-                                    WHEN s.[NhaMay] = N'HRC1' THEN DATEADD(DAY, 7, s.[Ngày sản xuất])
-                                    WHEN s.[NhaMay] = N'HRC2' THEN DATEADD(DAY, 8, s.[Ngày sản xuất])
-                                    ELSE DATEADD(DAY, 7, s.[Ngày sản xuất])
-                                END AS NgayDuKien,
-                                0 AS [SO Mapping],
-                                ISNULL(so_detail.[SO_Mapping], 0) AS [SO Mapping dự kiến],
-                                s.[NhaMay],
-                                2 AS NguonDuLieu 
-                            FROM sanluong s WITH (NOLOCK)
-                            LEFT JOIN tbl_SO_Allocation_Detail so_detail WITH (NOLOCK) ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
-                            WHERE s.[ID Cuộn Bó] IS NOT NULL AND s.[ID Cuộn Bó] <> ''
-                              AND (s.[Đã nhập kho] = 'No' OR s.[Đã nhập kho] IS NULL)
-                              AND NOT EXISTS (SELECT 1 FROM kho k WITH (NOLOCK) WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó])
-                              AND s.NhaMay IN (N'HRC1', N'HRC2') -- Chỉ lấy 2 nhà máy chính
-                            UNION ALL
+                    s.[ID Cuộn Bó], s.[Material Description], s.[Nhóm], s.[Vị trí], s.[Lô phôi],
+                    s.[Khối lượng], s.[Ngày sản xuất], s.Ca, s.[Order], s.Batch, s.[Mác thép],
+                    CASE WHEN s.[Tp loại 2] = 1 THEN 1 ELSE 0 END AS TpLoai2,
+                    N'Chờ nhập kho' AS TrangThai,
+                    CASE
+                        WHEN s.[NhaMay] = N'HRC1' THEN DATEADD(DAY, 7, s.[Ngày sản xuất])
+                        WHEN s.[NhaMay] = N'HRC2' THEN DATEADD(DAY, 8, s.[Ngày sản xuất])
+                        ELSE DATEADD(DAY, 7, s.[Ngày sản xuất])
+                    END AS NgayDuKien,
+                    0 AS [SO Mapping],
+                    ISNULL(so_detail.[SO_Mapping], 0) AS [SO Mapping dự kiến],
+                    s.[NhaMay]
+                FROM sanluong s
+                LEFT JOIN tbl_SO_Allocation_Detail so_detail ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
+                WHERE s.[ID Cuộn Bó] IS NOT NULL AND s.[ID Cuộn Bó] <> ''
+                  AND (s.[Đã nhập kho] = 'No' OR s.[Đã nhập kho] IS NULL)
+                  AND NOT EXISTS (SELECT 1 FROM kho k WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó])
 
-                            /* KHỐI 2: Kho - Đang tồn kho */
-                            SELECT
-                                k.[ID Cuộn Bó], k.[Material Description], k.[Nhóm], k.[Vị trí], k.[Lô phôi],
-                                k.[Khối lượng], k.[Ngày sản xuất], k.Ca, k.[Order], CAST(k.Batch AS VARCHAR(50)) AS Batch, k.[Mác thép],
-                                CASE WHEN k.[Tp loại 2] = 'X' THEN 1 ELSE 0 END AS TpLoai2,
-                                CASE
-                                    WHEN k.[SO Mapping] = 0 OR k.[SO Mapping] IS NULL THEN N'Nhập kho chưa mapping'
-                                    ELSE N'Nhập kho đã mapping'
-                                END AS TrangThai,
-                                CAST(NULL AS DATE) AS NgayDuKien,
-                                k.[SO Mapping],
-                                CASE
-                                    WHEN k.[SO Mapping] = 0 OR k.[SO Mapping] IS NULL THEN ISNULL(so_detail.[SO_Mapping], 0)
-                                    ELSE 0
-                                END AS [SO Mapping dự kiến],
-                                CASE
-                                    WHEN k.[Plant] = 1000 THEN N'HRC1'
-                                    WHEN k.[Plant] = 1600 THEN N'HRC2'
-                                    ELSE N'Khác'
-                                END AS NhaMay,
-                                1 AS NguonDuLieu
-                            FROM kho k WITH (NOLOCK)
-                            LEFT JOIN tbl_SO_Allocation_Detail so_detail WITH (NOLOCK) ON k.[ID Cuộn Bó] = so_detail.[Roll_ID]
-            ),
+                UNION ALL
 
-            /* --- BƯỚC LỌC TRÙNG (QUAN TRỌNG NHẤT) --- */
-            Deduped_Data AS (
-                SELECT *,
-                       ROW_NUMBER() OVER(
-                           PARTITION BY [ID Cuộn Bó] 
-                           ORDER BY 
-                               NguonDuLieu ASC,       -- QUAN TRỌNG: Số 1 (Kho) sẽ được xếp trước số 2 (Sanluong)
-                               [Ngày sản xuất] DESC   -- Nếu cùng nguồn (vd lỗi mapping nhân đôi dòng kho), lấy ngày mới nhất
-                       ) as rn
-                FROM Raw_Data
-            )
-            /* --- KẾT QUẢ CUỐI CÙNG --- */
-            SELECT * FROM Deduped_Data
-            WHERE rn = 1; -- Chỉ lấy dòng đầu tiên, loại bỏ dòng thứ 2, 3 trở đi
+                /* KHỐI 2: Kho - Đang tồn kho */
+                SELECT
+                    k.[ID Cuộn Bó], k.[Material Description], k.[Nhóm], k.[Vị trí], k.[Lô phôi],
+                    k.[Khối lượng], k.[Ngày sản xuất], k.Ca, k.[Order], k.Batch, k.[Mác thép],
+                    CASE WHEN k.[Tp loại 2] = 'X' THEN 1 ELSE 0 END AS TpLoai2,
+                    CASE
+                        WHEN k.[SO Mapping] = 0 OR k.[SO Mapping] IS NULL THEN N'Nhập kho chưa mapping'
+                        ELSE N'Nhập kho đã mapping'
+                    END AS TrangThai,
+                    CAST(NULL AS DATE) AS NgayDuKien,
+                    k.[SO Mapping],
+                    CASE
+                        WHEN k.[SO Mapping] = 0 OR k.[SO Mapping] IS NULL THEN ISNULL(so_detail.[SO_Mapping], 0)
+                        ELSE 0
+                    END AS [SO Mapping dự kiến],
+                    CASE
+                        WHEN k.[Plant] = 1000 THEN N'HRC1'
+                        WHEN k.[Plant] = 1600 THEN N'HRC2'
+                        ELSE N'Khác'
+                    END AS NhaMay
+                FROM kho k
+                LEFT JOIN tbl_SO_Allocation_Detail so_detail ON k.[ID Cuộn Bó] = so_detail.[Roll_ID]
             """
             coil_df = pd.read_sql(sql_inventory, conn)
 
@@ -353,7 +321,7 @@ def get_inventory_api():
                     SELECT [Material], [Sales Document], [Material Description],
                     [Shipped Quantity (KG)], [Quantity (KG)],
                     RTRIM(CASE WHEN RIGHT([Material Description], 3) = ' II' THEN LEFT([Material Description], LEN([Material Description]) - 3) ELSE [Material Description] END) AS CleanDesc
-                    FROM so WITH (NOLOCK)
+                    FROM so
                 ),
                 so_with_mac_thep AS (
                     SELECT *, CASE WHEN CHARINDEX(' ', REVERSE(CleanDesc)) = 0 THEN CleanDesc ELSE REVERSE(LEFT(REVERSE(CleanDesc), CHARINDEX(' ', REVERSE(CleanDesc)) - 1)) END AS [Mác thép]
@@ -361,16 +329,16 @@ def get_inventory_api():
                 ),
                 kho_clean AS (
                     SELECT [Order], [Material], [SO Mapping], [Material Description], [Khối lượng]
-                    FROM kho WITH (NOLOCK) WHERE [SO Mapping] IS NOT NULL AND [SO Mapping] <> '0'
+                    FROM kho WHERE [SO Mapping] IS NOT NULL AND [SO Mapping] <> '0'
                 ),
                 SO_Request_Representative AS (
                     SELECT [SO Mapping], [NHÓM] AS Representative_NHOM, ROW_NUMBER() OVER(PARTITION BY [SO Mapping] ORDER BY [Material description] ASC) as rn
-                    FROM dbo.so_request WITH (NOLOCK) WHERE [NHÓM] IS NOT NULL 
+                    FROM dbo.so_request WHERE [NHÓM] IS NOT NULL 
                 ),
                 so_request_complete AS (
                     SELECT s.[Material Description], s.[Sales Document], COALESCE(sr_direct.[NHÓM], sr_rep.Representative_NHOM) AS [NHÓM]
                     FROM (SELECT DISTINCT [Sales Document], [Material Description] FROM so_with_mac_thep) s
-                    LEFT JOIN dbo.so_request  sr_direct WITH (NOLOCK) ON s.[Sales Document] = sr_direct.[SO Mapping] AND s.[Material Description] = sr_direct.[Material description]
+                    LEFT JOIN dbo.so_request sr_direct ON s.[Sales Document] = sr_direct.[SO Mapping] AND s.[Material Description] = sr_direct.[Material description]
                     LEFT JOIN SO_Request_Representative sr_rep ON s.[Sales Document] = sr_rep.[SO Mapping] AND sr_rep.rn = 1
                 ),
                 base AS (
@@ -462,111 +430,7 @@ def get_inventory_api():
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
-def load_actual_data_from_csv():
-    try:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        csv_path = os.path.join(current_dir, 'actual_data.csv') 
-        
-        if not os.path.exists(csv_path): return pd.DataFrame()
-            
-        df_csv = pd.read_csv(csv_path)
-        df_csv = df_csv.rename(columns={'MaMau': 'ID Cuộn Bó'})
-        
-        # Chỉ giữ lại dòng có đủ 3 cột
-        cols_check = ['Thick_Min', 'Thick_Max', 'RealThick']
-        available_cols = [c for c in cols_check if c in df_csv.columns]
-        if len(available_cols) < 3: return pd.DataFrame()
 
-        df_csv = df_csv.dropna(subset=available_cols)
-        for col in available_cols:
-            df_csv[col] = pd.to_numeric(df_csv[col], errors='coerce')
-        df_csv = df_csv.dropna(subset=available_cols)
-
-        # Tính độ dày thực tế = (Min + Max) / 2
-        df_csv['DoDayThucTe'] = (df_csv['Thick_Min'] + df_csv['Thick_Max']) / 2
-        df_csv = df_csv[df_csv['DoDayThucTe'] > 0.1] # Lọc rác
-
-        # Ép kiểu ID về String để Merge chuẩn
-        df_csv['ID Cuộn Bó'] = df_csv['ID Cuộn Bó'].astype(str).str.strip()
-        
-        return df_csv[['ID Cuộn Bó', 'DoDayThucTe']]
-    except Exception as e:
-        print(f"Lỗi đọc CSV: {e}")
-        return pd.DataFrame()
-
-# --- TRONG FILE: dashboardso.py ---
-
-def calculate_cpk_summary_v2(df_coils):
-    summary_data = []
-    if 'NgayDuKien' in df_coils.columns:
-         df_coils = df_coils.sort_values(by=['Ngày sản xuất', 'ID Cuộn Bó'])
-
-    df_clean = df_coils.dropna(subset=['DoDayThucTe']).copy()
-    df_clean['DoDayThucTe'] = pd.to_numeric(df_clean['DoDayThucTe'], errors='coerce')
-    df_clean = df_clean[df_clean['DoDayThucTe'] > 0.1]
-    
-    if df_clean.empty: return []
-
-    grouped = df_clean.groupby('chieu_day', sort=False)
-    
-    for nominal_thick, group in grouped:
-        if len(group) < 5: continue 
-        
-        # Lấy Target chuẩn cho nhóm này
-        lsl, usl, target = get_specs_thickness(group, nominal_thick)
-        if lsl is None: continue
-
-        actual_vals = group['DoDayThucTe'].values
-        
-        epsilon = 1e-6 
-        
-        is_fake_default = np.abs(actual_vals - target) < epsilon
-
-        real_data_mask = ~is_fake_default
-        actual_vals = actual_vals[real_data_mask]
-        
-        if len(actual_vals) < 5: continue
-        
-        # ==============================================================================
-        
-        total_count = len(actual_vals)
-
-        # --- LỌC NGOẠI LAI (Outliers) > 0.5mm (Như cũ) ---
-        limit_scrap = 0.5
-        good_mask = np.abs(actual_vals - target) <= limit_scrap
-        good_vals = actual_vals[good_mask]
-        
-        scrap_count = total_count - len(good_vals)
-        scrap_rate = (scrap_count / total_count) * 100 if total_count > 0 else 0
-        
-        if len(good_vals) < 3: continue
-
-        mean = np.mean(good_vals)
-
-        # --- TÍNH TOÁN CPK (Moving Range) ---
-        mr_series = np.abs(np.diff(good_vals))
-        mr_bar = np.mean(mr_series)
-        d2 = 1.128
-        sigma_within = mr_bar / d2
-        
-        # Ngưỡng bảo vệ
-        if sigma_within < 0.01: sigma_within = 0.01 
-
-        cpu = (usl - mean) / (3 * sigma_within)
-        cpl = (mean - lsl) / (3 * sigma_within)
-        cpk = min(cpu, cpl)
-
-        summary_data.append({
-            "thickness": float(nominal_thick),
-            "cpk": round(cpk, 2),
-            "count": len(good_vals),
-            "scrap_count": scrap_count,
-            "scrap_rate": round(scrap_rate, 2),
-            "mean_actual": round(mean, 3)
-        })
-
-    summary_data.sort(key=lambda x: x['thickness'])
-    return summary_data
 # ==============================================================================
 @dashboard_so_bp.route('/api/capacity-data')
 @cache.cached(timeout=86400) # Cache 1 ngày theo yêu cầu
@@ -575,103 +439,78 @@ def get_capacity_api():
         with engine.connect() as conn:
             # 1. Query Toàn bộ Coils (Sanluong + Kho + Đã bán)
             sql_coils_full = """ 
-                WITH AllData AS (
-                -- Chạy câu lệnh của bạn
                 SELECT 
-                    s.[ID Cuộn Bó], s.[Material Description], s.[Nhóm], s.[Vị trí], s.[Lô phôi],
-                    s.[Khối lượng], s.[Ngày sản xuất], s.Ca, s.[Order], s.Batch, s.[Mác thép],
-                    CASE WHEN s.[Tp loại 2] = '1' THEN 1 ELSE 0 END AS TpLoai2,
-                    N'Chờ nhập kho' AS TrangThai,
-                    CASE
-                        WHEN s.[NhaMay] = N'HRC1' THEN DATEADD(DAY, 7, s.[Ngày sản xuất])
-                        WHEN s.[NhaMay] = N'HRC2' THEN DATEADD(DAY, 8, s.[Ngày sản xuất])
-                        ELSE DATEADD(DAY, 7, s.[Ngày sản xuất])
-                    END AS NgayDuKien,
-                    0 AS [SO Mapping],
-                    ISNULL(so_detail.[SO_Mapping], 0) AS [SO Mapping dự kiến],
-                    s.[NhaMay]
-                FROM sanluong s WITH (NOLOCK)
-                LEFT JOIN tbl_SO_Allocation_Detail so_detail WITH (NOLOCK) ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
-                WHERE
-                    s.[ID Cuộn Bó] IS NOT NULL AND s.[ID Cuộn Bó] <> ''
-                    AND (s.[Đã nhập kho] = 'No' OR s.[Đã nhập kho] IS NULL) -- Điều kiện chưa nhập
-                    AND NOT EXISTS (SELECT 1 FROM kho k WITH (NOLOCK) WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó])
-                    AND s.NhaMay IN (N'HRC1', N'HRC2') -- Chỉ lấy 2 nhà máy chính
-                UNION ALL
+    s.[ID Cuộn Bó], s.[Material Description], s.[Nhóm], s.[Vị trí], s.[Lô phôi],
+    s.[Khối lượng], s.[Ngày sản xuất], s.Ca, s.[Order], s.Batch, s.[Mác thép],
+    CASE WHEN s.[Tp loại 2] = 1 THEN 1 ELSE 0 END AS TpLoai2,
+    N'Chờ nhập kho' AS TrangThai,
+    CASE
+        WHEN s.[NhaMay] = N'HRC1' THEN DATEADD(DAY, 7, s.[Ngày sản xuất])
+        WHEN s.[NhaMay] = N'HRC2' THEN DATEADD(DAY, 8, s.[Ngày sản xuất])
+        ELSE DATEADD(DAY, 7, s.[Ngày sản xuất])
+    END AS NgayDuKien,
+    0 AS [SO Mapping],
+    ISNULL(so_detail.[SO_Mapping], 0) AS [SO Mapping dự kiến],
+    s.[NhaMay]
+FROM sanluong s
+LEFT JOIN tbl_SO_Allocation_Detail so_detail ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
+WHERE
+    s.[ID Cuộn Bó] IS NOT NULL AND s.[ID Cuộn Bó] <> ''
+    AND (s.[Đã nhập kho] = 'No' OR s.[Đã nhập kho] IS NULL) -- Điều kiện chưa nhập
+    AND NOT EXISTS (SELECT 1 FROM kho k WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó])
 
-                /* KHỐI 2: Kho - Đang tồn kho */
-                SELECT
-                    k.[ID Cuộn Bó], k.[Material Description], k.[Nhóm], k.[Vị trí], k.[Lô phôi],
-                    k.[Khối lượng], k.[Ngày sản xuất], k.Ca, k.[Order], CAST(k.Batch AS VARCHAR(50)) AS Batch, k.[Mác thép],
-                    CASE WHEN k.[Tp loại 2] = 'X' THEN 1 ELSE 0 END AS TpLoai2,
-                    CASE
-                        WHEN k.[SO Mapping] = 0 OR k.[SO Mapping] IS NULL THEN N'Nhập kho chưa mapping'
-                        ELSE N'Nhập kho đã mapping'
-                    END AS TrangThai,
-                    CAST(NULL AS DATE) AS NgayDuKien,
-                    k.[SO Mapping],
-                    CASE
-                        WHEN k.[SO Mapping] = 0 OR k.[SO Mapping] IS NULL THEN ISNULL(so_detail.[SO_Mapping], 0)
-                        ELSE 0
-                    END AS [SO Mapping dự kiến],
-                    CASE
-                        WHEN k.[Plant] = 1000 THEN N'HRC1'
-                        WHEN k.[Plant] = 1600 THEN N'HRC2'
-                        ELSE N'Khác'
-                    END AS NhaMay
-                FROM kho k WITH (NOLOCK)
-                LEFT JOIN tbl_SO_Allocation_Detail so_detail WITH (NOLOCK) ON k.[ID Cuộn Bó] = so_detail.[Roll_ID]
+UNION ALL
 
-                UNION ALL
+/* KHỐI 2: Kho - Đang tồn kho */
+SELECT
+    k.[ID Cuộn Bó], k.[Material Description], k.[Nhóm], k.[Vị trí], k.[Lô phôi],
+    k.[Khối lượng], k.[Ngày sản xuất], k.Ca, k.[Order], k.Batch, k.[Mác thép],
+    CASE WHEN k.[Tp loại 2] = 'X' THEN 1 ELSE 0 END AS TpLoai2,
+    CASE
+        WHEN k.[SO Mapping] = 0 OR k.[SO Mapping] IS NULL THEN N'Nhập kho chưa mapping'
+        ELSE N'Nhập kho đã mapping'
+    END AS TrangThai,
+    CAST(NULL AS DATE) AS NgayDuKien,
+    k.[SO Mapping],
+    CASE
+        WHEN k.[SO Mapping] = 0 OR k.[SO Mapping] IS NULL THEN ISNULL(so_detail.[SO_Mapping], 0)
+        ELSE 0
+    END AS [SO Mapping dự kiến],
+    CASE
+        WHEN k.[Plant] = 1000 THEN N'HRC1'
+        WHEN k.[Plant] = 1600 THEN N'HRC2'
+        ELSE N'Khác'
+    END AS NhaMay
+FROM kho k
+LEFT JOIN tbl_SO_Allocation_Detail so_detail ON k.[ID Cuộn Bó] = so_detail.[Roll_ID]
 
-                /* KHỐI 3: Sanluong - Đã bán (Các cuộn còn lại) */
-                SELECT 
-                    s.[ID Cuộn Bó], s.[Material Description], s.[Nhóm], s.[Vị trí], s.[Lô phôi],
-                    s.[Khối lượng], s.[Ngày sản xuất], s.Ca, s.[Order], s.Batch, s.[Mác thép],
-                    CASE WHEN s.[Tp loại 2] = 1 THEN 1 ELSE 0 END AS TpLoai2,
-                    N'Đã bán' AS TrangThai, -- Gán trạng thái Đã bán
-                    CAST(NULL AS DATE) AS NgayDuKien, -- Đã bán thì không cần ngày dự kiến nhập kho nữa
-                    0 AS [SO Mapping],
-                    ISNULL(so_detail.[SO_Mapping], 0) AS [SO Mapping dự kiến],
-                    s.[NhaMay]
-                FROM sanluong s WITH (NOLOCK)
-                LEFT JOIN tbl_SO_Allocation_Detail so_detail WITH (NOLOCK) ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
-                WHERE
-                    s.[ID Cuộn Bó] IS NOT NULL AND s.[ID Cuộn Bó] <> ''
-                    AND s.[Đã nhập kho] = 'Yes' -- Lấy các cuộn ĐÃ nhập kho (ngược với khối 1)
-                    AND NOT EXISTS (SELECT 1 FROM kho k WITH (NOLOCK) WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó]) 
-                    AND s.NhaMay IN (N'HRC1', N'HRC2') -- Nhưng hiện KHÔNG còn trong kho (ngược với khối 2)
-                )
-                SELECT 
-                [ID Cuộn Bó], 
-                [Material Description], 
-                [Khối lượng], 
-                [Ngày sản xuất], 
-                [Mác thép], 
-                [NhaMay],
-                [TrangThai]
-            FROM AllData
-            ORDER BY [Ngày sản xuất] DESC, [ID Cuộn Bó]
+UNION ALL
+
+/* KHỐI 3: Sanluong - Đã bán (Các cuộn còn lại) */
+SELECT 
+    s.[ID Cuộn Bó], s.[Material Description], s.[Nhóm], s.[Vị trí], s.[Lô phôi],
+    s.[Khối lượng], s.[Ngày sản xuất], s.Ca, s.[Order], s.Batch, s.[Mác thép],
+    CASE WHEN s.[Tp loại 2] = 1 THEN 1 ELSE 0 END AS TpLoai2,
+    N'Đã bán' AS TrangThai, -- Gán trạng thái Đã bán
+    CAST(NULL AS DATE) AS NgayDuKien, -- Đã bán thì không cần ngày dự kiến nhập kho nữa
+    0 AS [SO Mapping],
+    ISNULL(so_detail.[SO_Mapping], 0) AS [SO Mapping dự kiến],
+    s.[NhaMay]
+FROM sanluong s
+LEFT JOIN tbl_SO_Allocation_Detail so_detail ON s.[ID Cuộn Bó] = so_detail.[Roll_ID]
+WHERE
+    s.[ID Cuộn Bó] IS NOT NULL AND s.[ID Cuộn Bó] <> ''
+    AND s.[Đã nhập kho] = 'Yes' -- Lấy các cuộn ĐÃ nhập kho (ngược với khối 1)
+    AND NOT EXISTS (SELECT 1 FROM kho k WHERE k.[ID Cuộn Bó] = s.[ID Cuộn Bó]) -- Nhưng hiện KHÔNG còn trong kho (ngược với khối 2)
             """
             coil_df = pd.read_sql(sql_coils_full, conn)
-            if not coil_df.empty:
-                # 1. Ép kiểu ID SQL về chuỗi
-                coil_df['ID Cuộn Bó'] = coil_df['ID Cuộn Bó'].astype(str).str.strip()
 
-                # 2. Load CSV (Đã được ép kiểu trong hàm load)
-                df_actual = load_actual_data_from_csv()
-                
-                if not df_actual.empty:
-                    # 3. Merge (Left Join để giữ đủ dữ liệu SQL)
-                    coil_df = pd.merge(coil_df, df_actual, on='ID Cuộn Bó', how='left')
-                else:
-                    coil_df['DoDayThucTe'] = None
             # 2. Query SO Overview
             sql_so_full = """
                 SELECT [Material Description], [Quantity (KG)], [Document Date],
                 CASE WHEN [Factory] LIKE N'%Hòa Phát Dung Quất 2%' THEN 'HRC2' ELSE 'HRC1' END AS [Factory],
                 [Sales Document], [Material]
-                FROM so WITH (NOLOCK)
+                FROM so
             """
             so_df = pd.read_sql(sql_so_full, conn)
 
@@ -764,152 +603,13 @@ def get_capacity_api():
 
             # 4. Clean Future Data lần cuối (Safety check)
             future_data = clean_list_data(future_data)
-            cpk_summary = calculate_cpk_summary_v2(coil_df)
             return jsonify({
                 "coils": coils_records,
                 "sales_orders": so_records,
                 "future_plans": future_data,
-                "monthly_stats": monthly_chart_data,
-                "cpk_by_thickness": cpk_summary
+                "monthly_stats": monthly_chart_data
             })
 
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
-# [THÊM VÀO CUỐI FILE dashboardso.py]
-from flask import request
-
-# [CẬP NHẬT dashboardso.py]
-# Thêm import nếu chưa có
-
-
-@dashboard_so_bp.route('/api/calculate-adhoc-cpk', methods=['POST'])
-def calculate_adhoc_cpk():
-    try:
-        data = request.json
-        factory = data.get('factory')
-        grade = data.get('grade')
-        items = data.get('items', [])
-
-        if not items or not factory or not grade:
-            return jsonify({'status': 'error', 'msg': 'Thiếu thông tin đầu vào'})
-
-        # 1. Load data đo thực tế
-        df_actual = load_actual_data_from_csv()
-        if df_actual.empty:
-            return jsonify({'status': 'ok', 'results': [{'cpk': None, 'msg': 'Thiếu file CSV'}] * len(items)})
-
-        # 2. Query Lịch sử (Giữ nguyên logic query của bạn)
-        sql = """
-            WITH CleanData AS (
-                SELECT 
-                    [ID Cuộn Bó], 
-                    [Material Description],
-                    RTRIM(CASE 
-                        WHEN RIGHT([Material Description], 3) = ' II' THEN LEFT([Material Description], LEN([Material Description]) - 3) 
-                        ELSE [Material Description] 
-                    END) AS CleanDesc
-                FROM sanluong WITH (NOLOCK)
-                WHERE [NhaMay] = :factory 
-                  AND [Ngày sản xuất] >= DATEADD(MONTH, -6, GETDATE())
-                  AND [Material Description] IS NOT NULL
-            ),
-            ParsedData AS (
-                SELECT 
-                    [ID Cuộn Bó], 
-                    [Material Description],
-                    CASE 
-                        WHEN CHARINDEX(' ', REVERSE(CleanDesc)) = 0 THEN CleanDesc 
-                        ELSE REVERSE(LEFT(REVERSE(CleanDesc), CHARINDEX(' ', REVERSE(CleanDesc)) - 1)) 
-                    END AS ParsedGrade
-                FROM CleanData
-            )
-            SELECT [ID Cuộn Bó], [Material Description]
-            FROM ParsedData
-            WHERE ParsedGrade = :grade
-        """
-        
-        with engine.connect() as conn:
-            df_hist = pd.read_sql(text(sql), conn, params={'factory': factory, 'grade': grade})
-
-        if df_hist.empty:
-             return jsonify({'status': 'ok', 'results': [{'cpk': None, 'msg': 'Không có lịch sử SX mác này'}] * len(items)})
-
-        # 3. Merge & Clean Data
-        df_hist['ID Cuộn Bó'] = df_hist['ID Cuộn Bó'].astype(str).str.strip()
-        
-        # Merge dữ liệu
-        df_merged = pd.merge(df_hist, df_actual, on='ID Cuộn Bó', how='inner')
-        
-        # --- [FIX LỖI QUAN TRỌNG TẠI ĐÂY] ---
-        if df_merged.empty:
-            return jsonify({'status': 'ok', 'results': [{'cpk': None, 'msg': 'Có SX nhưng chưa có dữ liệu đo (CSV)'}] * len(items)})
-            
-        # Parse kích thước an toàn hơn bằng cách tạo DataFrame riêng rồi concat
-        parsed_data = df_merged['Material Description'].apply(lambda x: pd.Series(parse_material_desc(x)))
-        parsed_data.columns = ['h_thick', 'h_width']
-        df_merged = pd.concat([df_merged, parsed_data], axis=1)
-
-        # Chuyển đổi kiểu dữ liệu
-        df_merged['h_thick'] = pd.to_numeric(df_merged['h_thick'], errors='coerce')
-        df_merged['h_width'] = pd.to_numeric(df_merged['h_width'], errors='coerce')
-
-        results = []
-        
-        # 4. Tính toán Simulation (Giữ nguyên logic Monte Carlo)
-        for item in items:
-            try:
-                t_target = float(item['thick'])
-                w_target = float(item['width'])
-                mass_input = float(item.get('mass', 0))
-                
-                subset = df_merged[
-                    (df_merged['h_thick'] >= t_target - 0.15) & 
-                    (df_merged['h_thick'] <= t_target + 0.15) &
-                    (df_merged['h_width'] >= w_target - 100) &
-                    (df_merged['h_width'] <= w_target + 100)
-                ]
-
-                if len(subset) < 5:
-                    results.append({'cpk': None, 'msg': f'Mẫu quá ít ({len(subset)})'})
-                    continue
-
-                vals = subset['DoDayThucTe'].dropna().values
-                hist_mean = np.mean(vals)
-                hist_std = np.std(vals)
-                lsl, usl, _ = get_specs_thickness(subset, t_target)
-                
-                if hist_std == 0 or lsl is None:
-                    results.append({'cpk': None, 'msg': 'Lỗi thống kê'})
-                    continue
-
-                # Monte Carlo Simulation
-                simulated_vals = np.random.normal(hist_mean, hist_std, 5000)
-                sim_mean = np.mean(simulated_vals)
-                sim_std = np.std(simulated_vals)
-
-                cpu = (usl - sim_mean) / (3 * sim_std)
-                cpl = (sim_mean - lsl) / (3 * sim_std)
-                cpk = min(cpu, cpl)
-
-                fail_count = np.sum((simulated_vals < lsl) | (simulated_vals > usl))
-                fail_rate = fail_count / 5000
-                expected_scrap = mass_input * fail_rate
-
-                results.append({
-                    'cpk': round(cpk, 2),
-                    'mean': round(sim_mean, 3),
-                    'count': len(vals),
-                    'fail_rate_pct': round(fail_rate * 100, 2),
-                    'expected_scrap': round(expected_scrap, 0)
-                })
-
-            except Exception as e:
-                print(f"Lỗi tính item: {e}")
-                results.append({'cpk': None, 'msg': 'Lỗi tính toán'})
-
-        return jsonify({'status': 'ok', 'results': results})
-
-    except Exception as e:
-        print(traceback.format_exc())
-        return jsonify({'status': 'error', 'msg': str(e)}), 500

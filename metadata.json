@@ -2892,1227 +2892,195 @@
     "file": "uploads/temp_9b4a6f4b-f2bc-469c-a0a3-f68d987dc50f/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(82).xlsx"
   },
   {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(86).xlsx",
-    "uploaded_at": "2026-04-10 13:57:40",
-    "file": "uploads/temp_96afd37a-fcbb-4cf3-96a7-107cb098883a/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(86).xlsx"
+    "type": "donhangchitiet",
+    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
+    "uploaded_at": "2026-05-21 15:08:38",
+    "file": "uploads/temp_7f8e1b6b-43d4-4a1d-8d58-68684803167d/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
   },
   {
     "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(88).xlsx",
-    "uploaded_at": "2026-04-10 13:57:57",
-    "file": "uploads/temp_f3b4f18d-4cc3-4760-b177-cc2c242dfaa0/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(88).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(84).xlsx",
-    "uploaded_at": "2026-04-10 13:58:01",
-    "file": "uploads/temp_f3b4f18d-4cc3-4760-b177-cc2c242dfaa0/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(84).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(87).xlsx",
-    "uploaded_at": "2026-04-14 07:43:55",
-    "file": "uploads/temp_59d85799-4a7b-4fc4-a1a9-9b929fe05d8b/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(87).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(89).xlsx",
-    "uploaded_at": "2026-04-14 07:44:14",
-    "file": "uploads/temp_1b5de469-cd32-4b6e-abce-97b2cf2472d4/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(89).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(85).xlsx",
-    "uploaded_at": "2026-04-14 07:44:18",
-    "file": "uploads/temp_1b5de469-cd32-4b6e-abce-97b2cf2472d4/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(85).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(87).xlsx",
-    "uploaded_at": "2026-04-14 07:44:59",
-    "file": "uploads/temp_896559b9-c12f-4c64-8632-2336f86bb947/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(87).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(87).xlsx",
-    "uploaded_at": "2026-04-14 13:11:52",
-    "file": "uploads/temp_512c61fa-9dcd-487f-b769-851c1571e1f5/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(87).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(85).xlsx",
-    "uploaded_at": "2026-04-14 13:12:20",
-    "file": "uploads/temp_5715bac1-30c3-4277-9095-31f4d90fcd3f/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(85).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(89).xlsx",
-    "uploaded_at": "2026-04-14 13:12:24",
-    "file": "uploads/temp_5715bac1-30c3-4277-9095-31f4d90fcd3f/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(89).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(91).xlsx",
-    "uploaded_at": "2026-04-16 07:22:56",
-    "file": "uploads/temp_62de6ed3-d56a-4d48-931b-509b3c2f06f0/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(91).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(94).xlsx",
-    "uploaded_at": "2026-04-16 07:23:27",
-    "file": "uploads/temp_f408e6c6-c741-48e1-896a-c3afc5635eaf/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(94).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(89).xlsx",
-    "uploaded_at": "2026-04-16 07:23:31",
-    "file": "uploads/temp_f408e6c6-c741-48e1-896a-c3afc5635eaf/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(89).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(91).xlsx",
-    "uploaded_at": "2026-04-16 07:49:36",
-    "file": "uploads/temp_4f566b21-8fa0-41b0-af67-16c63cd07886/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(91).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(92).xlsx",
-    "uploaded_at": "2026-04-16 08:11:19",
-    "file": "uploads/temp_4e97e9dc-8b7f-46c9-84d3-d799f067fa4c/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(92).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(93).xlsx",
-    "uploaded_at": "2026-04-17 07:25:23",
-    "file": "uploads/temp_351b921e-b497-428a-864c-f00838bd36b6/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(93).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(91).xlsx",
-    "uploaded_at": "2026-04-17 07:25:41",
-    "file": "uploads/temp_eb4c5202-5def-42b1-b10e-9a8566e8308c/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(91).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(95).xlsx",
-    "uploaded_at": "2026-04-17 07:25:45",
-    "file": "uploads/temp_eb4c5202-5def-42b1-b10e-9a8566e8308c/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(95).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(94).xlsx",
-    "uploaded_at": "2026-04-17 16:16:43",
-    "file": "uploads/temp_39d2f1a9-911e-4c6d-ad95-d2b23c6605e1/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(94).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(97).xlsx",
-    "uploaded_at": "2026-04-17 16:17:02",
-    "file": "uploads/temp_cd32531e-4026-4ca7-9946-e7b639141441/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(97).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(93).xlsx",
-    "uploaded_at": "2026-04-17 16:17:06",
-    "file": "uploads/temp_cd32531e-4026-4ca7-9946-e7b639141441/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(93).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(95).xlsx",
-    "uploaded_at": "2026-04-18 09:46:01",
-    "file": "uploads/temp_ab490a0d-b6ef-4791-9179-041d9818dfd0/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(95).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(94).xlsx",
-    "uploaded_at": "2026-04-18 09:46:15",
-    "file": "uploads/temp_b0fcefdb-634a-4993-a9d4-df6bc9bb55e6/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(94).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(98).xlsx",
-    "uploaded_at": "2026-04-18 09:46:19",
-    "file": "uploads/temp_b0fcefdb-634a-4993-a9d4-df6bc9bb55e6/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(98).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(96).xlsx",
-    "uploaded_at": "2026-04-20 07:55:47",
-    "file": "uploads/temp_11965300-50a5-44d0-ac07-4f1b7738407d/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(96).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(99).xlsx",
-    "uploaded_at": "2026-04-20 07:56:02",
-    "file": "uploads/temp_7ae796ef-0abf-4f83-9a09-e1ab5d5a3dbe/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(99).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(95).xlsx",
-    "uploaded_at": "2026-04-20 07:56:06",
-    "file": "uploads/temp_7ae796ef-0abf-4f83-9a09-e1ab5d5a3dbe/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(95).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(96).xlsx",
-    "uploaded_at": "2026-04-21 07:38:36",
-    "file": "uploads/temp_ed001a29-1a61-4930-82ae-ec7a17cba47b/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(96).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(95).xlsx",
-    "uploaded_at": "2026-04-21 07:38:54",
-    "file": "uploads/temp_4c7c99f7-aced-48a9-b888-a2352c01849e/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(95).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(99).xlsx",
-    "uploaded_at": "2026-04-21 07:38:58",
-    "file": "uploads/temp_4c7c99f7-aced-48a9-b888-a2352c01849e/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(99).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(96).xlsx",
-    "uploaded_at": "2026-04-21 07:42:43",
-    "file": "uploads/temp_0b1e65a1-c17d-4276-9450-6342db6c9d62/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(96).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(95).xlsx",
-    "uploaded_at": "2026-04-21 07:43:01",
-    "file": "uploads/temp_3d5f9fcb-77de-443d-8850-0e12b6aa032f/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(95).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(99).xlsx",
-    "uploaded_at": "2026-04-21 07:43:05",
-    "file": "uploads/temp_3d5f9fcb-77de-443d-8850-0e12b6aa032f/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(99).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(98).xlsx",
-    "uploaded_at": "2026-04-21 13:30:51",
-    "file": "uploads/temp_04f81050-2170-4fe3-a7bb-cf061dcaa80d/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(98).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(97).xlsx",
-    "uploaded_at": "2026-04-21 13:31:26",
-    "file": "uploads/temp_6efc6878-3386-4726-9555-fba3d57b6522/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(97).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-21T132503.309.xlsx",
-    "uploaded_at": "2026-04-21 13:31:29",
-    "file": "uploads/temp_6efc6878-3386-4726-9555-fba3d57b6522/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-21T132503.309.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(76).xlsx",
-    "uploaded_at": "2026-04-22 08:04:24",
-    "file": "uploads/temp_c8927673-1913-48cb-810c-116c126895b9/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(76).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(75).xlsx",
-    "uploaded_at": "2026-04-22 08:04:43",
-    "file": "uploads/temp_ab2ad638-c412-410f-86bf-b0f82b9d3358/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(75).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(77).xlsx",
-    "uploaded_at": "2026-04-22 08:04:47",
-    "file": "uploads/temp_ab2ad638-c412-410f-86bf-b0f82b9d3358/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(77).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(75).xlsx",
-    "uploaded_at": "2026-04-22 08:09:08",
-    "file": "uploads/temp_b0e966dd-a3af-435b-a976-6894cbef3e78/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(75).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(77).xlsx",
-    "uploaded_at": "2026-04-22 08:09:13",
-    "file": "uploads/temp_b0e966dd-a3af-435b-a976-6894cbef3e78/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(77).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(99).xlsx",
-    "uploaded_at": "2026-04-22 14:09:42",
-    "file": "uploads/temp_ea17c37e-db48-4ee7-a353-0a6c979acc9e/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(99).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(98).xlsx",
-    "uploaded_at": "2026-04-22 14:10:13",
-    "file": "uploads/temp_33f397c6-c6af-4910-aaf5-95c7b0861fa3/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(98).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-22T140725.551.xlsx",
-    "uploaded_at": "2026-04-22 14:10:17",
-    "file": "uploads/temp_33f397c6-c6af-4910-aaf5-95c7b0861fa3/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-22T140725.551.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(100).xlsx",
-    "uploaded_at": "2026-04-23 07:38:54",
-    "file": "uploads/temp_bd4d4ab2-f726-4802-b453-2379494b0d59/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(100).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-23T073345.395.xlsx",
-    "uploaded_at": "2026-04-23 07:39:14",
-    "file": "uploads/temp_d8490f1a-b2a3-475b-ab21-417e25e72e77/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-23T073345.395.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(99).xlsx",
-    "uploaded_at": "2026-04-23 07:39:18",
-    "file": "uploads/temp_d8490f1a-b2a3-475b-ab21-417e25e72e77/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(99).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_-_2026-04-24T133057.396.xlsx",
-    "uploaded_at": "2026-04-24 13:31:44",
-    "file": "uploads/temp_bc462ae6-4df3-4145-939b-9787bb2d2de9/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_-_2026-04-24T133057.396.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_-_2026-04-24T133109.679.xlsx",
-    "uploaded_at": "2026-04-24 13:32:04",
-    "file": "uploads/temp_ee3fcb21-223e-479f-bfa5-247433c29da4/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_-_2026-04-24T133109.679.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-24T133109.231.xlsx",
-    "uploaded_at": "2026-04-24 13:32:07",
-    "file": "uploads/temp_ee3fcb21-223e-479f-bfa5-247433c29da4/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-24T133109.231.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_-_2026-04-27T073341.781.xlsx",
-    "uploaded_at": "2026-04-27 07:34:55",
-    "file": "uploads/temp_5c287bb6-93bd-4382-9b06-475cdb46cc2c/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_-_2026-04-27T073341.781.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-27T073333.028.xlsx",
-    "uploaded_at": "2026-04-27 07:35:14",
-    "file": "uploads/temp_6a09909c-4592-49d1-8933-2cfd61f015c9/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-27T073333.028.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_-_2026-04-27T073323.767.xlsx",
-    "uploaded_at": "2026-04-27 07:35:18",
-    "file": "uploads/temp_6a09909c-4592-49d1-8933-2cfd61f015c9/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_-_2026-04-27T073323.767.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(99).xlsx",
-    "uploaded_at": "2026-04-28 07:23:29",
-    "file": "uploads/temp_0489ec4f-70a9-4bdb-94cc-bc5f524273ea/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(99).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(98).xlsx",
-    "uploaded_at": "2026-04-28 07:27:26",
-    "file": "uploads/temp_b340ea00-f8e3-4460-b7a6-0168bd7ace7a/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(98).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-28T072243.487.xlsx",
-    "uploaded_at": "2026-04-28 07:27:30",
-    "file": "uploads/temp_b340ea00-f8e3-4460-b7a6-0168bd7ace7a/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-28T072243.487.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(100).xlsx",
-    "uploaded_at": "2026-04-29 07:26:46",
-    "file": "uploads/temp_b5c42c92-59a1-403d-a93f-771f388f2b55/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(100).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_-_2026-04-29T072400.210.xlsx",
-    "uploaded_at": "2026-04-29 07:27:00",
-    "file": "uploads/temp_bb6a7104-455b-48ff-8547-2c2587463dbc/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_-_2026-04-29T072400.210.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-29T072342.550.xlsx",
-    "uploaded_at": "2026-04-29 07:27:03",
-    "file": "uploads/temp_bb6a7104-455b-48ff-8547-2c2587463dbc/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-04-29T072342.550.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(100).xlsx",
-    "uploaded_at": "2026-05-04 07:33:11",
-    "file": "uploads/temp_2da485b8-508c-4889-a155-ffdba8609d16/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_(100).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_-_2026-05-04T073154.453.xlsx",
-    "uploaded_at": "2026-05-04 07:33:25",
-    "file": "uploads/temp_84388315-e072-4f43-b2f5-4c9b19a48a18/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_-_2026-05-04T073154.453.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-05-04T073139.892.xlsx",
-    "uploaded_at": "2026-05-04 07:33:28",
-    "file": "uploads/temp_84388315-e072-4f43-b2f5-4c9b19a48a18/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-05-04T073139.892.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_-_2026-05-04T130126.993.xlsx",
-    "uploaded_at": "2026-05-04 13:02:52",
-    "file": "uploads/temp_2a7ca243-ad8b-457c-8a89-4b93a3916c15/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_-_2026-05-04T130126.993.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_-_2026-05-04T130208.049.xlsx",
-    "uploaded_at": "2026-05-04 13:03:08",
-    "file": "uploads/temp_44d3b77a-4066-4021-86fd-19ba1c331e79/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_-_2026-05-04T130208.049.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-05-04T130150.422.xlsx",
-    "uploaded_at": "2026-05-04 13:03:11",
-    "file": "uploads/temp_44d3b77a-4066-4021-86fd-19ba1c331e79/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-05-04T130150.422.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_-_2026-05-05T130754.429.xlsx",
-    "uploaded_at": "2026-05-05 13:11:31",
-    "file": "uploads/temp_753a6294-9812-4af9-ac06-abc30170d92e/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_-_2026-05-05T130754.429.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-06 09:40:15",
-    "file": "uploads/temp_1a0b319b-138f-4f71-9428-a2d9885441fc/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_-_2026-05-06T133105.652.xlsx",
-    "uploaded_at": "2026-05-06 13:33:08",
-    "file": "uploads/temp_adbf267c-0991-4731-807d-c4d81a984d5d/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_-_2026-05-06T133105.652.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4)_(1).xlsx",
-    "uploaded_at": "2026-05-06 13:35:31",
-    "file": "uploads/temp_5816347e-a928-4045-80b8-db7e40f55c94/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4)_(1).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-05-06T133114.261.xlsx",
-    "uploaded_at": "2026-05-06 13:35:34",
-    "file": "uploads/temp_5816347e-a928-4045-80b8-db7e40f55c94/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-05-06T133114.261.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_-_2026-05-08T074108.788.xlsx",
-    "uploaded_at": "2026-05-08 08:05:22",
-    "file": "uploads/temp_3af9665e-3a21-4ec1-81ea-03f229aaf364/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25_-_2026-05-08T074108.788.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4)_(2).xlsx",
-    "uploaded_at": "2026-05-08 08:06:13",
-    "file": "uploads/temp_0b57318a-3556-4109-a027-b7fba425b52c/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4)_(2).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-05-08T074115.330.xlsx",
-    "uploaded_at": "2026-05-08 08:06:16",
-    "file": "uploads/temp_0b57318a-3556-4109-a027-b7fba425b52c/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_-_2026-05-08T074115.330.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-11 08:15:09",
-    "file": "uploads/temp_b4562ee9-87e6-4960-8863-3a6baba75b40/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
+    "uploaded_at": "2026-05-21 15:11:44",
+    "file": "uploads/temp_735f78a1-7d56-4993-b2a8-0d98c7c22816/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx",
-    "uploaded_at": "2026-05-11 08:17:31",
-    "file": "uploads/temp_7725cc3d-9215-4042-919f-9db3e49c5533/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx"
+    "uploaded_at": "2026-05-21 15:11:47",
+    "file": "uploads/temp_735f78a1-7d56-4993-b2a8-0d98c7c22816/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-11 08:17:34",
-    "file": "uploads/temp_7725cc3d-9215-4042-919f-9db3e49c5533/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-11 13:36:31",
-    "file": "uploads/temp_4596af76-734e-46ba-9151-c0d277ce981e/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-11 13:36:49",
-    "file": "uploads/temp_0191cf30-95a1-49d6-ab06-cb7f161df3d1/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
+    "uploaded_at": "2026-05-21 15:20:41",
+    "file": "uploads/temp_4bdd7425-37fd-4e3c-b703-4d806b3b467f/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx",
-    "uploaded_at": "2026-05-11 13:36:52",
-    "file": "uploads/temp_0191cf30-95a1-49d6-ab06-cb7f161df3d1/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-12 07:32:39",
-    "file": "uploads/temp_5ef2aa9e-a9fd-4eab-a286-df9359311230/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx",
-    "uploaded_at": "2026-05-12 07:32:59",
-    "file": "uploads/temp_da8b6856-579c-4f08-9c74-0c3a096c55c2/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx"
+    "uploaded_at": "2026-05-21 15:20:44",
+    "file": "uploads/temp_4bdd7425-37fd-4e3c-b703-4d806b3b467f/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-12 07:33:02",
-    "file": "uploads/temp_da8b6856-579c-4f08-9c74-0c3a096c55c2/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-13 07:17:24",
-    "file": "uploads/temp_ec58b4fa-45e3-4fb6-9d27-01338f7669e9/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx",
-    "uploaded_at": "2026-05-13 07:17:43",
-    "file": "uploads/temp_7c39c07b-5894-4477-b887-f55415a2e99f/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-13 07:17:46",
-    "file": "uploads/temp_7c39c07b-5894-4477-b887-f55415a2e99f/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-14 10:44:14",
-    "file": "uploads/temp_8bcdb08f-7daa-4473-a8b9-65c7cc579779/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx",
-    "uploaded_at": "2026-05-14 10:44:17",
-    "file": "uploads/temp_8bcdb08f-7daa-4473-a8b9-65c7cc579779/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-14 13:58:12",
-    "file": "uploads/temp_c83a0136-9023-4535-821f-45178767e9ca/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx",
-    "uploaded_at": "2026-05-14 13:58:30",
-    "file": "uploads/temp_14a6ba03-e611-4beb-9ecc-ba66f0f6a7dc/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-14 13:58:32",
-    "file": "uploads/temp_14a6ba03-e611-4beb-9ecc-ba66f0f6a7dc/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-15 07:24:52",
-    "file": "uploads/temp_272b2d53-55d8-4452-b69d-866172d69a23/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx",
-    "uploaded_at": "2026-05-15 07:25:07",
-    "file": "uploads/temp_b6e10e05-ef89-4c0f-87cb-359df0fdb416/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-15 07:25:10",
-    "file": "uploads/temp_b6e10e05-ef89-4c0f-87cb-359df0fdb416/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-15 08:52:40",
-    "file": "uploads/temp_7be92ba2-0b12-4be0-bdd9-90d9dad8e823/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx",
-    "uploaded_at": "2026-05-15 08:52:43",
-    "file": "uploads/temp_7be92ba2-0b12-4be0-bdd9-90d9dad8e823/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-15 09:07:32",
-    "file": "uploads/temp_4d0be16b-b52f-463e-b896-4eaa3d4ae6ff/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx",
-    "uploaded_at": "2026-05-15 09:07:35",
-    "file": "uploads/temp_4d0be16b-b52f-463e-b896-4eaa3d4ae6ff/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-15 14:59:23",
-    "file": "uploads/temp_f4bd9854-1aad-4244-9a4f-6ca1bb84da31/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-15 14:59:43",
-    "file": "uploads/temp_007ebbbe-c667-41eb-9597-97a771de9357/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx",
-    "uploaded_at": "2026-05-15 14:59:46",
-    "file": "uploads/temp_007ebbbe-c667-41eb-9597-97a771de9357/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-16 07:23:09",
-    "file": "uploads/temp_e5e1e9ed-0788-4781-a5e0-c7f627f5996e/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "uploaded_at": "2026-06-04 07:39:37",
+    "file": "uploads/temp_8ecd342a-a0fd-430b-9e21-e86bfab19a48/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-16 07:23:32",
-    "file": "uploads/temp_d7daca9c-2099-4660-9b14-3c0d63350635/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
+    "uploaded_at": "2026-06-04 07:39:39",
+    "file": "uploads/temp_8ecd342a-a0fd-430b-9e21-e86bfab19a48/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-16 07:23:35",
-    "file": "uploads/temp_d7daca9c-2099-4660-9b14-3c0d63350635/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-18 07:59:29",
-    "file": "uploads/temp_41430c00-043b-42ec-85da-5f36b2a04ffa/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-18 13:01:52",
-    "file": "uploads/temp_924a0235-6716-4d19-9ca7-974f2d93ccd0/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "uploaded_at": "2026-06-06 14:02:59",
+    "file": "uploads/temp_40d46463-2650-4b1e-8046-d8519b05b28b/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-18 13:02:10",
-    "file": "uploads/temp_afdc144d-7132-465a-a698-cc0196abad09/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
+    "uploaded_at": "2026-06-06 14:03:02",
+    "file": "uploads/temp_40d46463-2650-4b1e-8046-d8519b05b28b/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-18 13:02:13",
-    "file": "uploads/temp_afdc144d-7132-465a-a698-cc0196abad09/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
+    "uploaded_at": "2026-06-06 14:17:20",
+    "file": "uploads/temp_857a3702-94dc-4c4c-9b22-cd0230c9d44f/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
   },
   {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-19 07:08:16",
-    "file": "uploads/temp_81dc7679-41bd-4eb4-be87-4589607afdf8/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "type": "donhangchitiet",
+    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
+    "uploaded_at": "2026-06-06 14:17:23",
+    "file": "uploads/temp_857a3702-94dc-4c4c-9b22-cd0230c9d44f/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-19 07:08:32",
-    "file": "uploads/temp_30dedf60-f880-4ecc-a75d-370bc9e1204b/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
+    "uploaded_at": "2026-06-06 14:30:59",
+    "file": "uploads/temp_94ec443c-d235-4be4-a476-76672add2f81/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-19 07:08:35",
-    "file": "uploads/temp_30dedf60-f880-4ecc-a75d-370bc9e1204b/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-19 13:20:07",
-    "file": "uploads/temp_cc8961f6-ab03-486a-86c2-4d41df46b7ca/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-19 13:20:26",
-    "file": "uploads/temp_e048c9e4-805f-4d25-9ba9-84e86e0aa868/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
+    "uploaded_at": "2026-06-06 14:31:03",
+    "file": "uploads/temp_94ec443c-d235-4be4-a476-76672add2f81/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-19 13:20:29",
-    "file": "uploads/temp_e048c9e4-805f-4d25-9ba9-84e86e0aa868/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-20 07:29:48",
-    "file": "uploads/temp_daa8f9ae-4a8c-4b53-8f2c-db3e5b2bceb2/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-20 07:29:52",
-    "file": "uploads/temp_a57be746-d818-4d60-9e8e-bddaa5a9b728/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "uploaded_at": "2026-06-06 14:36:10",
+    "file": "uploads/temp_a175671e-5825-4ae2-aeb7-6dfbd608e5d4/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-20 07:30:34",
-    "file": "uploads/temp_39c1a1b4-0460-4fdf-8011-365bc3db3415/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
+    "uploaded_at": "2026-06-06 14:36:12",
+    "file": "uploads/temp_a175671e-5825-4ae2-aeb7-6dfbd608e5d4/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-20 07:30:38",
-    "file": "uploads/temp_39c1a1b4-0460-4fdf-8011-365bc3db3415/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-20 13:17:40",
-    "file": "uploads/temp_a160aa74-43c7-4623-a137-c83e7f06da10/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "uploaded_at": "2026-06-06 15:21:39",
+    "file": "uploads/temp_a391f6f7-1faa-4e2d-9079-1cd5aff6c3af/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-20 13:17:58",
-    "file": "uploads/temp_6b19e3c3-525f-4fc7-b69a-3aaf0905f5d7/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
+    "uploaded_at": "2026-06-06 15:21:51",
+    "file": "uploads/temp_a391f6f7-1faa-4e2d-9079-1cd5aff6c3af/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-20 13:18:01",
-    "file": "uploads/temp_6b19e3c3-525f-4fc7-b69a-3aaf0905f5d7/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-21 07:25:23",
-    "file": "uploads/temp_c002a63e-9029-4ae0-9e23-875cb43244e3/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "uploaded_at": "2026-06-06 15:30:34",
+    "file": "uploads/temp_74ca2113-4f13-4f44-a24c-5cb51009c65e/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-21 07:25:45",
-    "file": "uploads/temp_32630be1-4d63-4760-b4b7-54980b4be9d6/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
+    "uploaded_at": "2026-06-06 15:30:37",
+    "file": "uploads/temp_74ca2113-4f13-4f44-a24c-5cb51009c65e/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-21 07:25:48",
-    "file": "uploads/temp_32630be1-4d63-4760-b4b7-54980b4be9d6/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-21 13:36:32",
-    "file": "uploads/temp_3fc6d870-b0d4-49e9-a9ad-775e0f492c04/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "uploaded_at": "2026-06-06 15:33:22",
+    "file": "uploads/temp_f81b184f-19dd-4d7b-88e8-d95ed572c1b8/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
   },
   {
     "type": "donhangchitiet",
     "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-21 13:36:47",
-    "file": "uploads/temp_52b703d0-5f2a-475c-81c2-71ed87c718ea/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
+    "uploaded_at": "2026-06-06 15:33:27",
+    "file": "uploads/temp_f81b184f-19dd-4d7b-88e8-d95ed572c1b8/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-21 13:36:49",
-    "file": "uploads/temp_52b703d0-5f2a-475c-81c2-71ed87c718ea/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-22 07:41:06",
-    "file": "uploads/temp_530998f2-4ee1-4167-8439-c4081652f158/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(4).xlsx",
+    "uploaded_at": "2026-07-01 09:31:22",
+    "file": "uploads/temp_286af3e2-2ea2-41dc-bc60-88226e82b324/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-22 07:41:22",
-    "file": "uploads/temp_7a78857b-e527-44ea-8697-298e11e30f34/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
+    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(4).xlsx",
+    "uploaded_at": "2026-07-01 09:41:48",
+    "file": "uploads/temp_a48bceb5-e8f7-4632-b45f-b4dcbb4687b4/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-22 07:41:25",
-    "file": "uploads/temp_7a78857b-e527-44ea-8697-298e11e30f34/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-23 07:29:08",
-    "file": "uploads/temp_f12239f3-4163-4d7c-9999-33ef44fde717/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(4).xlsx",
+    "uploaded_at": "2026-07-01 09:44:50",
+    "file": "uploads/temp_4cb4d8b3-09a9-44ab-b261-2e9c656b8d81/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-23 07:29:24",
-    "file": "uploads/temp_1827e0d5-0f17-4bf6-a219-51caddc769ae/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
+    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(4).xlsx",
+    "uploaded_at": "2026-07-01 09:49:57",
+    "file": "uploads/temp_953129ac-b4bc-4a32-873f-9f64a7b4f9d0/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-23 07:29:26",
-    "file": "uploads/temp_1827e0d5-0f17-4bf6-a219-51caddc769ae/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-25 07:21:56",
-    "file": "uploads/temp_c4f79e65-9cf2-4923-aaa3-8edd5f4d767d/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(4).xlsx",
+    "uploaded_at": "2026-07-01 09:57:54",
+    "file": "uploads/temp_be637c62-626f-40f9-af1a-eb8856a00f4b/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-25 07:22:14",
-    "file": "uploads/temp_8d28a1b5-26a3-43d1-8e88-97df8b166278/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
+    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(4).xlsx",
+    "uploaded_at": "2026-07-01 09:58:22",
+    "file": "uploads/temp_a01761cd-9fdd-4a5f-b4ed-f3c49a3c04fa/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-25 07:22:17",
-    "file": "uploads/temp_8d28a1b5-26a3-43d1-8e88-97df8b166278/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-25 13:21:27",
-    "file": "uploads/temp_671188f5-98e2-4de0-bef5-d88bbdc11aff/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(4).xlsx",
+    "uploaded_at": "2026-07-01 10:33:09",
+    "file": "uploads/temp_172771ce-8374-4eaa-afec-1d415c197b22/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-25 13:21:44",
-    "file": "uploads/temp_6a42be28-4f00-45ce-8c36-8063c8471ac7/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
+    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(4).xlsx",
+    "uploaded_at": "2026-07-01 10:37:18",
+    "file": "uploads/temp_498a3ce2-dd6e-42f6-a6f5-e1aef8eebba2/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(4).xlsx"
   },
   {
     "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-25 13:21:47",
-    "file": "uploads/temp_6a42be28-4f00-45ce-8c36-8063c8471ac7/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-26 07:18:54",
-    "file": "uploads/temp_d4065e0b-e878-46e3-bfa6-6af7554bb7f6/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(5).xlsx",
+    "uploaded_at": "2026-07-01 10:37:19",
+    "file": "uploads/temp_498a3ce2-dd6e-42f6-a6f5-e1aef8eebba2/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(5).xlsx"
   },
   {
     "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-26 07:19:21",
-    "file": "uploads/temp_7166fb6c-6b67-4443-ab4d-30703b41dbd7/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
+    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(1).xlsx",
+    "uploaded_at": "2026-07-21 08:12:05",
+    "file": "uploads/temp_972bba1f-f801-466d-8856-c220e0bfddee/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04)_(1).xlsx"
   },
   {
     "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04.xlsx",
-    "uploaded_at": "2026-05-26 07:19:24",
-    "file": "uploads/temp_7166fb6c-6b67-4443-ab4d-30703b41dbd7/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04.xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-26 13:18:17",
-    "file": "uploads/temp_3b06d1f8-3dd5-4b04-9bec-d8a357feaad4/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-26 13:18:40",
-    "file": "uploads/temp_5b0a3d27-5bcf-4292-84b7-ac6395596688/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-26 13:18:43",
-    "file": "uploads/temp_5b0a3d27-5bcf-4292-84b7-ac6395596688/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-27 07:19:06",
-    "file": "uploads/temp_ebdce1cd-9e78-4c1a-92f6-772dccb8c9f1/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-27 07:19:22",
-    "file": "uploads/temp_046a07d9-3e51-4cd8-ae59-4f74796fd245/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-27 07:19:24",
-    "file": "uploads/temp_046a07d9-3e51-4cd8-ae59-4f74796fd245/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-28 07:31:44",
-    "file": "uploads/temp_4a8b27f8-7414-450b-a9c7-a7036259d7c7/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-28 07:32:01",
-    "file": "uploads/temp_d2694779-a83c-4eb6-b411-b0090f3d5923/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-28 07:32:04",
-    "file": "uploads/temp_d2694779-a83c-4eb6-b411-b0090f3d5923/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-29 07:01:44",
-    "file": "uploads/temp_a4ec54c6-0e5b-4382-a442-7bae7371e411/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-29 07:02:05",
-    "file": "uploads/temp_85283880-cda1-4bd3-9371-a0ee510b5e6e/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-29 07:02:08",
-    "file": "uploads/temp_85283880-cda1-4bd3-9371-a0ee510b5e6e/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-29 13:04:21",
-    "file": "uploads/temp_28175c58-d68a-4cd3-b7a1-56a9b23bcae4/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-29 13:04:35",
-    "file": "uploads/temp_4e1c41d8-2854-428e-b2ea-9c1f2afd53e8/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-29 13:04:38",
-    "file": "uploads/temp_4e1c41d8-2854-428e-b2ea-9c1f2afd53e8/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-29 13:47:10",
-    "file": "uploads/temp_6f81786e-6af6-453b-a965-accef2dce025/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-29 13:47:14",
-    "file": "uploads/temp_6f81786e-6af6-453b-a965-accef2dce025/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-05-30 07:28:59",
-    "file": "uploads/temp_441a3db8-450a-46a8-bd15-fc10f9848a22/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-05-30 07:29:14",
-    "file": "uploads/temp_31b1b222-a4cf-4e4b-a5ba-2979009f7876/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-05-30 07:29:17",
-    "file": "uploads/temp_31b1b222-a4cf-4e4b-a5ba-2979009f7876/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-01 07:20:24",
-    "file": "uploads/temp_8285810e-8fe9-4c4f-9e8b-a041933892b3/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-01 07:20:38",
-    "file": "uploads/temp_e92e5470-75e0-4a9d-98dd-2ad263e5cae1/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-01 07:20:41",
-    "file": "uploads/temp_e92e5470-75e0-4a9d-98dd-2ad263e5cae1/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-01 14:38:24",
-    "file": "uploads/temp_b39c9800-585a-4d58-a7fe-54a8d80f0c7e/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-01 14:38:46",
-    "file": "uploads/temp_82292d9b-2e9c-4110-8a57-8184aaaac990/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-01 14:38:49",
-    "file": "uploads/temp_82292d9b-2e9c-4110-8a57-8184aaaac990/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-02 07:11:59",
-    "file": "uploads/temp_33a5762e-a5ee-402f-8f6a-af35fe3fbd48/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-02 07:12:42",
-    "file": "uploads/temp_a288161c-be16-48b4-9c37-49404712f5aa/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-02 07:12:45",
-    "file": "uploads/temp_a288161c-be16-48b4-9c37-49404712f5aa/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-02 13:02:59",
-    "file": "uploads/temp_a78f8256-52b8-497d-b5d9-2ca8929fd6f6/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-02 13:03:16",
-    "file": "uploads/temp_9e5005d4-4e65-4323-b53e-9d23659ae873/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-02 13:03:19",
-    "file": "uploads/temp_9e5005d4-4e65-4323-b53e-9d23659ae873/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-03 07:21:48",
-    "file": "uploads/temp_4a676702-70aa-4b34-89e9-c6dea528bf10/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-03 07:22:10",
-    "file": "uploads/temp_8b270d1e-9436-4dec-a01f-f26660220962/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-03 07:22:13",
-    "file": "uploads/temp_8b270d1e-9436-4dec-a01f-f26660220962/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-04 07:27:05",
-    "file": "uploads/temp_dac31399-db5b-44c8-babc-cadf535d96c7/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-04 07:27:27",
-    "file": "uploads/temp_54a2862f-fb00-4535-9348-a0b80e2f9bf2/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-04 07:27:30",
-    "file": "uploads/temp_54a2862f-fb00-4535-9348-a0b80e2f9bf2/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-04 13:04:56",
-    "file": "uploads/temp_09594ee5-c67b-4b14-8852-eaf869e4cd81/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-04 13:05:59",
-    "file": "uploads/temp_5d5dfde0-4da6-4b77-a506-26ee1c1a286c/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-04 13:06:02",
-    "file": "uploads/temp_5d5dfde0-4da6-4b77-a506-26ee1c1a286c/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-05 07:17:27",
-    "file": "uploads/temp_0f66e331-26e6-4150-838b-c872c5499c72/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-05 07:17:48",
-    "file": "uploads/temp_83569cb8-deff-4ade-a511-ff31c12d017a/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-05 07:17:50",
-    "file": "uploads/temp_83569cb8-deff-4ade-a511-ff31c12d017a/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-05 12:59:35",
-    "file": "uploads/temp_d5788656-2e13-440f-ab1a-01ca2093e5ba/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-05 12:59:49",
-    "file": "uploads/temp_870cbabd-ee2b-48fb-b9d9-9679ae912fee/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-05 12:59:53",
-    "file": "uploads/temp_870cbabd-ee2b-48fb-b9d9-9679ae912fee/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-06 07:27:51",
-    "file": "uploads/temp_a8313b19-6146-4206-88f2-e7bf14cce2df/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-06 07:28:08",
-    "file": "uploads/temp_63216fb9-e07d-4289-b1b6-08c6656b1978/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-06 07:28:11",
-    "file": "uploads/temp_63216fb9-e07d-4289-b1b6-08c6656b1978/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-06 13:36:53",
-    "file": "uploads/temp_010bfb10-c787-444d-b308-e39feb7f49ef/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-06 13:36:56",
-    "file": "uploads/temp_010bfb10-c787-444d-b308-e39feb7f49ef/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-06 13:58:47",
-    "file": "uploads/temp_fcd7376f-16e6-4306-b9e6-1dbda247d83f/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-06 13:58:50",
-    "file": "uploads/temp_fcd7376f-16e6-4306-b9e6-1dbda247d83f/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-06 14:07:08",
-    "file": "uploads/temp_a3606ec8-4fe4-49c1-b932-cb5591cf54ff/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-06 14:07:13",
-    "file": "uploads/temp_a3606ec8-4fe4-49c1-b932-cb5591cf54ff/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-08 07:44:02",
-    "file": "uploads/temp_619c0f39-bf35-47d3-8055-81e968367353/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-08 07:44:20",
-    "file": "uploads/temp_362afac9-28d7-4c7d-aa00-bd0a477046aa/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-08 07:44:23",
-    "file": "uploads/temp_362afac9-28d7-4c7d-aa00-bd0a477046aa/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-09 07:53:36",
-    "file": "uploads/temp_784a21ec-f72d-4eee-b0e2-1fcb2686bdc1/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx",
-    "uploaded_at": "2026-06-09 07:56:10",
-    "file": "uploads/temp_7dc13b99-7bd6-4446-a862-a64ccd20f081/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(29.08)_(4).xlsx"
-  },
-  {
-    "type": "donhangchitiet",
-    "tau_name": "HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx",
-    "uploaded_at": "2026-06-09 07:56:13",
-    "file": "uploads/temp_7dc13b99-7bd6-4446-a862-a64ccd20f081/HRC1_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_(04.04).xlsx"
-  },
-  {
-    "type": "lichtau",
-    "tau_name": "L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx",
-    "uploaded_at": "2026-06-09 13:12:10",
-    "file": "uploads/temp_ab67c0fa-2e34-47e3-839d-d3914cdf95b3/L\u1ecaCH_T\u00c0U_+_LXH_2025_(+2024)_T12.25.xlsx"
+    "tau_name": "HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(1).xlsx",
+    "uploaded_at": "2026-07-21 08:12:06",
+    "file": "uploads/temp_972bba1f-f801-466d-8856-c220e0bfddee/HRC2_-_FILE_THEO_D\u00d5I_\u0110\u01a0N_H\u00c0NG_23.6_(2)_(1).xlsx"
   }
 ]

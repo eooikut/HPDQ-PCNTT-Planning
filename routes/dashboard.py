@@ -11,6 +11,10 @@ from collections import OrderedDict
 import os
 import requests
 from dotenv import load_dotenv
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
+import threading
+
 dashboard_bp = Blueprint("dashboard_bp", __name__)
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -35,14 +39,21 @@ def get_vessel_times(v):
 import time
 import concurrent.futures
 def get_actual_exported_from_mysql(ship_names):
-    """Truy vấn tổng khối lượng thực tế đã xuất (kg) từ MySQL theo Tàu và SO"""
+    """Truy vấn tổng khối lượng thực tế đã xuất (kg) từ MySQL theo Tàu và SO (Giới hạn 45 ngày)"""
     if not ship_names:
         return {}
+
+    # Tính toán mốc thời gian 45 ngày trước so với hiện tại
+    limit_date = (datetime.now() - timedelta(days=45)).strftime('%Y-%m-%d')
 
     # Chèn params an toàn để tránh SQL Injection
     placeholders = ', '.join([':ship_' + str(i) for i in range(len(ship_names))])
     params = {f'ship_{i}': name for i, name in enumerate(ship_names)}
+    
+    # Đưa biến ngày vào params
+    params['limit_date'] = limit_date
 
+    # Ép MySQL chỉ quét các phiếu xuất trong 45 ngày gần nhất
     sql = text(f"""
         SELECT 
             Transporter AS tau,
@@ -51,6 +62,7 @@ def get_actual_exported_from_mysql(ship_names):
         FROM v_phieuxuathang_hrc
         WHERE Transporter IN ({placeholders})
           AND SO IS NOT NULL AND SO != ''
+          AND IssueDate >= :limit_date
         GROUP BY Transporter, SO
     """)
 
@@ -70,7 +82,45 @@ def get_actual_exported_from_mysql(ship_names):
 _cached_vessels = []
 _last_fetch_time = 0
 CACHE_DURATION = 600 
+def sync_plcos_vessels_job():
+    """Hàm chạy ngầm (Background Job) để lấy dữ liệu từ API PLCOS mỗi 10 phút"""
+    global _cached_vessels, _last_fetch_time
+    print("[Scheduler] Bắt đầu đồng bộ dữ liệu từ API PLCOS...")
+    api_user = os.environ.get("CRM_API_USER")
+    api_pass = os.environ.get("CRM_API_PASS")
+    now = datetime.now()
+    f_date, t_date = (now - timedelta(days=30)).strftime('%Y-%m-%d'), (now + timedelta(days=30)).strftime('%Y-%m-%d')
 
+    try:
+        # Gọi trang 1
+        d1 = fetch_single_page(1, f_date, t_date, api_user, api_pass)
+        t_pages = d1.get('totalPages', 1)
+        all_v = d1.get('vessels', [])
+
+        # Gọi song song các trang còn lại
+        if t_pages > 1:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                fs = [executor.submit(fetch_single_page, p, f_date, t_date, api_user, api_pass) for p in range(2, t_pages + 1)]
+                for f in concurrent.futures.as_completed(fs):
+                    all_v.extend(f.result().get('vessels', []))
+        
+        # Cập nhật cache thành công
+        _cached_vessels = all_v
+        _last_fetch_time = time.time()
+        print(f"[Scheduler] Đồng bộ thành công! Kéo được {len(all_v)} chuyến tàu.")
+    except Exception as e:
+        print(f"[Scheduler] Lỗi khi đồng bộ API PLCOS: {e}")
+
+# Khởi tạo Scheduler (Chỉ chạy khi server Flask khởi động)
+scheduler = BackgroundScheduler(daemon=True)
+scheduler.add_job(func=sync_plcos_vessels_job, trigger="interval", minutes=10)
+scheduler.start()
+
+# Tắt scheduler an toàn khi dừng server
+atexit.register(lambda: scheduler.shutdown())
+
+# Kích hoạt chạy ngay lần đầu tiên để RAM có dữ liệu ngay lập tức
+threading.Thread(target=sync_plcos_vessels_job).start()
 def fetch_single_page(page, from_date, to_date, api_user, api_pass):
     """Hàm phụ trợ gọi 1 trang đơn lẻ (Dùng cho đa luồng)"""
     url = "https://apiplcos.hoaphatdungquat.vn:60524/api/hpdq_ship_sync/GetScheduleBerth"
@@ -81,31 +131,11 @@ def fetch_single_page(page, from_date, to_date, api_user, api_pass):
     except: return {}
 
 def get_hrc_planned_schedule(selected_ship=None):
-    """Logic tính Kế hoạch HRC: Tối ưu Parallel + Cache + Chia đều khi có Ngày ra"""
-    global _cached_vessels, _last_fetch_time
-    current_time = time.time()
+    """Logic tính Kế hoạch HRC: Chỉ tính toán, dữ liệu đã được Background Job lo."""
+    global _cached_vessels
     
-    # 1. PHẦN TẢI DỮ LIỆU (Sử dụng Cache và Gọi song song)
-    if not _cached_vessels or (current_time - _last_fetch_time > CACHE_DURATION):
-        api_user, api_pass = os.environ.get("CRM_API_USER"), os.environ.get("CRM_API_PASS")
-        now = datetime.now()
-        f_date, t_date = (now - timedelta(days=30)).strftime('%Y-%m-%d'), (now + timedelta(days=30)).strftime('%Y-%m-%d')
-
-        # Gọi trang 1 để lấy tổng số trang
-        d1 = fetch_single_page(1, f_date, t_date, api_user, api_pass)
-        t_pages = d1.get('totalPages', 1)
-        all_v = d1.get('vessels', [])
-
-        # Gọi song song các trang còn lại để tăng tốc (Parallel Requests)
-        if t_pages > 1:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                fs = [executor.submit(fetch_single_page, p, f_date, t_date, api_user, api_pass) for p in range(2, t_pages + 1)]
-                for f in concurrent.futures.as_completed(fs):
-                    all_v.extend(f.result().get('vessels', []))
-        
-        _cached_vessels, _last_fetch_time = all_v, current_time
-    else:
-        all_v = _cached_vessels
+    # 1. CHỈ ĐỌC TỪ CACHE (Mất 0.0001 giây)
+    all_v = _cached_vessels
 
     # 2. PHẦN XỬ LÝ THUẬT TOÁN PHÂN BỔ
     MAX_CAPACITY = 25000
@@ -158,49 +188,113 @@ def get_hrc_planned_schedule(selected_ship=None):
             if w_left > 0: curr_d += timedelta(days=1)
 
     return hrc_planned_daily
-def get_rows_from_db():
-    """Lấy dữ liệu tổng hợp cho thanh tiến độ chính của tàu."""
-    sql = text("""SELECT
-        tau,
-        SheetMonth,
-        ETA_Parsed,
-        -- Tính tổng khối lượng đã giao (shipped + mapped)
-        CAST(SUM(ISNULL(shipped_qty, 0) + ISNULL(Mapping_kho, 0)) / 1000.0 AS INT) AS tongkhoiluong,
-        -- Lấy khối lượng tổng của tàu, MAX() để đảm bảo chỉ có 1 giá trị trên mỗi nhóm
-        MAX(khoi_luong_tong) AS khoi_luong_tong,
-        -- Thêm ETA_Parsed vào đây để join với chi tiết SO
-        ETA_Parsed AS eta_date_key 
-    FROM testdb with (nolock)
-    WHERE
-        tau != N'ĐƯỜNG BỘ' AND tau != ''
-    GROUP BY
-            tau, SheetMonth, ETA_Parsed
-    """)
-    with engine.connect() as conn:
-        rows = conn.execute(sql).mappings().all()
+# --- CACHE CHO DROPDOWN (Lưu 10 phút) ---
+_dropdown_cache_data = {}
+_dropdown_cache_time = 0
+DROPDOWN_CACHE_TTL = 600 # Thời gian sống của cache (600 giây = 10 phút)
+
+def get_dropdown_options(selected_month=None):
+    """Hàm lấy danh sách Tháng và Tàu (Có áp dụng Cache trên RAM)"""
+    global _dropdown_cache_data, _dropdown_cache_time
+    import time
+    
+    current_time = time.time()
+    # Tạo key riêng cho từng tháng được chọn (tránh việc cache tháng này đè tháng kia)
+    cache_key = str(selected_month)
+    
+    # 1. NẾU ĐÃ CÓ TRONG CACHE -> Đọc thẳng từ RAM (Mất 0.000 giây)
+    if cache_key in _dropdown_cache_data and (current_time - _dropdown_cache_time < DROPDOWN_CACHE_TTL):
+        return _dropdown_cache_data[cache_key]
+
+    # 2. NẾU CHƯA CÓ TRONG CACHE -> Chọc xuống SQL Server (Mất ~1.9s)
+    sql_months = text("SELECT DISTINCT SheetMonth FROM testdb with (nolock) WHERE SheetMonth IS NOT NULL AND SheetMonth != ''")
+    sql_ships_str = "SELECT DISTINCT tau FROM testdb with (nolock) WHERE tau != N'ĐƯỜNG BỘ' AND tau != ''"
+    params = {}
+    if selected_month:
+        sql_ships_str += " AND SheetMonth = :month"
+        params['month'] = selected_month
         
-    # --- BỘ LỌC THÉP: XỬ LÝ DỮ LIỆU BẨN TỪ GỐC ---
+    with engine.connect() as conn:
+        months = [r['SheetMonth'] for r in conn.execute(sql_months).mappings().all()]
+        ships = [r['tau'] for r in conn.execute(text(sql_ships_str), params).mappings().all()]
+        
+    result = (sorted(months, reverse=True), sorted(ships))
+    
+    # 3. LƯU LẠI VÀO CACHE CHO CÁC LẦN GỌI SAU
+    _dropdown_cache_data[cache_key] = result
+    _dropdown_cache_time = current_time
+    
+    return result
+def get_rows_from_db(selected_month=None, selected_ship=None, start_date=None, end_date=None):
+    """Lấy dữ liệu tổng hợp cho thanh tiến độ chính của tàu (Đã đẩy logic lọc xuống SQL)."""
+    query_str = """
+        SELECT
+            tau,
+            SheetMonth,
+            ETA_Parsed,
+            CAST(SUM(ISNULL(shipped_qty, 0) + ISNULL(Mapping_kho, 0)) / 1000.0 AS INT) AS tongkhoiluong,
+            MAX(khoi_luong_tong) AS khoi_luong_tong,
+            ETA_Parsed AS eta_date_key 
+        FROM testdb with (nolock)
+        WHERE tau != N'ĐƯỜNG BỘ' AND tau != ''
+    """
+    params = {}
+    
+    # Nối thêm điều kiện WHERE vào SQL
+    if selected_month:
+        query_str += " AND SheetMonth = :month"
+        params['month'] = selected_month
+    if selected_ship:
+        query_str += " AND tau = :tau"
+        params['tau'] = selected_ship
+    if start_date:
+        query_str += " AND TRY_CAST(LEFT(ETA_Parsed, 10) AS DATE) >= :start_date"
+        params['start_date'] = start_date
+    if end_date:
+        query_str += " AND TRY_CAST(LEFT(ETA_Parsed, 10) AS DATE) <= :end_date"
+        params['end_date'] = end_date
+
+    query_str += " GROUP BY tau, SheetMonth, ETA_Parsed"
+    
+    with engine.connect() as conn:
+        rows = conn.execute(text(query_str), params).mappings().all()
+        
+    # --- BỘ LỌC THÉP: XỬ LÝ DỮ LIỆU BẨN TỪ GỐC (Giữ nguyên của bạn) ---
     result = []
     for r in rows:
         d = dict(r)
         eta = d.get('ETA_Parsed')
         if isinstance(eta, str):
             try:
-                # Ép chuỗi thành date, nếu lỗi hoặc năm < 2000 (như 0202) thì gán None
                 parsed_date = parser.parse(eta[:10]).date() if len(eta) >= 10 else parser.parse(eta).date()
                 d['ETA_Parsed'] = parsed_date if parsed_date.year > 2000 else None
             except Exception:
                 d['ETA_Parsed'] = None
         elif isinstance(eta, datetime):
             d['ETA_Parsed'] = eta.date() if eta.year > 2000 else None
-        
         result.append(d)
         
     return result
 
-def get_so_details_for_dashboard():
-    """Lấy dữ liệu chi tiết của từng SO để hiển thị trong tooltip."""
-    sql = text("""
+def get_so_details_for_dashboard(selected_month=None, selected_ship=None, start_date=None, end_date=None):
+    """Lấy dữ liệu chi tiết của từng SO (Đã đẩy logic lọc xuống SQL)."""
+    base_where = "lt.ETA_Parsed IS NOT NULL"
+    params = {}
+    
+    if selected_month:
+        base_where += " AND lt.SheetMonth = :month"
+        params['month'] = selected_month
+    if selected_ship:
+        base_where += " AND lt.[TÀU/PHƯƠNG TIỆN VẬN TẢI] = :tau"
+        params['tau'] = selected_ship
+    if start_date:
+        base_where += " AND TRY_CAST(LEFT(lt.ETA_Parsed, 10) AS DATE) >= :start_date"
+        params['start_date'] = start_date
+    if end_date:
+        base_where += " AND TRY_CAST(LEFT(lt.ETA_Parsed, 10) AS DATE) <= :end_date"
+        params['end_date'] = end_date
+
+    query_str = f"""
       WITH data AS (
         SELECT
             lt.[TÀU/PHƯƠNG TIỆN VẬN TẢI] AS tau,
@@ -216,7 +310,7 @@ def get_so_details_for_dashboard():
         FROM vw_so_kho_sumary2 s WITH (NOLOCK)
         JOIN dbo.lichtau lt WITH (NOLOCK)
             ON s.[SO Mapping] = TRY_CAST(lt.[SỐ LỆNH TÁCH] AS BIGINT)
-        WHERE lt.ETA_Parsed IS NOT NULL
+        WHERE {base_where}
     ),
     process AS (
         SELECT
@@ -232,24 +326,12 @@ def get_so_details_for_dashboard():
             ) AS process_value
         FROM data d
     )
-    SELECT
-        p.tau,
-        p.SheetMonth,
-        p.ETA_Parsed,
-        p.saleO,
-        p.material,
-        p.qty,
-        p.nhamay,
-        p.shipped_qty,
-        p.Mapping_kho,
-        p.process_value,
-        p.klyeucau
-    FROM process p
-    """)
+    SELECT * FROM process p
+    """
     with engine.connect() as conn:
-        rows = conn.execute(sql).mappings().all()
+        rows = conn.execute(text(query_str), params).mappings().all()
 
-    # --- BỘ LỌC THÉP: XỬ LÝ DỮ LIỆU BẨN TỪ GỐC ---
+    # --- BỘ LỌC THÉP (Giữ nguyên của bạn) ---
     result = []
     for r in rows:
         d = dict(r)
@@ -262,7 +344,6 @@ def get_so_details_for_dashboard():
                 d['ETA_Parsed'] = None
         elif isinstance(eta, datetime):
             d['ETA_Parsed'] = eta.date() if eta.year > 2000 else None
-            
         result.append(d)
         
     return result
@@ -362,57 +443,86 @@ def calculate_chart_data(so_details, summary_records):
         "ship_status": ship_status_chart,
         "delivery_trend": delivery_trend_chart
     }
+def build_final_chart_data(all_so_details, records, selected_ship, selected_month, selected_start_date_str, selected_end_date_str):
+    """Hàm phụ trợ gom chung logic xử lý dữ liệu biểu đồ để dùng cho cả lần tải đầu tiên và qua API"""
+    chart_data = calculate_chart_data(all_so_details, records)
+    hrc_planned_daily = get_hrc_planned_schedule(selected_ship)
+    
+    actual_labels = chart_data["delivery_trend"]["labels"]
+    actual_dict = dict(zip(actual_labels, chart_data["delivery_trend"]["data"] if "data" in chart_data["delivery_trend"] else []))
+    
+    all_dates_set = set(actual_labels)
+    for d in hrc_planned_daily.keys():
+        all_dates_set.add(d.strftime('%Y-%m-%d'))
+        
+    all_dates_sorted = sorted(list(all_dates_set))
+    final_labels, final_actual, final_planned = [], [], []
+    
+    for date_str in all_dates_sorted:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        # 2. KIỂM TRA BỘ LỌC NGÀY TỪ/ĐẾN
+        if selected_start_date_str and date_obj < datetime.strptime(selected_start_date_str, '%Y-%m-%d').date():
+            continue
+        if selected_end_date_str and date_obj > datetime.strptime(selected_end_date_str, '%Y-%m-%d').date():
+            continue
+            
+        # 3. KIỂM TRA BỘ LỌC THÁNG (Format: "03.2026")
+        if selected_month:
+            try:
+                m, y = selected_month.split('.')
+                if date_obj.month != int(m) or date_obj.year != int(y):
+                    continue
+            except ValueError:
+                pass
 
+        actual_val = actual_dict.get(date_str, 0)
+        planned_val = int(hrc_planned_daily.get(date_obj, 0))
+        
+        # Chỉ hiển thị ngày nào có làm hàng hoặc có kế hoạch
+        if actual_val > 0 or planned_val > 0 or date_str in actual_labels:
+            final_labels.append(date_str)
+            final_actual.append(actual_val)
+            final_planned.append(planned_val)
+        
+    chart_data["delivery_trend"]["labels"] = final_labels
+    chart_data["delivery_trend"]["actual_data"] = final_actual
+    chart_data["delivery_trend"]["planned_data"] = final_planned
+    
+    if "data" in chart_data["delivery_trend"]:
+        del chart_data["delivery_trend"]["data"]
+    if "datasets" in chart_data["delivery_trend"]:
+        del chart_data["delivery_trend"]["datasets"]
+
+    return chart_data
 @dashboard_bp.route("/dashboard")
 @permission_required('view_ship_schedule') # Đảm bảo người dùng có quyền xem lịch tàu
 def dashboard():
-    # 1. Lấy dữ liệu tổng hợp cho thanh tiến độ chính
-    all_records_summary = get_rows_from_db()
-
-    # Tạo danh sách các tháng duy nhất để lọc, sắp xếp giảm dần
-    sheetmonth_list = sorted(list(set(r['SheetMonth'] for r in all_records_summary if r.get('SheetMonth'))), reverse=True)
+    import time
+    t0 = time.time()
+    # 1. Lấy thông số từ URL
     selected_status = request.args.get("status", "")
-    # Lấy tháng được chọn từ URL. Nếu không có (lần đầu truy cập), mặc định là "Tất cả tháng" (chuỗi rỗng).
     selected_month = request.args.get("sheetmonth")
-    if selected_month is None: # Chỉ đặt mặc định khi không có tham số trên URL (lần đầu tải trang)
-        selected_month = "" # Mặc định là "Tất cả tháng"
-
-    # Lấy bộ lọc ngày từ URL
+    if selected_month is None: 
+        selected_month = "" 
+        
     selected_start_date_str = request.args.get("start_date")
     selected_end_date_str = request.args.get("end_date")
-
-    # Lấy tàu được chọn từ URL
     selected_ship = request.args.get("tau")
-
-    # Lọc các bản ghi theo SheetMonth đã chọn
-    if selected_month: # Nếu selected_month có giá trị (không phải chuỗi rỗng)
-        records_by_month = [r for r in all_records_summary if r.get('SheetMonth') == selected_month]
-    else: # Nếu người dùng chọn "Tất cả tháng" (selected_month là chuỗi rỗng)
-        records_by_month = all_records_summary
-        
-    # Tạo danh sách tàu dựa trên các bản ghi của tháng đã chọn
-    tau_list = sorted(list(set(r['tau'] for r in records_by_month if r.get('tau'))))
-    # Đảm bảo selected_ship luôn là một chuỗi để so sánh nhất quán
-    selected_ship = str(selected_ship) if selected_ship is not None else ""
-
-    # Lọc các bản ghi theo ngày trước khi lọc theo tàu
-    records_filtered_by_date = records_by_month
-    if selected_start_date_str:
-        filter_start_date = datetime.strptime(selected_start_date_str, '%Y-%m-%d').date()
-        records_filtered_by_date = [r for r in records_filtered_by_date if r.get('ETA_Parsed') and r.get('ETA_Parsed').date() >= filter_start_date]
-
-    if selected_end_date_str:
-        filter_end_date = datetime.strptime(selected_end_date_str, '%Y-%m-%d').date()
-        records_filtered_by_date = [r for r in records_filtered_by_date if r.get('ETA_Parsed') and r.get('ETA_Parsed').date() <= filter_end_date]
-
-    # Sau khi đã lọc theo ngày, mới lọc theo tàu (nếu có)
-    # Điều này đảm bảo chỉ các tàu trong khoảng ngày đã chọn mới được hiển thị
-    if selected_ship:
-        # Đảm bảo r.get('tau') cũng được xử lý dưới dạng chuỗi cho việc so sánh
-        records = [r for r in records_filtered_by_date if str(r.get('tau', '')) == selected_ship]
-    else: # Nếu selected_ship là chuỗi rỗng (ví dụ: "Tất cả Tàu" được chọn)
-        records = records_filtered_by_date
-
+    selected_ship_str = str(selected_ship) if selected_ship else ""
+    t1 = time.time()
+    # 2. Gọi hàm lấy Options cho Dropdown (Chạy siêu nhanh từ DB)
+    sheetmonth_list, tau_list = get_dropdown_options(selected_month if selected_month else None)
+    print(f"[Profiling] Lấy Dropdown mất: {time.time() - t1:.3f}s")
+    # 3. Lấy data chính (ĐÃ ĐƯỢC LỌC TRỰC TIẾP TỪ SQL)
+    t2 = time.time()
+    records = get_rows_from_db(
+        selected_month=selected_month if selected_month else None,
+        selected_ship=selected_ship_str if selected_ship_str else None,
+        start_date=selected_start_date_str if selected_start_date_str else None,
+        end_date=selected_end_date_str if selected_end_date_str else None
+    )
+    print(f"[Profiling] Chạy Query testdb mất: {time.time() - t2:.3f}s")
     # Sắp xếp lại các bản ghi theo ETA để thứ tự tàu được sắp xếp đúng
     records.sort(key=lambda r: r.get('ETA_Parsed') or datetime.max.date())
     # Xác định dải ngày cho các cột của bảng
@@ -450,18 +560,6 @@ def dashboard():
                 date_range.append(current_date)
                 current_date += timedelta(days=1)
 
-    # Áp dụng bộ lọc ngày nếu có
-    # if selected_start_date_str:
-    #     filter_start_date = datetime.strptime(selected_start_date_str, '%Y-%m-%d')
-    #     date_range = [d for d in date_range if d >= filter_start_date]
-    # 
-    # if selected_end_date_str:
-    #     filter_end_date = datetime.strptime(selected_end_date_str, '%Y-%m-%d')
-    #     date_range = [d for d in date_range if d <= filter_end_date]
-
-
-    # Cấu trúc lại dữ liệu để template dễ dàng render
-    # Dạng: { 'Tên Tàu': { 'YYYY-MM-DD': { data }, 'YYYY-MM-DD': { data } }, ... }
     ships_data = OrderedDict()
     for r in records: # Dùng `records` đã được lọc đầy đủ
         ship_name = r.get('tau')
@@ -498,15 +596,15 @@ def dashboard():
             "so_details": OrderedDict(), # Chuẩn bị chỗ để chứa chi tiết SO
             "has_underperforming_item": False # Flag để kiểm tra có item nào < 90% không
         }
-
+    t3 = time.time()
     # 2. Lấy dữ liệu chi tiết SO và mapping vào ships_data
-    all_so_details = get_so_details_for_dashboard()
-    # Lọc chi tiết SO theo tháng đã chọn để tối ưu
-    if selected_month:
-        so_details_by_month = [r for r in all_so_details if r.get('SheetMonth') == selected_month]
-    else:
-        so_details_by_month = all_so_details
-        
+    so_details_by_month = get_so_details_for_dashboard(
+        selected_month=selected_month if selected_month else None,
+        selected_ship=selected_ship_str if selected_ship_str else None,
+        start_date=selected_start_date_str if selected_start_date_str else None,
+        end_date=selected_end_date_str if selected_end_date_str else None
+    )
+    print(f"[Profiling] Chạy Query Chi tiết SO mất: {time.time() - t3:.3f}s")  
     # ==============================================================================
     # 🔹 BƯỚC 2.1: LOGIC PHÂN BỔ LẠI SẢN LƯỢNG SO CHO CÁC TÀU THEO ETA
     # ==============================================================================
@@ -526,10 +624,11 @@ def dashboard():
         key = (so_id, ship_name, eta)
         if key not in so_klyeucau_total_per_ship:
             so_klyeucau_total_per_ship[key] = so_detail.get('klyeucau', 0) * 1000
-
+    t4 = time.time()
     # --- THUẬT TOÁN WATERFALL (MYSQL) ---
     active_ships = list(set(str(r.get('tau', '')).strip() for r in records if r.get('tau')))
     mysql_exported_data = get_actual_exported_from_mysql(active_ships)
+    print(f"[Profiling] Chạy Query MySQL mất: {time.time() - t4:.3f}s")
     actual_waterfall_allocation = {}
     trips_map = {}
 
@@ -660,17 +759,24 @@ def dashboard():
             remaining_qty -= allocated_them
     # 🔹 BƯỚC 2.2: TÍNH LẠI TỔNG KHỐI LƯỢNG TÀU DỰA TRÊN SẢN LƯỢNG ĐÃ PHÂN BỔ
     # ==============================================================================
+    # 🔹 BƯỚC MỚI: TẠO DICTIONARY TRA CỨU NHANH (O(1))
+    # ==============================================================================
+    # Lưu dưới dạng key là tuple: (Mã SO, Tên Tàu) -> Giá trị là số lượng phân bổ
+    fast_lookup_allocated = {}
+    for so_id, ships in so_to_ships_map.items():
+        for ship_info in ships:
+            fast_lookup_allocated[(so_id, ship_info['ship_name'])] = ship_info['allocated_qty']
+
+
+    # 🔹 BƯỚC 2.2: TÍNH LẠI TỔNG KHỐI LƯỢNG TÀU DỰA TRÊN SẢN LƯỢNG ĐÃ PHÂN BỔ
+    # ==============================================================================
     for ship_name, dates in ships_data.items():
         for eta_str, data in dates.items():
             new_total_delivered_for_ship_kg = 0
-            # Lặp qua tất cả các SO trong tooltip của tàu này
+            
             for so_number in data['so_details']:
-                # Tìm sản lượng đã phân bổ cho cặp SO-Tàu này
-                if so_number in so_to_ships_map:
-                    for ship_info in so_to_ships_map[so_number]:
-                        if ship_info['ship_name'] == ship_name:
-                            new_total_delivered_for_ship_kg += ship_info['allocated_qty']
-                            break # Đã tìm thấy, chuyển sang SO tiếp theo
+                # Lấy trực tiếp từ Hash Map siêu tốc thay vì dùng 2 vòng lặp for
+                new_total_delivered_for_ship_kg += fast_lookup_allocated.get((so_number, ship_name), 0)
             
             # Cập nhật lại tổng khối lượng tàu (tấn) và phần trăm
             data['tongkhoiluong'] = int(new_total_delivered_for_ship_kg / 1000)
@@ -689,18 +795,19 @@ def dashboard():
                     all_so_finished = False
                     
                 summary = so_data['summary']
-                allocated_for_this_ship = 0
-                if so_number in so_to_ships_map:
-                    for ship_info in so_to_ships_map[so_number]:
-                        if ship_info['ship_name'] == ship_name:
-                            allocated_for_this_ship = ship_info['allocated_qty']
-                            break 
+                
+                # Tra cứu nhanh thay vì dùng vòng lặp for
+                allocated_for_this_ship = fast_lookup_allocated.get((so_number, ship_name), 0)
                 
                 summary['so_phan_bo'] = int(allocated_for_this_ship / 1000)
                 summary['progress_percent'] = (summary['delivered_kg'] * 100.0 / summary['total_qty_kg']) if summary['total_qty_kg'] > 0 else 0
                 summary['progress_text'] = f"{int(summary['delivered_kg'] / 1000)} / {int(summary['total_qty_kg'] / 1000)}"
                 
-            # 2. XÉT MÀU CHO TÀU (Nằm NGOÀI vòng lặp SO, ngang hàng với for so_number)
+                # --- FIX LỖI JSON SERIALIZABLE TẠI ĐÂY ---
+                # Xoá trường set() này đi vì frontend không cần dùng tới, giảm tải payload
+                so_data.pop('processed_materials', None)
+                
+            # 2. XÉT MÀU CHO TÀU
             if has_any_so and all_so_finished:
                 data['color'] = 'bg-info'
             elif data['has_underperforming_item']:
@@ -731,6 +838,13 @@ def dashboard():
             filtered_ships_data[ship_name] = filtered_dates
 
     # Truyền thêm selected_status và dùng filtered_ships_data thay cho ships_data
+    # TÍNH TOÁN DỮ LIỆU BIỂU ĐỒ NGAY TẠI BACKEND
+    chart_data = build_final_chart_data(
+        so_details_by_month, records, selected_ship_str, 
+        selected_month, selected_start_date_str, selected_end_date_str
+    )
+
+    # Truyền thêm biến chart_data xuống Jinja2 Template
     return render_template("dashboard.html",
                            sheetmonth_list=sheetmonth_list,
                            selected_month=selected_month,
@@ -738,94 +852,40 @@ def dashboard():
                            selected_ship=selected_ship,
                            selected_start_date=selected_start_date_str,
                            selected_end_date=selected_end_date_str,
-                           selected_status=selected_status, # <--- Biến mới
+                           selected_status=selected_status,
                            date_range=date_range,
-                           ships_data=filtered_ships_data)
+                           ships_data=filtered_ships_data,
+                           chart_data=chart_data)
 
 @dashboard_bp.route("/api/dashboard-charts")
-@permission_required('view_ship_schedule') # Đảm bảo người dùng có quyền xem lịch tàu
+@permission_required('view_ship_schedule')
 def api_dashboard_charts():
     """API cung cấp dữ liệu cho biểu đồ, có áp dụng bộ lọc."""
     selected_month = request.args.get("sheetmonth")
-    selected_ship = request.args.get("tau") # Sửa lỗi typo gert -> get
+    selected_ship = request.args.get("tau")
     selected_start_date_str = request.args.get("start_date")
     selected_end_date_str = request.args.get("end_date")
 
-    # Lấy cả hai nguồn dữ liệu
-    all_so_details = get_so_details_for_dashboard()
-    all_records_summary = get_rows_from_db()
+    # 1. Lấy dữ liệu
+    all_so_details = get_so_details_for_dashboard(
+        selected_month=selected_month if selected_month else None,
+        selected_ship=selected_ship if selected_ship else None,
+        start_date=selected_start_date_str if selected_start_date_str else None,
+        end_date=selected_end_date_str if selected_end_date_str else None
+    )
     
-    # Áp dụng các bộ lọc tương tự như route dashboard
-    if selected_month:
-        all_so_details = [r for r in all_so_details if r.get('SheetMonth') == selected_month]
-        all_records_summary = [r for r in all_records_summary if r.get('SheetMonth') == selected_month]
-
-    if selected_ship:
-        all_so_details = [r for r in all_so_details if str(r.get('tau', '')) == selected_ship]
-        all_records_summary = [r for r in all_records_summary if str(r.get('tau', '')) == selected_ship]
-
-    if selected_start_date_str:
-        filter_start_date = datetime.strptime(selected_start_date_str, '%Y-%m-%d').date()
-        all_so_details = [r for r in all_so_details if r.get('ETA_Parsed') and r.get('ETA_Parsed').date() >= filter_start_date]
-        all_records_summary = [r for r in all_records_summary if r.get('ETA_Parsed') and r.get('ETA_Parsed').date() >= filter_start_date]
-
-    if selected_end_date_str:
-        filter_end_date = datetime.strptime(selected_end_date_str, '%Y-%m-%d').date()
-        all_so_details = [r for r in all_so_details if r.get('ETA_Parsed') and r.get('ETA_Parsed').date() <= filter_end_date]
-        all_records_summary = [r for r in all_records_summary if r.get('ETA_Parsed') and r.get('ETA_Parsed').date() <= filter_end_date]
-
-    # Gán `records` để truyền vào hàm tính toán
-    records = all_records_summary
-    chart_data = calculate_chart_data(all_so_details, records)
-     # Truyền `records` đã lọc vào hàm
-    hrc_planned_daily = get_hrc_planned_schedule(selected_ship)
+    records = get_rows_from_db(
+        selected_month=selected_month if selected_month else None,
+        selected_ship=selected_ship if selected_ship else None,
+        start_date=selected_start_date_str if selected_start_date_str else None,
+        end_date=selected_end_date_str if selected_end_date_str else None
+    )
     
-    actual_labels = chart_data["delivery_trend"]["labels"]
-    actual_dict = dict(zip(actual_labels, chart_data["delivery_trend"]["data"] if "data" in chart_data["delivery_trend"] else []))
-    
-    all_dates_set = set(actual_labels)
-    for d in hrc_planned_daily.keys():
-        all_dates_set.add(d.strftime('%Y-%m-%d'))
-        
-    all_dates_sorted = sorted(list(all_dates_set))
-    final_labels, final_actual, final_planned = [], [], []
-    
-    for date_str in all_dates_sorted:
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-        
-        # 2. KIỂM TRA BỘ LỌC NGÀY TỪ/ĐẾN
-        if selected_start_date_str and date_obj < datetime.strptime(selected_start_date_str, '%Y-%m-%d').date():
-            continue
-        if selected_end_date_str and date_obj > datetime.strptime(selected_end_date_str, '%Y-%m-%d').date():
-            continue
-            
-        # 3. KIỂM TRA BỘ LỌC THÁNG (Format: "03.2026")
-        if selected_month:
-            try:
-                # Cắt chuỗi "03.2026" thành tháng 3, năm 2026
-                m, y = selected_month.split('.')
-                if date_obj.month != int(m) or date_obj.year != int(y):
-                    continue
-            except ValueError:
-                pass # Nếu lỡ format tháng bị sai thì bỏ qua việc cắt
-
-        actual_val = actual_dict.get(date_str, 0)
-        planned_val = int(hrc_planned_daily.get(date_obj, 0))
-        
-        # Chỉ hiển thị ngày nào có làm hàng hoặc có kế hoạch (xóa các ngày trống làm biểu đồ bị loãng)
-        if actual_val > 0 or planned_val > 0 or date_str in actual_labels:
-            final_labels.append(date_str)
-            final_actual.append(actual_val)
-            final_planned.append(planned_val)
-        
-    chart_data["delivery_trend"]["labels"] = final_labels
-    chart_data["delivery_trend"]["actual_data"] = final_actual
-    chart_data["delivery_trend"]["planned_data"] = final_planned
-    
-    if "data" in chart_data["delivery_trend"]:
-        del chart_data["delivery_trend"]["data"]
-    if "datasets" in chart_data["delivery_trend"]:
-        del chart_data["delivery_trend"]["datasets"]
+    # 2. Xây dựng dữ liệu biểu đồ qua hàm dùng chung
+    chart_data = build_final_chart_data(
+        all_so_details, records, selected_ship, 
+        selected_month, selected_start_date_str, selected_end_date_str
+    )
 
     return jsonify(chart_data)
 
@@ -843,19 +903,12 @@ def api_missing_details():
     selected_start_date_str = request.args.get("start_date")
     selected_end_date_str = request.args.get("end_date")
 
-    all_so_details = get_so_details_for_dashboard()
-
-    # Áp dụng các bộ lọc tương tự như các API khác
-    if selected_month:
-        all_so_details = [r for r in all_so_details if r.get('SheetMonth') == selected_month]
-    if selected_ship:
-        all_so_details = [r for r in all_so_details if str(r.get('tau', '')) == selected_ship]
-    if selected_start_date_str:
-        filter_start_date = datetime.strptime(selected_start_date_str, '%Y-%m-%d').date()
-        all_so_details = [r for r in all_so_details if r.get('ETA_Parsed') and r.get('ETA_Parsed').date() >= filter_start_date]
-    if selected_end_date_str:
-        filter_end_date = datetime.strptime(selected_end_date_str, '%Y-%m-%d').date()
-        all_so_details = [r for r in all_so_details if r.get('ETA_Parsed') and r.get('ETA_Parsed').date() <= filter_end_date]
+    all_so_details = get_so_details_for_dashboard(
+        selected_month=selected_month if selected_month else None,
+        selected_ship=selected_ship if selected_ship else None,
+        start_date=selected_start_date_str if selected_start_date_str else None,
+        end_date=selected_end_date_str if selected_end_date_str else None
+    )
 
     # Lọc theo nhà máy và điều kiện "còn thiếu"
     missing_items = []

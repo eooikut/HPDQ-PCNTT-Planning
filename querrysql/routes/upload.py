@@ -152,7 +152,7 @@ def upload_files():
                             })
                             log_lines.append(f"✅ Đã lưu tạm file chi tiết SO: {filename}")
                             save_metadata(metadata)
-                            # ExportDataSAP()
+                            ExportDataSAP()
                     if so_detail_paths:
                         process_so_details(so_detail_paths)
                         msg = "✅ Xử lý và cập nhật dữ liệu chi tiết SO thành công!"

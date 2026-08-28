@@ -166,7 +166,10 @@ def ExportDataSAP():
     
     cw_split = df_thieu['CW'].fillna('').str.split('-', expand=True)
     df_thieu['CW_min'] = pd.to_numeric(cw_split[0], errors='coerce').fillna(0)
-    df_thieu['CW_max'] = pd.to_numeric(cw_split[1], errors='coerce').fillna(float('inf'))
+    if 1 in cw_split.columns:
+        df_thieu['CW_max'] = pd.to_numeric(cw_split[1], errors='coerce').fillna(float('inf'))
+    else:
+        df_thieu['CW_max'] = float('inf')
     
     # Chuyển yêu cầu nhóm sang chữ HOA để khớp với dữ liệu kho
     df_thieu['NHOM_set'] = df_thieu['NHOM'].astype(str).apply(

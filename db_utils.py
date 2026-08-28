@@ -16,9 +16,6 @@ def save_df_to_db(df: pd.DataFrame, table_name: str, engine, batch_size=500, if_
         import sqlalchemy.types as types
         from sqlalchemy import inspect
         import logging
-
-        logger = logging.getLogger(__name__)
-
         # === 1️⃣ Chuẩn bị kiểu dữ liệu tương ứng ===
         dtype_mapping = {}
         for col in df.columns:
@@ -158,7 +155,7 @@ def normalize_datetime(df: pd.DataFrame) -> pd.DataFrame:
         df[c] = df[c].where(pd.notnull(df[c]), None)
     return df
 # UPSERT FILE SẢN LƯỢNG TỰ ĐỘNG
-logger = logging.getLogger(__name__)
+
 logging.basicConfig(level=logging.INFO)
 def sync_sap_to_production(engine):
     """Gọi Stored Procedure để đồng bộ ID từ sanluong sang coil_data"""
@@ -177,6 +174,7 @@ def upsert_sanluong_from_excel(df: pd.DataFrame, table_name: str = "sanluong", n
     # 1. CLEAN UP TÊN CỘT (RẤT QUAN TRỌNG: Tránh lỗi 'ID Ref ' vs 'ID Ref')
     original_cols = list(df.columns)
     df.columns = [c.strip() for c in df.columns]
+    df = df.rename(columns={"Phân xưởng": "PhanXuong"})
     if list(df.columns) != original_cols:
         logger.info("ℹ️ Đã xóa khoảng trắng thừa trong tên cột Excel.")
 
@@ -208,9 +206,21 @@ def upsert_sanluong_from_excel(df: pd.DataFrame, table_name: str = "sanluong", n
     for col in bigint_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype("int64")
-
+    if "QLCL" not in df.columns:
+        df["QLCL"] = ""  # Phòng trường hợp file Excel cũ chưa có cột này
+    else:
+        # Chuyển về chuỗi, cắt khoảng trắng và giới hạn tối đa 10 ký tự
+        df["QLCL"] = df["QLCL"].astype(str).str.strip().str[:10]
+        # Biến các giá trị rỗng/lỗi của Pandas thành chuỗi rỗng
+        df.loc[df["QLCL"].isin(['nan', 'NAN', 'None', '']), "QLCL"] = ""
+    if "PhanXuong" not in df.columns:
+        df["PhanXuong"] = "" 
+    else:
+        # Ép kiểu chuỗi, cắt khoảng trắng và giới hạn tối đa 10 ký tự
+        df["PhanXuong"] = df["PhanXuong"].astype(str).str.strip().str[:10]
+        df.loc[df["PhanXuong"].isin(['nan', 'NAN', 'None', '']), "PhanXuong"] = ""
     # XỬ LÝ CÁC CỘT ID SANG CHUỖI (NVARCHAR)
-    text_id_cols = ["ID Cuộn Bó", "ID cuộn bó gốc", "ID Ref"]
+    text_id_cols = ["ID Cuộn Bó", "ID cuộn bó gốc", "ID Ref", "Batch"]
     
     for col in text_id_cols:
         if col in df.columns:
@@ -232,8 +242,16 @@ def upsert_sanluong_from_excel(df: pd.DataFrame, table_name: str = "sanluong", n
     # 5. DTYPE MAPPING (Cấu hình cho to_sql)
     dtype_mapping = {}
     for col in df.columns:
-        if col == "snapshot_ts":                        # <--- THÊM MỚI
+        dtype_mapping = {}
+    for col in df.columns:
+        if col == "snapshot_ts":                        
             dtype_mapping[col] = types.DateTime()
+        elif col == "QLCL":                             
+            dtype_mapping[col] = types.NVARCHAR(length=10)
+        elif col == "PhanXuong":
+            dtype_mapping[col] = types.VARCHAR(length=10)
+        elif col == "Batch":                           
+            dtype_mapping[col] = types.NVARCHAR(length=100)
         elif col in bigint_cols: 
             dtype_mapping[col] = types.BigInteger() 
         elif pd.api.types.is_string_dtype(df[col]):
@@ -333,7 +351,6 @@ def upsert_sanluong_from_excel(df: pd.DataFrame, table_name: str = "sanluong", n
             conn.execute(text(f"DROP TABLE IF EXISTS [{staging_name}]"))
 
         # G. Đồng bộ sang Production (Coil Data)
-        sync_sap_to_production(engine)
         logger.info(f"🏁 [END] Hoàn tất quy trình Upsert cho {nhamay}.")
 
     except Exception as e:
@@ -492,33 +509,50 @@ def upsert_kho_from_excel(df: pd.DataFrame, table_name: str = "kho"):
         print(f"✅ Upsert kho cho Plant {plant_int} hoàn tất ({len(df_plant)} dòng) lúc {snap_ts}")
 # ---------- Upsert SALES ORDER ----------
 
-def upsert_so_from_excel(df: pd.DataFrame, table_name: str,date_col_name: str = "Document Date"):
+def upsert_so_from_excel(df: pd.DataFrame, table_name: str, date_col_name: str = "Document Date", nhamay: str = "HRC"):
     df = normalize_datetime(df)
     snap_ts = datetime.now()
     df = df.copy()
+
+    # =======================================================
+    # 1. LÀM SẠCH KHÓA CHÍNH VÀ DROP DUPLICATES 
+    # =======================================================
+    pk_cols = ["Sales Document", "Material", "Sales Document Item"]
+    for col in pk_cols:
+        if col in df.columns:
+            # Dùng pd.to_numeric kết hợp 'Int64' sẽ tự cắt đuôi .0 và chuẩn hóa số
+            df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
+    
+    df = df.dropna(subset=pk_cols)
+    df = df.drop_duplicates(subset=pk_cols, keep="last")
+
     df["snapshot_ts"] = snap_ts
     df["status1"] = "active"
+    df["NhaMay"] = nhamay 
+    
+    staging_name = f"staging_so_{nhamay}"
+
     min_date_str = "1900-01-01"
     try:
         if date_col_name in df.columns:
-            # Chuyển đổi cột ngày tháng an toàn, bỏ qua các giá trị lỗi
             temp_dates = pd.to_datetime(df[date_col_name], dayfirst=True, errors='coerce')
             min_val = temp_dates.min()
-            
             if pd.notna(min_val):
                 min_date_str = min_val.strftime("%Y-%m-%d")
-                logger.info(f"📅 Dữ liệu SO bắt đầu từ ngày: {min_date_str}. Các SO cũ hơn mốc này sẽ được bảo toàn.")
-            else:
-                logger.warning(f"⚠️ Cột '{date_col_name}' toàn giá trị rỗng/lỗi. Nguy cơ ảnh hưởng lịch sử!")
-        else:
-            logger.warning(f"⚠️ Không tìm thấy cột '{date_col_name}'. Sẽ chạy chế độ quét toàn bộ (nguy cơ xóa lịch sử).")
     except Exception as e:
-        logger.error(f"⚠️ Lỗi tính toán ngày SO: {e}. Vẫn tiếp tục chạy...")
+        logger.error(f"⚠️ Lỗi tính ngày SO: {e}.")
+        
     with engine.begin() as conn:
         dtype_mapping = {}
         for col in df.columns:
-            if col == "snapshot_ts":                    # <--- THÊM MỚI
+            if col == "snapshot_ts":
                 dtype_mapping[col] = types.DateTime()
+            elif col == "NhaMay":
+                dtype_mapping[col] = types.NVARCHAR(length=50)
+            elif col in ["Sales Document", "Material"]:
+                dtype_mapping[col] = types.BigInteger()
+            elif col == "Sales Document Item":
+                dtype_mapping[col] = types.Integer()
             elif pd.api.types.is_string_dtype(df[col]):
                 dtype_mapping[col] = types.NVARCHAR(length=4000)
             elif pd.api.types.is_integer_dtype(df[col]):
@@ -530,61 +564,64 @@ def upsert_so_from_excel(df: pd.DataFrame, table_name: str,date_col_name: str = 
             else:
                 dtype_mapping[col] = types.NVARCHAR(length=4000)
 
-        # 2️⃣ Staging table
-        df.to_sql("staging_tmp", conn, if_exists="replace", index=False, dtype=dtype_mapping)
+        # 1️⃣ Đổ vào bảng Staging
+        df.to_sql(staging_name, conn, if_exists="replace", index=False, dtype=dtype_mapping)
 
-        # 3️⃣ Đánh dấu record bị loại
+        # 2️⃣ Đánh dấu Removed (Chỉ xét trong vùng của NhaMay)
+        # Chú ý: Bỏ s.NhaMay = t.NhaMay ở câu Sub-Query vì 3 khóa chính đã là định danh tuyệt đối
         conn.execute(text(f"""
             UPDATE t
             SET status1='removed', snapshot_ts=:ts
             FROM [{table_name}] t
             WHERE t.status1 IN ('active','updated')
+              AND t.NhaMay = :nhamay
               AND t.[{date_col_name}] >= :min_date  
               AND NOT EXISTS (
-                  SELECT 1 FROM staging_tmp s
+                  SELECT 1 FROM [{staging_name}] s
                   WHERE s.[Sales Document] = t.[Sales Document]
                     AND s.[Material] = t.[Material]
                     AND s.[Sales Document Item] = t.[Sales Document Item]
               )
-        """), {"ts": snap_ts, "min_date": min_date_str})
+        """), {"ts": snap_ts, "min_date": min_date_str, "nhamay": nhamay})
 
-        # 4️⃣ Chuyển sang _removed
+        # 3️⃣ Chuyển sang _removed
         conn.execute(text(f"""
             INSERT INTO [{table_name}_removed]
-            SELECT * FROM [{table_name}] WHERE status1='removed'
-        """))
+            SELECT * FROM [{table_name}] WHERE status1='removed' AND NhaMay=:nhamay
+        """), {"nhamay": nhamay})
 
-        # 5️⃣ Xóa record removed
-        conn.execute(text(f"DELETE FROM [{table_name}] WHERE status1='removed'"))
+        # 4️⃣ Xóa record removed
+        conn.execute(text(f"DELETE FROM [{table_name}] WHERE status1='removed' AND NhaMay=:nhamay"), {"nhamay": nhamay})
 
-        # 6️⃣ Cập nhật record trùng khóa và set trạng thái updated
+        # 5️⃣ Cập nhật record bị thay đổi
         cols_to_update = [
-        c for c in df.columns
-        if c not in ["Sales Document", "Material", "Sales Document Item", "status1", "snapshot_ts"]
+            c for c in df.columns
+            if c not in ["Sales Document", "Material", "Sales Document Item", "status1", "snapshot_ts"]
         ]
-        set_clause = ", ".join([f"t.[{c}] = s.[{c}]" for c in cols_to_update])
-        set_clause += ", t.status1 = 'updated', t.snapshot_ts = :ts"
+        if cols_to_update:
+            set_clause = ", ".join([f"t.[{c}] = s.[{c}]" for c in cols_to_update])
+            set_clause += ", t.status1 = 'updated', t.snapshot_ts = :ts"
+            diff_condition = " OR ".join([f"ISNULL(t.[{c}], '') <> ISNULL(s.[{c}], '')" for c in cols_to_update])
 
-        # Điều kiện khác nhau giữa staging_tmp và bảng chính
-        diff_condition = " OR ".join([f"ISNULL(t.[{c}], '') <> ISNULL(s.[{c}], '')" for c in cols_to_update])
+            # Chú ý: Bỏ điều kiện s.NhaMay = t.NhaMay ở INNER JOIN để tránh lỗi NULL
+            conn.execute(text(f"""
+                UPDATE t
+                SET {set_clause}
+                FROM [{table_name}] t
+                INNER JOIN [{staging_name}] s
+                    ON s.[Sales Document]=t.[Sales Document]
+                   AND s.[Material]=t.[Material]
+                   AND s.[Sales Document Item]=t.[Sales Document Item]
+                WHERE t.status1 IN ('active','updated')
+                  AND ({diff_condition})
+            """), {"ts": snap_ts})
 
-        conn.execute(text(f"""
-            UPDATE t
-            SET {set_clause}
-            FROM [{table_name}] t
-            INNER JOIN staging_tmp s
-            ON s.[Sales Document]=t.[Sales Document]
-            AND s.[Material]=t.[Material]
-            AND s.[Sales Document Item]=t.[Sales Document Item]
-            WHERE t.status1 IN ('active','updated')
-            AND ({diff_condition})
-        """), {"ts": snap_ts})
-
-        # 7️⃣ Thêm mới
+        # 6️⃣ Thêm mới
         cols = ", ".join([f"[{c}]" for c in df.columns])
+        # Chú ý: Bỏ điều kiện t.NhaMay=s.NhaMay
         conn.execute(text(f"""
             INSERT INTO [{table_name}] ({cols})
-            SELECT {cols} FROM staging_tmp s
+            SELECT {cols} FROM [{staging_name}] s
             WHERE NOT EXISTS (
                 SELECT 1 FROM [{table_name}] t
                 WHERE t.[Sales Document]=s.[Sales Document]
@@ -593,8 +630,192 @@ def upsert_so_from_excel(df: pd.DataFrame, table_name: str,date_col_name: str = 
             )
         """))
 
-        # 8️⃣ Dọn staging
-        conn.execute(text("DROP TABLE IF EXISTS staging_tmp"))
+        # 7️⃣ Dọn Staging
+        conn.execute(text(f"DROP TABLE IF EXISTS [{staging_name}]"))
+
+
+def upsert_kho_ctd_pv(df: pd.DataFrame, engine, allowed_kho_list: list, table_name: str = "kho_ctd_pv"):
+    """
+    Hàm Upsert dữ liệu cho luồng ZWM12 (Kho CTD và Phôi Vuông)
+    - allowed_kho_list: Truyền vào list mã kho muốn xử lý (VD: [1504] hoặc [1505, 1506, 1515, 1520]) 
+      để cô lập dữ liệu, tránh việc file này xóa nhầm dữ liệu của file kia.
+    """
+    if df.empty:
+        logger.warning(f"⚠️ [UPSERT] DataFrame rỗng cho các kho {allowed_kho_list}. Bỏ qua.")
+        return
+
+    logger.info(f"🚀 [START] Bắt đầu Upsert bảng {table_name} cho các kho: {allowed_kho_list}. Số dòng: {len(df)}")
+
+    # 1. BẢNG ÁNH XẠ TÊN CỘT (EXCEL -> DB)
+    column_mapping = {
+        'Kho': 'ma_kho',
+        'Số Lô': 'so_lo',
+        'Mã vật tư': 'ma_vat_tu',
+        'Material type': 'loai_vat_tu',
+        'Material group': 'nhom_vat_tu',
+        'Date of last goods receipt': 'ngay_nhap_cuoi',
+        'Tên vật tư': 'ten_vat_tu',
+        'ĐVT': 'dvt',
+        'SL Đầu kỳ': 'sl_dau_ky',
+        'SL Nhập trong kỳ': 'sl_nhap_trong_ky',
+        'SL Xuất trong kỳ': 'sl_xuat_trong_ky',
+        'SL Cuối kỳ': 'sl_cuoi_ky',
+        'Tổng Nhập-Xuất': 'tong_nhap_xuat',
+        'MRP Group': 'mrp_group',
+        'MRP Group description': 'mrp_group_desc'
+    }
+
+    df = df.copy()
+    # Đổi tên cột theo chuẩn
+    df = df.rename(columns=column_mapping)
+    
+    # Giữ lại các cột chuẩn (lọc bỏ các cột thừa nếu có)
+    valid_cols = list(column_mapping.values())
+    df = df[[c for c in valid_cols if c in df.columns]]
+    import re
+
+    # Xử lý cắt chuỗi để lấy Mác Thép chuẩn
+    def extract_mac_thep(ten):
+        if not isinstance(ten, str): return ""
+        # 1. Xóa "Phôi vuông", "Phôi ngắn dài..."
+        s = re.sub(r'(?i)(Phôi vuông|Phôi ngắn dài.*?(m|mm))\s*', '', ten)
+        # 2. Xóa các kích thước (VD: 150x150x12000mm, 150x150mm)
+        s = re.sub(r'[0-9]+x[0-9]+(x[0-9]+)?(mm)?\s*', '', s)
+        # 3. Xóa các con số trọng lượng/tỷ trọng ở cuối (VD: 214.4)
+        s = re.sub(r'\s+[0-9]{3}\.[0-9]$', '', s)
+        return s.strip()
+
+    # Sinh cột mới mac_thep
+    df['mac_thep'] = df['ten_vat_tu'].apply(extract_mac_thep)
+    # 2. XỬ LÝ LÀM SẠCH VÀ ÉP KIỂU
+    # Xử lý khóa chính: Loại bỏ null, khoảng trắng, đưa về string chuẩn
+    df['ma_kho'] = pd.to_numeric(df['ma_kho'], errors='coerce').fillna(-1).astype(int)
+    df['so_lo'] = df['so_lo'].astype(str).str.strip()
+    df['ma_vat_tu'] = df['ma_vat_tu'].astype(str).str.strip()
+
+    # Chỉ lọc lấy dữ liệu thuộc các mã Kho được cho phép (Tránh rác/sai lệch file)
+    df = df[df['ma_kho'].isin(allowed_kho_list)]
+    if df.empty:
+        logger.warning(f"⚠️ Không có dữ liệu hợp lệ cho kho {allowed_kho_list} sau khi lọc. Bỏ qua.")
+        return
+
+    # Sinh cột nha_may (Business Logic)
+    df['nha_may'] = df['ma_kho'].apply(lambda x: 'PhoiVuong' if x == 1504 else ('CTD' if x in [1505, 1506, 1515, 1520] else 'UNKNOWN'))
+    
+    # Cột hệ thống
+    snap_ts = datetime.now()
+    df['snapshot_ts'] = snap_ts
+    df['status'] = 'active'
+
+    # Xử lý các cột số lượng (Float)
+    float_cols = ['sl_dau_ky', 'sl_nhap_trong_ky', 'sl_xuat_trong_ky', 'sl_cuoi_ky', 'tong_nhap_xuat']
+    for col in float_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
+
+    # 3. CHUẨN BỊ SCHEMA CHO TO_SQL
+    dtype_mapping = {
+        'ma_kho': types.INTEGER(),
+        'so_lo': types.NVARCHAR(length=50),
+        'ma_vat_tu': types.NVARCHAR(length=50),
+        'mac_thep': types.NVARCHAR(length=100),
+        'loai_vat_tu': types.NVARCHAR(length=50),
+        'nhom_vat_tu': types.NVARCHAR(length=50),
+        'ngay_nhap_cuoi': types.DateTime(),
+        'ten_vat_tu': types.NVARCHAR(length=500),
+        'dvt': types.NVARCHAR(length=20),
+        'sl_dau_ky': types.Float(),
+        'sl_nhap_trong_ky': types.Float(),
+        'sl_xuat_trong_ky': types.Float(),
+        'sl_cuoi_ky': types.Float(),
+        'tong_nhap_xuat': types.Float(),
+        'mrp_group': types.NVARCHAR(length=50),
+        'mrp_group_desc': types.NVARCHAR(length=255),
+        'nha_may': types.NVARCHAR(length=50),
+        'snapshot_ts': types.DateTime(),
+        'status': types.VARCHAR(length=20)
+    }
+
+    staging_name = f"staging_kho_ctd_pv_{allowed_kho_list[0]}" # VD: staging_kho_ctd_pv_1504
+    kho_list_str = ",".join(map(str, allowed_kho_list))
+
+    # 4. THỰC THI SQL (Giao dịch an toàn)
+    try:
+        with engine.begin() as conn:
+            # 4.1. Tạo bảng Staging và nạp dữ liệu
+            conn.execute(text(f"DROP TABLE IF EXISTS [{staging_name}]"))
+            df.to_sql(staging_name, conn, if_exists="replace", index=False, dtype=dtype_mapping)
+            logger.info(f"✅ Đã tạo bảng staging: {staging_name}")
+
+            # Đánh Clustered Index trên Staging để tăng tốc độ MERGE
+            conn.execute(text(f"CREATE CLUSTERED INDEX IX_Stag_ZWM12 ON [{staging_name}]([ma_kho], [so_lo], [ma_vat_tu])"))
+
+            # Tự động tạo bảng chính nếu chưa tồn tại (chỉ tạo cấu trúc, không nạp data)
+            conn.execute(text(f"""
+                IF OBJECT_ID('[{table_name}]', 'U') IS NULL
+                BEGIN
+                    SELECT TOP 0 * INTO [{table_name}] FROM [{staging_name}]
+                    CREATE CLUSTERED INDEX IX_{table_name}_PK ON [{table_name}]([ma_kho], [so_lo], [ma_vat_tu])
+                END
+            """))
+
+            # 4.2. Đánh dấu 'removed' cho những cuộn KHÔNG CÒN tồn tại (Chỉ xét trong phạm vi các kho đang chạy)
+            conn.execute(text(f"""
+                UPDATE t
+                SET t.status = 'removed', t.snapshot_ts = :snap
+                FROM [{table_name}] t
+                WHERE t.status IN ('active', 'updated') 
+                  AND t.ma_kho IN ({kho_list_str}) 
+                  AND NOT EXISTS (
+                      SELECT 1 FROM [{staging_name}] s
+                      WHERE s.ma_kho = t.ma_kho AND s.so_lo = t.so_lo AND s.ma_vat_tu = t.ma_vat_tu
+                  )
+            """), {"snap": snap_ts})
+            conn.execute(text(f"""
+                INSERT INTO [{table_name}_removed]
+                SELECT * FROM [{table_name}]
+                WHERE status = 'removed' AND ma_kho IN ({kho_list_str})
+            """))
+
+            conn.execute(text(f"""
+                DELETE FROM [{table_name}] 
+                WHERE status = 'removed' AND ma_kho IN ({kho_list_str})
+            """))
+
+            # 4.3. Cập nhật dữ liệu (Update)
+            cols_to_update = [c for c in df.columns if c not in ["ma_kho", "so_lo", "ma_vat_tu", "status", "snapshot_ts", "nha_may"]]
+            
+            if cols_to_update:
+                set_clause = ", ".join([f"t.[{c}] = s.[{c}]" for c in cols_to_update])
+                diff_condition = " OR ".join([f"ISNULL(t.[{c}], '') <> ISNULL(s.[{c}], '')" for c in cols_to_update])
+                
+                conn.execute(text(f"""
+                    UPDATE t
+                    SET {set_clause}, t.status = 'updated', t.snapshot_ts = :snap
+                    FROM [{table_name}] t
+                    INNER JOIN [{staging_name}] s 
+                      ON t.ma_kho = s.ma_kho AND t.so_lo = s.so_lo AND t.ma_vat_tu = s.ma_vat_tu
+                    WHERE t.status IN ('active', 'updated') AND ({diff_condition})
+                """), {"snap": snap_ts})
+
+            # 4.4. Thêm mới dữ liệu (Insert)
+            cols_string = ", ".join([f"[{c}]" for c in df.columns])
+            conn.execute(text(f"""
+                INSERT INTO [{table_name}] ({cols_string})
+                SELECT {cols_string} FROM [{staging_name}] s
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM [{table_name}] t
+                    WHERE t.ma_kho = s.ma_kho AND t.so_lo = s.so_lo AND t.ma_vat_tu = s.ma_vat_tu
+                )
+            """))
+
+            # 4.5. Dọn dẹp bảng Staging
+            conn.execute(text(f"DROP TABLE IF EXISTS [{staging_name}]"))
+
+        logger.info(f"🏁 [END] Upsert thành công bảng {table_name} cho các kho {allowed_kho_list}.")
+
+    except Exception as e:
+        logger.exception(f"❌ [ERROR] Lỗi khi Upsert ZWM12 cho kho {allowed_kho_list}: {e}")
 def log_activity(action: str, user_id: int = None, username: str = None, target_type: str = None, target_id=None, details: str = "", ip_address: str = None):
     """Ghi lại một hành động của người dùng vào bảng audit_log."""
     try:
@@ -614,7 +835,6 @@ import pandas as pd
 from sqlalchemy import text
 import logging
 import numpy as np
-logger = logging.getLogger(__name__)
 
 def sync_order_production_rules_via_pandas(engine):
     logger.info("🔄 [MIGRATION] Bắt đầu đồng bộ từ so_request sang Production & Sales (Chế độ linh hoạt TDC)...")
@@ -626,7 +846,7 @@ def sync_order_production_rules_via_pandas(engine):
                 SELECT [Order], [TDC_Code], [SO Mapping], [CW], [Target_Weight], 
                        [Material description], [KySanXuat], [is_skin_required],
                        [material_code], [thickness], [width], [alloc_thick], 
-                       [gradeSteel], [purpose],[XNDH]
+                       [gradeSteel], [purpose],[XNDH], [special_request]
                 FROM dbo.so_request WITH (NOLOCK) 
                 WHERE [Order] IS NOT NULL 
             """, conn)
@@ -701,13 +921,13 @@ def sync_order_production_rules_via_pandas(engine):
             df_to_so_details = df_so_details[[
                 'so_number', 'material_code', 'Material description', 'gradeSteel',
                 'thickness', 'alloc_thick', 'width', 'Target_Weight', 'master_id',
-                'req_min_w', 'req_max_w', 'purpose','XNDH'
+                'req_min_w', 'req_max_w', 'purpose','XNDH', 'special_request'
             ]].copy()
             
             df_to_so_details.columns = [
                 'so_number', 'material_code', 'description', 'grade',
                 'thickness', 'alloc_thick', 'width', 'total_weight', 'tdc_id',
-                'min_weight', 'max_weight', 'usage_purpose','XNDH'
+                'min_weight', 'max_weight', 'usage_purpose','XNDH', 'special_request'
             ]
 
             if not df_to_so_details.empty:
@@ -718,7 +938,8 @@ def sync_order_production_rules_via_pandas(engine):
                                          'description': types.NVARCHAR(1000),
                                          'usage_purpose': types.NVARCHAR(1000),
                                          'grade': types.VARCHAR(100),
-                                         'XNDH': types.NVARCHAR(255)
+                                         'XNDH': types.NVARCHAR(255),
+                                         'special_request': types.NVARCHAR()
                                      })
                 transaction_conn.execute(text("""
                     MERGE [dbo].[so_details] AS target
@@ -736,10 +957,11 @@ def sync_order_production_rules_via_pandas(engine):
                             target.max_weight = source.max_weight,
                             target.tdc_id = ISNULL(source.tdc_id, target.tdc_id),                           
                             target.usage_purpose = source.usage_purpose,
-                            target.XNDH = source.XNDH                  
+                            target.XNDH = source.XNDH,
+                            target.special_request = source.special_request                                    
                     WHEN NOT MATCHED THEN
-                        INSERT (so_number, material_code, description, grade, thickness, alloc_thick, width, total_weight, min_weight, max_weight, tdc_id, usage_purpose, status, XNDH)
-                        VALUES (source.so_number, source.material_code, source.description, source.grade, source.thickness, source.alloc_thick, source.width, source.total_weight, source.min_weight, source.max_weight, source.tdc_id, source.usage_purpose, 'Hidden',source.XNDH);
+                        INSERT (so_number, material_code, description, grade, thickness, alloc_thick, width, total_weight, min_weight, max_weight, tdc_id, usage_purpose, status, XNDH, special_request)
+                        VALUES (source.so_number, source.material_code, source.description, source.grade, source.thickness, source.alloc_thick, source.width, source.total_weight, source.min_weight, source.max_weight, source.tdc_id, source.usage_purpose, 'Hidden', source.XNDH, source.special_request);
                 """))
                 transaction_conn.execute(text("DROP TABLE IF EXISTS staging_so_details"))
 
@@ -750,14 +972,14 @@ def sync_order_production_rules_via_pandas(engine):
                 'Order', 'tdc_version_id', 'master_id', 'req_min_w', 'req_max_w', 
                 'SO Mapping', 'Target_Weight', 'Material description', 
                 'KySanXuat', 'is_skin_required', 'production_status',
-                'thickness', 'width', 'alloc_thick' ,'XNDH'
+                'thickness', 'width', 'alloc_thick' , 'XNDH', 'special_request'
             ]].copy()
             
             df_to_sql.columns = [
                 'Order', 'tdc_version_id', 'master_id', 'req_min_w', 'req_max_w', 
                 'SO Mapping', 'Target_Weight', 'material_desc', 
                 'KySanXuat', 'is_skin_required', 'production_status',
-                'req_thick', 'req_width', 'alloc_thick', 'XNDH'
+                'req_thick', 'req_width', 'alloc_thick', 'XNDH', 'special_request'
             ]
             
             df_to_sql['Order'] = df_to_sql['Order'].astype(str).str.replace(r'\.0$', '', regex=True)
@@ -771,7 +993,8 @@ def sync_order_production_rules_via_pandas(engine):
                                  'master_id': types.BigInteger(), 
                                  'SO Mapping': types.BigInteger(),
                                  'material_desc': types.NVARCHAR(1000),
-                                 'XNDH': types.NVARCHAR(255)
+                                 'XNDH': types.NVARCHAR(255),
+                                 'special_request': types.NVARCHAR()
                              })
             transaction_conn.execute(text("CREATE CLUSTERED INDEX IX_Stag ON staging_order_rules([Order])"))
             sync_coil_sql = text("""
@@ -797,7 +1020,6 @@ def sync_order_production_rules_via_pandas(engine):
                         WHERE sl.[ID Cuộn bó] = c.coil_id 
                           AND sl.[Đã nhập kho] = N'Yes'
                     );
-                    
             """)
             transaction_conn.execute(sync_coil_sql)
             
@@ -858,12 +1080,13 @@ def sync_order_production_rules_via_pandas(engine):
                         target.req_thick = source.req_thick,
                         target.req_width = source.req_width,
                         target.alloc_thick = source.alloc_thick,
-                        target.XNDH = source.XNDH
+                        target.XNDH = source.XNDH,
+                        target.special_request = source.special_request
                 WHEN NOT MATCHED THEN
                     INSERT ([Order], [target_tdc_version_id], [req_min_w], [req_max_w], is_manual_override, is_conflict,
-                            [SO_mapping], [total_weight], [fulfilled_weight], [material_desc], [KySanXuat], [is_skin_required], [production_status], [req_thick], [req_width], [alloc_thick], [XNDH])
+                            [SO_mapping], [total_weight], [fulfilled_weight], [material_desc], [KySanXuat], [is_skin_required], [production_status], [req_thick], [req_width], [alloc_thick], [XNDH], [special_request])
                     VALUES (CAST(source.[Order] AS VARCHAR(50)), source.tdc_version_id, source.req_min_w, source.req_max_w, 0, 0,
-                            source.[SO Mapping], ISNULL(source.Target_Weight, 0), 0, source.material_desc, source.KySanXuat, ISNULL(source.is_skin_required, 0), source.production_status, source.req_thick, source.req_width, source.alloc_thick, source.XNDH);
+                            source.[SO Mapping], ISNULL(source.Target_Weight, 0), 0, source.material_desc, source.KySanXuat, ISNULL(source.is_skin_required, 0), source.production_status, source.req_thick, source.req_width, source.alloc_thick, source.XNDH, source.special_request);
             """)
             transaction_conn.execute(merge_sql)
             transaction_conn.execute(text("DROP TABLE staging_order_rules"))
@@ -876,7 +1099,7 @@ import json
 from sqlalchemy import text
 
 # Định nghĩa danh sách các lỗi thuộc Giai đoạn 2 (Đợi kết quả Lab)
-STAGE_2_DEFECTS = ['YieldPoint', 'Tensile', 'Elongation', 'Hardness', 'ImpactEnergy',  'C', 'Mn', 'Si', 'P', 'S', 'Cu', 'Ni', 'Cr', 'Mo', 'V', 'Ti', 'Al', 'Ca', 'B', 'Nb', 'CEV',  'O', 'N', 'H']
+STAGE_2_DEFECTS = ['YieldPoint', 'Tensile', 'Elongation', 'Hardness', 'ImpactEnergy']
 
 def evaluate_tdc_stage_1(scores_json, criteria_json, coil_weight, min_w, max_w):
     """ĐÁNH GIÁ GIAI ĐOẠN 1: Kích thước, Khối lượng và Bề mặt"""
@@ -893,7 +1116,9 @@ def evaluate_tdc_stage_1(scores_json, criteria_json, coil_weight, min_w, max_w):
     if is_thick_pass == 0:
         penalty += 100
         failed_reasons.append("Chiều dày không đạt")
-
+    elif is_thick_pass == -1: 
+        penalty += 100
+        failed_reasons.append("Chưa đánh giá chiều dày")
     # 1. Kiểm tra Khối lượng
     if min_w > 0 and coil_weight < min_w:
         penalty += 100

@@ -23,6 +23,14 @@
 	/>
 
     <style>
+      .sidebar.collapsed [data-bs-toggle="collapse"] .fa-chevron-down {
+        display: none;
+      }
+      
+      /* Optional: Bỏ border-radius cho các thẻ a nằm trong collapse nếu bị lệch */
+      .sidebar .collapse a {
+        margin-bottom: 2px;
+      }
       .update-time small {
         margin-right: 20px;
         font-size: 0.9rem;
@@ -135,45 +143,81 @@
 
     <div class="sidebar">
       <h6>BÁO CÁO</h6>
-      {% if 'view_ship_schedule' in session.get('permissions', []) or session.get('role') == 'admin' %}
-      <a href="{{ url_for('dashboard_bp.dashboard') }}"
-        ><i class="fas fa-anchor"></i><span>Dashboard Tàu</span></a>
-      {% endif %}
-	  {% if 'view_cpk_kho' in session.get('permissions', []) or session.get('role') == 'admin' %}
-      <a href="{{ url_for('dashboard_so_bp.dashboard_inventory') }}"><i class="fas fa-warehouse"></i><span>Dashboard Kho</span></a>
-      {% endif %}
-      {% if 'view_cpk_kho' in session.get('permissions', []) or session.get('role') == 'admin' %}
-      <a href="{{ url_for('dashboard_so_bp.dashboard_capacity') }}"><i class="fas fa-chart-area"></i><span>Dashboard CPK</span></a>
-      {% endif %}
-	  {% if 'view_ship_schedule' in session.get('permissions', []) or session.get('role') == 'admin' %}
-	  <a href="{{ url_for('tau_bp.lichtau') }}"
-        ><i class="fas fa-ship"></i><span>Check Lịch tàu</span></a>
-	  {% endif %}
-      {% if 'view_order' in session.get('permissions', []) or session.get('role') == 'admin' %}
-      <a href="{{ url_for('report.order') }}"
-        ><i class="fas fa-chart-line"></i><span>Check Order</span></a
-      >
-      {% endif %}
-      {% if 'view_customer' in session.get('permissions', []) or session.get('role') == 'admin' %}
-      <a href="{{ url_for('so.so_all') }}"
-        ><i class="fas fa-address-card"></i><span>Check Khách hàng</span></a
-      >
-      {% endif %}
-      {% if 'view_coil_id' in session.get('permissions', []) or session.get('role') == 'admin' %}
-      <a href="{{ url_for('idcuonbo_bp.idcuonbo') }}"
-        ><i class="fas fa-scroll"></i><span>Check ID Cuộn</span></a
-      >
-      {% endif %}
-      {% if 'view_lsx_report' in session.get('permissions', []) or session.get('role') == 'admin' %}
-      <a href="{{ url_for('reportlsx.lsx_all') }}"
-        ><i class="fas fa-calendar-day"></i><span>Check LSX</span></a
-      >
-      {% endif %}
+
+      <!-- ================= THƯ MỤC CTD ================= -->
+      <a data-bs-toggle="collapse" href="#collapseCTD" role="button" aria-expanded="false" aria-controls="collapseCTD" class="d-flex justify-content-between align-items-center">
+        <div><i class="fas fa-folder"></i><span>CTD</span></div>
+        <i class="fas fa-chevron-down ms-auto" style="font-size: 0.8rem;"></i>
+      </a>
+      <div class="collapse" id="collapseCTD">
+        <div class="ps-3 bg-light rounded mb-1"> <!-- ps-3 để lùi lề thư mục con -->
+          {% if 'ctd_view' in session.get('permissions', []) or session.get('role') == 'admin' %}
+          <a href="{{ url_for('ctd_bp.dashboard_ctd') }}">
+              <i class="fas fa-cubes"></i><span>Dashboard CTD</span>
+          </a>
+          {% endif %}
+          {% if 'pv_view' in session.get('permissions', []) or session.get('role') == 'admin' %}
+          <a href="{{ url_for('phoivuong_bp.phoivuong_dashboard') }}">
+              <i class="fas fa-cubes"></i><span>Dashboard Phôi Vuông</span>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- ================= THƯ MỤC CÒN LẠI VÀ HRC ================= -->
+      <a data-bs-toggle="collapse" href="#collapseHRC" role="button" aria-expanded="false" aria-controls="collapseHRC" class="d-flex justify-content-between align-items-center mt-1">
+        <div><i class="fas fa-folder"></i><span>HRC</span></div>
+        <i class="fas fa-chevron-down ms-auto" style="font-size: 0.8rem;"></i>
+      </a>
+      <div class="collapse" id="collapseHRC">
+        <div class="ps-3 bg-light rounded mb-1">
+          {% if 'view_ship_schedule' in session.get('permissions', []) or session.get('role') == 'admin' %}
+          <a href="{{ url_for('dashboard_bp.dashboard') }}">
+            <i class="fas fa-anchor"></i><span>Dashboard tàu HRC</span>
+          </a>
+          {% endif %}
+          {% if 'view_cpk_kho' in session.get('permissions', []) or session.get('role') == 'admin' %}
+          <a href="{{ url_for('dashboard_so_bp.dashboard_inventory') }}">
+            <i class="fas fa-warehouse"></i><span>Dashboard Kho HRC</span>
+          </a>
+          {% endif %}
+          {% if 'view_cpk_kho' in session.get('permissions', []) or session.get('role') == 'admin' %}
+          <a href="{{ url_for('dashboard_so_bp.dashboard_capacity') }}">
+            <i class="fas fa-chart-area"></i><span>Dashboard CPK HRC</span>
+          </a>
+          {% endif %}
+          {% if 'view_ship_schedule' in session.get('permissions', []) or session.get('role') == 'admin' %}
+          <a href="{{ url_for('tau_bp.lichtau') }}">
+            <i class="fas fa-ship"></i><span>Check Lịch tàu HRC</span>
+          </a>
+          {% endif %}
+          {% if 'view_order' in session.get('permissions', []) or session.get('role') == 'admin' %}
+          <a href="{{ url_for('report.order') }}">
+            <i class="fas fa-chart-line"></i><span>Check Order HRC</span>
+          </a>
+          {% endif %}
+          {% if 'view_customer' in session.get('permissions', []) or session.get('role') == 'admin' %}
+          <a href="{{ url_for('so.so_all') }}">
+            <i class="fas fa-address-card"></i><span>Check Khách hàng HRC</span>
+          </a>
+          {% endif %}
+          {% if 'view_coil_id' in session.get('permissions', []) or session.get('role') == 'admin' %}
+          <a href="{{ url_for('idcuonbo_bp.idcuonbo') }}">
+            <i class="fas fa-scroll"></i><span>Check ID Cuộn HRC</span>
+          </a>
+          {% endif %}
+          {% if 'view_lsx_report' in session.get('permissions', []) or session.get('role') == 'admin' %}
+          <a href="{{ url_for('reportlsx.lsx_all') }}">
+            <i class="fas fa-calendar-day"></i><span>Check LSX HRC</span>
+          </a>
+          {% endif %}
+        </div>
+      </div>
 
       {% if 'manage_lsx' in session.get('permissions', []) or session.get('role') == 'admin' %}
       <h6>KIỂM SOÁT</h6>
       <a href="{{ url_for('lsx.danhsach_lsx') }}" title="Danh sách LSX">
-        <i class="fas fa-clipboard-list"></i><span>Danh sách LSX</span>
+        <i class="fas fa-clipboard-list"></i><span>Danh sách LSX HRC</span>
       </a>
 	  <a href="{{ url_for('lsx.lap_lsx') }}" title="Lập Form LSX">
         <i class="fas fa-edit"></i><span>Lập Form LSX</span>
@@ -192,7 +236,7 @@
 	  {% if 'upload_files' in session.get('permissions', []) or session.get('role') == 'admin' %}
       <h6>THAO TÁC</h6>
       <a class="text-success" href="{{ url_for('upload.upload_files') }}">
-        <i class="fas fa-file-upload"></i><span>Upload LSX hoặc Lịch tàu</span>
+        <i class="fas fa-file-upload"></i><span>Upload LSX hoặc Lịch tàu HRC</span>
       </a>
       {% endif %}
 	  <h6>CÔNG CỤ</h6>
@@ -370,7 +414,7 @@
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         const currentPath = window.location.pathname;
-        const sidebarLinks = document.querySelectorAll(".sidebar a");
+        const sidebarLinks = document.querySelectorAll(".sidebar a:not([data-bs-toggle='collapse'])"); // Bỏ qua link thư mục
         
         let mostSpecificLink = null;
         let maxMatchLength = 0;
@@ -390,6 +434,16 @@
 
         if (mostSpecificLink) {
             mostSpecificLink.classList.add("active");
+            
+            // --- THÊM PHẦN NÀY ĐỂ MỞ THƯ MỤC CHA ---
+            const parentCollapse = mostSpecificLink.closest('.collapse');
+            if (parentCollapse) {
+                parentCollapse.classList.add('show');
+                // Tùy chọn: Tìm nút folder và đổi thuộc tính aria-expanded
+                const toggleBtn = document.querySelector(`[href="#${parentCollapse.id}"]`);
+                if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
+            }
+            // ----------------------------------------
         }
       });
     </script>

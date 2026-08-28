@@ -18,7 +18,8 @@ def login():
 
         # Sử dụng một khối `with` duy nhất cho tất cả các thao tác DB
         with engine.begin() as conn:
-            query = text("SELECT id, username, password_hash, users.role, status FROM users WHERE username = :username")
+            # 1. THÊM session_version VÀO CÂU TRUY VẤN
+            query = text("SELECT id, username, password_hash, users.role, status, session_version FROM users WHERE username = :username")
             result = conn.execute(query, {"username": username}).mappings().fetchone()
 
             if result and check_password_hash(result['password_hash'], password):
@@ -31,6 +32,9 @@ def login():
                 session['user_id'] = result['id']
                 session['username'] = result['username']
                 session['role'] = result['role'].strip()
+                
+                # 2. LƯU THÊM VERSION VÀO SESSION 
+                session['session_version'] = result['session_version']
     
                 # Lấy danh sách quyền của user và lưu vào session
                 permissions_result = conn.execute(text("SELECT permission_name FROM user_permissions WHERE user_id = :uid"), {"uid": result['id']}).fetchall()

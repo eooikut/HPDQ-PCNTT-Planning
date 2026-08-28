@@ -3,10 +3,11 @@ import time
 import logging
 from datetime import datetime,timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
-from db_utils import upsert_kho_from_excel, upsert_sanluong_from_excel, upsert_so_from_excel, sync_order_production_rules_via_pandas,process_etl_qc_lifecycle
+from db_utils import upsert_kho_from_excel, upsert_sanluong_from_excel, upsert_so_from_excel, sync_order_production_rules_via_pandas,process_etl_qc_lifecycle, upsert_kho_ctd_pv
 from sqlalchemy import text
 from db import engine
 from phanbodudoan import ExportDataSAP
+import pandas as pd
 # ---------- Cấu hình ----------
 LOCAL_FOLDER = "data_auto_update"
 FACTORIES = ["nm1", "nm2"]
@@ -113,7 +114,7 @@ def update_so():
             
         df_so = read_file_auto(path, skiprows=2)
         df_so = df_so.loc[:, ~df_so.columns.str.contains('^Unnamed')]
-        upsert_so_from_excel(df_so, "so", date_col_name="Document Date")
+        upsert_so_from_excel(df_so, "so", date_col_name="Document Date", nhamay="HRC")
         logger.info(f"[{datetime.now()}] Cập nhật SO xong")
     except Exception as e:
         logger.error(f"Error update so: {e}")
@@ -187,6 +188,80 @@ def job_update_factory():
     process_etl_qc_lifecycle(engine)
     ExportDataSAP()
     logger.info(f"[{datetime.now()}] --- KẾT THÚC JOB: update_factory() ---")
+def job_update_kho_ctd_pv():
+    from XuLyDuLieuNhapVao import read_file_auto
+    logger.info(f"[{datetime.now()}] --- BẮT ĐẦU JOB: update_kho_zwm12() ---")
+    
+    # 1. Cập nhật KHO PHÔI VUÔNG
+    path_pv = get_file_path("kho_phoivuong.xlsx")
+    if path_pv and wait_for_file_release(path_pv):
+        try:
+            df_pv = read_file_auto(path_pv)
+            # Khóa danh sách kho 1504
+            upsert_kho_ctd_pv(df_pv, engine, allowed_kho_list=[1504], table_name="kho_ctd_pv")
+            logger.info(f"Cập nhật kho_phoivuong.xlsx thành công.")
+        except Exception as e:
+            logger.error(f"Lỗi update kho_phoivuong: {e}")
+
+    # 2. Cập nhật KHO CTD
+    path_ctd = get_file_path("kho_ctd.xlsx")
+    if path_ctd and wait_for_file_release(path_ctd):
+        try:
+            df_ctd = read_file_auto(path_ctd)
+            # Khóa danh sách kho 1505, 1506, 1515, 1520
+            upsert_kho_ctd_pv(df_ctd, engine, allowed_kho_list=[1505, 1506, 1515, 1520], table_name="kho_ctd_pv")
+            logger.info(f"Cập nhật kho_ctd.xlsx thành công.")
+        except Exception as e:
+            logger.error(f"Lỗi update kho_ctd: {e}")
+    # 3. Cập nhật CNK CTD
+    path_nhapkho_ctd = get_file_path("nhapkho_ctd.xlsx")
+    if path_nhapkho_ctd and wait_for_file_release(path_nhapkho_ctd):
+        try:
+            df_nhapkho = read_file_auto(path_nhapkho_ctd)
+            
+            # Tiền xử lý nhanh: Bỏ dòng trống ID và xóa trùng lặp
+            df_nhapkho = df_nhapkho.dropna(subset=["ID Cuộn Bó"])
+            df_nhapkho = df_nhapkho.drop_duplicates(subset=['ID Cuộn Bó'])
+            if "Khối lượng" in df_nhapkho.columns:
+                # 1. Ép về kiểu chuỗi (phòng trường hợp Excel tự nhận một số ô là float)
+                # 2. Xóa bỏ dấu phẩy (,)
+                # 3. Ép kiểu về số thực (Float), lỗi thì trả về NaN rồi gán = 0.0
+                df_nhapkho["Khối lượng"] = (
+                    df_nhapkho["Khối lượng"]
+                    .astype(str)
+                    .str.replace(',', '', regex=False)
+                    .apply(pd.to_numeric, errors="coerce")
+                    .fillna(0.0)
+                )
+            # Truyền nhamay="CTD" để cô lập dữ liệu. 
+            # Truyền date_col_name="snapshot_ts" cố tình không khớp để ép hàm quét toàn bộ (Full Sync)
+            upsert_sanluong_from_excel(
+                df=df_nhapkho, 
+                table_name="sanluong", 
+                nhamay="CTD", 
+                date_col_name="snapshot_ts" 
+            )
+            logger.info(f"Cập nhật nhapkho_ctd.xlsx thành công.")
+        except Exception as e:
+            logger.error(f"Lỗi update nhapkho_ctd: {e}")
+    # 4. Cập nhật SO CTD
+    path_so_ctd = get_file_path("so_ctd.xlsx")
+    if path_so_ctd and wait_for_file_release(path_so_ctd):
+        try:
+            # File SO xuất từ SAP luôn có 2 dòng title thừa -> dùng skiprows=2
+            df_so_ctd = read_file_auto(path_so_ctd, skiprows=2)
+            # Dọn dẹp cột Unnamed
+            df_so_ctd = df_so_ctd.loc[:, ~df_so_ctd.columns.str.contains('^Unnamed')]
+            
+            logger.info(f"Bắt đầu Upsert SO CTD - Số dòng: {len(df_so_ctd)}")
+            
+            # TRUYỀN nhamay="CTD" VÀO HÀM ĐỂ CÔ LẬP
+            upsert_so_from_excel(df_so_ctd, "so", date_col_name="Document Date", nhamay="CTD")
+            
+            logger.info(f"Cập nhật so_ctd.xlsx thành công.")
+        except Exception as e:
+            logger.error(f"Lỗi update so_ctd: {e}")
+    logger.info(f"[{datetime.now()}] --- KẾT THÚC JOB: update_kho_zwm12() ---")
 
 def start_scheduler():
     os.makedirs(LOCAL_FOLDER, exist_ok=True)
@@ -206,6 +281,12 @@ def start_scheduler():
         'interval',
         minutes=20,
         next_run_time=now + timedelta(minutes=5)
+    )
+    scheduler.add_job(
+        job_update_kho_ctd_pv,
+        'interval',
+        minutes=20,
+        next_run_time=now + timedelta(minutes=10)
     )
     scheduler.start()
     logger.info("Scheduler đã khởi chạy:")

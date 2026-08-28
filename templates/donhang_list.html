@@ -1,0 +1,490 @@
+{% extends 'base.html' %}
+{% block title %}Hệ thống Số hóa Đơn hàng{% endblock %}
+
+{% block content %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator_bootstrap5.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+
+<style>
+    .select2-container--default .select2-selection--multiple {
+        border: 1px solid #ced4da !important;
+        border-radius: 4px !important;
+        min-height: 28px !important;
+        padding-bottom: 0px !important;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #0d6efd !important;
+        border: none !important;
+        color: white !important;
+        padding: 2px 6px !important;
+        margin-top: 3px !important;
+        font-size: 12px !important;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: white !important;
+        margin-right: 5px !important;
+        border-right: none !important;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+        color: #ffcccc !important;
+        background: transparent !important;
+    }
+    .select2-search__field {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 13px !important;
+    }
+    .select2-dropdown {
+        font-size: 13px !important;
+    }
+    body, .dashboard-container { font-family: 'Inter', sans-serif; background-color: #f4f6f9; }
+    .tabulator { font-family: 'Inter', sans-serif !important; font-size: 14px !important; border: 1px solid #ced4da; border-radius: 6px; }
+    .tabulator-header { background-color: #f8f9fa; color: #111; }
+    .tabulator-col-title { font-weight: 600; font-size: 13px !important; text-transform: uppercase; }
+    .tabulator-cell { padding: 8px 12px !important; }
+
+    /* MÀU SẮC PHÂN QUYỀN */
+    .col-readonly-grey { background-color: #e9ecef !important; color: #868e96 !important; }
+    .tabulator-col.col-readonly-grey { background-color: #dee2e6 !important; border-top: 3px solid #ced4da !important; }
+    
+    .tabulator-col.col-edit-pkd { border-top: 3px solid #0d6efd !important; background-color: #e6f2ff !important; color: #084298 !important; }
+    .tabulator-cell.col-edit-pkd { background-color: #ffffff; }
+    .tabulator-col.col-edit-pdv { border-top: 3px solid #6f42c1 !important; background-color: #f3e8ff !important; color: #4c1d95 !important; }
+    .tabulator-cell.col-edit-pdv { background-color: #ffffff; }
+    .tabulator-col.col-edit-pkh { border-top: 3px solid #fd7e14 !important; background-color: #fff4e6 !important; color: #9c4300 !important; }
+    .tabulator-cell.col-edit-pkh { background-color: #ffffff; }
+    .tabulator-col.col-edit-nm { border-top: 3px solid #198754 !important; background-color: #e8f5e9 !important; color: #0f5132 !important; }
+    .tabulator-cell.col-edit-nm { background-color: #ffffff; }
+
+    .cell-editable { cursor: cell; transition: background 0.2s; }
+    .cell-editable:hover { background-color: #fff3cd !important; box-shadow: inset 0 0 0 1px #ffc107; }
+    .col-auto { background-color: #f1f3f5 !important; color: #495057; font-style: italic; }
+
+    .badge-po { font-size: 12px; margin-right: 4px; padding: 4px 8px; border-radius: 4px; font-weight: 600; display: inline-block; }
+    .bg-po-can { background-color: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; }
+    .bg-po-skin { background-color: #334155; color: #f8fafc; }
+
+    .nav-tabs-custom { border-bottom: 2px solid #dee2e6; margin-bottom: 15px; }
+    .nav-tabs-custom .nav-link { color: #495057; font-weight: 600; cursor: pointer; border: none; background: transparent; border-bottom: 3px solid transparent; padding: 10px 20px; transition: 0.3s; }
+    .nav-tabs-custom .nav-link:hover { color: #0d6efd; background-color: #f8f9fa; border-radius: 6px 6px 0 0; }
+    .nav-tabs-custom .nav-link.active { color: #0d6efd; border-bottom: 3px solid #0d6efd; }
+</style>
+
+<div class="dashboard-container p-3">
+    <!-- TABS LỌC NHÀ MÁY (HRC1 / HRC2) -->
+    <ul class="nav nav-pills mb-3 gap-2" id="factoryTabs">
+        <li class="nav-item">
+            <a class="nav-link active fw-bold px-4 shadow-sm" data-filter="" style="cursor: pointer; border: 1px solid #0d6efd;">Tất cả Nhà Máy</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link fw-bold px-4 shadow-sm" data-filter="HRC1" style="cursor: pointer; border: 1px solid #0d6efd;">Nhà Máy HRC1</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link fw-bold px-4 shadow-sm" data-filter="HRC2" style="cursor: pointer; border: 1px solid #0d6efd;">Nhà Máy HRC2</a>
+        </li>
+    </ul>
+
+    <!-- Header Controls -->
+    <div class="d-flex justify-content-between align-items-center mb-3 bg-white p-3 rounded shadow-sm border">
+        <div>
+            <h5 class="mb-1 fw-bold text-dark"><i class="fas fa-file-excel text-success me-2"></i>Bảng Số Hóa Đơn Hàng</h5>
+            <small class="text-muted">Cột XÁM là ngoài thẩm quyền. Cột SÁNG MÀU là vùng bạn được phép chỉnh sửa.</small>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary px-3" id="btn-open-upload" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="fas fa-upload me-1"></i> Import File
+            </button>
+            <button class="btn btn-dark px-3" id="btn-export">
+                <i class="fas fa-download me-1"></i> Xuất Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- TABS CUỘN NHANH (QUICK NAV) -->
+    <ul class="nav nav-tabs-custom" id="quickNavTabs">
+        <li class="nav-item"><a class="nav-link active" data-target="nm_san_xuat"><i class="fas fa-industry text-primary me-1"></i>P. Kinh Doanh</a></li>
+        <li class="nav-item"><a class="nav-link" data-target="tdc_code"><i class="fas fa-handshake text-purple me-1"></i>P. Dịch Vụ</a></li>
+        <li class="nav-item"><a class="nav-link" data-target="tong_lsx"><i class="fas fa-chart-line text-warning me-1"></i>P. Kế Hoạch</a></li>
+        <li class="nav-item"><a class="nav-link" data-target="mac_phoi"><i class="fas fa-flask text-success me-1"></i>Nhà Máy (NMSX & CNLT)</a></li>
+    </ul>
+
+    <!-- Lưới DataGrid -->
+    <div class="shadow-sm">
+        <div id="donhang-table"></div>
+    </div>
+</div>
+
+<!-- Modal Upload -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="fas fa-file-excel me-2"></i>Import File Excel Đơn Hàng</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label fw-bold">Chọn file Excel (.xlsx, .xls) - Dòng tiêu đề ở Hàng 10:</label>
+            <input type="file" class="form-control" id="file_excel" accept=".xlsx, .xls">
+        </div>
+
+        <div id="upload-log-container" class="d-none mt-3">
+            <label class="form-label fw-bold text-dark"><i class="fas fa-terminal me-1"></i>Nhật ký Xử lý (Log):</label>
+            <div id="upload-log-content" class="p-3 bg-dark text-light rounded small" style="max-height: 220px; overflow-y: auto; font-family: monospace;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-primary" id="btn-submit-upload">
+            <i class="fas fa-cloud-upload-alt me-1"></i> Tiến hành Import
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script src="https://unpkg.com/tabulator-tables@5.5.0/dist/js/tabulator.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    toastr.options = { "positionClass": "toast-bottom-right", "timeOut": "2000" };
+
+    const editableFields = {{ editable_fields | tojson | safe }};
+    const role = "{{ session.get('role') }}";
+    
+    if (role !== 'admin' && !editableFields.includes('xndn')) {
+        document.getElementById('btn-open-upload').style.display = 'none';
+    }
+
+    const deptMap = {
+        "dung_sai": "pkd", "nm_san_xuat": "pkd", "nhip": "pkd", "tg_can_hang": "pkd", "xndn": "pkd", "so_mapping": "pkd", 
+        "cw": "pkd", "tdc_rieng": "pkd", "skinpass": "pkd", "yeu_cau_dac_biet": "pkd", 
+        "mac_thep": "pkd", "do_day": "pkd", "kho_rong": "pkd", "tong_luong_pkd": "pkd", 
+        "muc_dich_su_dung": "pkd", "tc_yeu_cau_kh": "pkd",
+        "tdc_code": "pdv", "chieu_day_muc_tieu": "pdv",
+        "material_description": "auto", "material_description_hspm": "auto",
+        "tong_lsx": "pkh", "po_can_204": "pkh", "po_skin_206": "pkh", "thang": "pkh", 
+        "kh": "pkh", "mvt_hspm": "pkh", "mvt_mdd": "pkh", "po_duc": "pkh", 
+        "tc_hien_tai_sap": "pkh", "tc_sap_hspm": "pkh", "tinh_trang_sx": "pkh", 
+        "tinh_trang_mapping": "pkh", "luong_ban": "pkh", "luong_map": "pkh", 
+        "ton_kho_chua_map": "pkh", "chua_nhap_kho": "pkh",
+        "mac_phoi": "nm", "kich_thuoc_phoi": "nm", "chieu_dai_phoi": "nm", "khoi_luong_phoi": "nm"
+    };
+
+    const rawColumns = [
+        {title: "ID", field: "id_donhang", width: 60, frozen: true},
+        {title: "NM sản xuất", field: "nm_san_xuat", width: 110, frozen: true},
+        {title: "Nhịp", field: "nhip"},
+        {title: "TG Cần hàng", field: "tg_can_hang"},
+        {title: "XNĐN", field: "xndn", width: 130, frozen: true},
+        {title: "SO Mapping", field: "so_mapping"},
+        {title: "CW", field: "cw"},
+        {title: "TDC code", field: "tdc_code"},
+        {title: "TDC riêng", field: "tdc_rieng"},
+        {title: "Skinpass", field: "skinpass", editor: "list", editorParams:{values:{"Yes":"Yes", "No":"No"}}},
+        {title: "Yêu cầu đặc biệt", field: "yeu_cau_dac_biet", width: 180},
+        {title: "Mác thép", field: "mac_thep"},
+        {title: "Độ dày", field: "do_day"},
+        {title: "Khổ rộng", field: "kho_rong"},
+        {title: "Tổng lượng PKD", field: "tong_luong_pkd"},
+        {title: "Mục đích sử dụng", field: "muc_dich_su_dung"},
+        {title: "Tiêu chuẩn KH", field: "tc_yeu_cau_kh"},
+        {title: "Chiều dày mục tiêu", field: "chieu_day_muc_tieu"},
+        {title: "Material Description", field: "material_description", width: 220},
+        {title: "Material Desc HSPM", field: "material_description_hspm", width: 220},
+        {title: "Dung sai", field: "dung_sai"},
+        {title: "Tổng LSX", field: "tong_lsx"},
+        {title: "PO cán 204", field: "po_can_204", width: 160, formatter: function(c){ let v=c.getValue(); return v?v.split(',').map(p=>`<span class="badge-po bg-po-can">${p.trim()}</span>`).join(''):"";}},
+        {title: "PO skin 206", field: "po_skin_206", width: 160, formatter: function(c){ let v=c.getValue(); return v?v.split(',').map(p=>`<span class="badge-po bg-po-skin">${p.trim()}</span>`).join(''):"";}},
+        {title: "Tháng", field: "thang"},
+        {title: "KH", field: "kh"},
+        {title: "MVT HSPM", field: "mvt_hspm"},
+        {title: "MVT MDD", field: "mvt_mdd", width: 130},
+        {title: "PO đúc", field: "po_duc"},
+        {title: "TC hiện tại SAP", field: "tc_hien_tai_sap"},
+        {title: "TC SAP-HSPM", field: "tc_sap_hspm"},
+        {title: "Tình trạng SX", field: "tinh_trang_sx"},
+        {title: "Tình trạng mapping", field: "tinh_trang_mapping"},
+        {title: "Lượng bán", field: "luong_ban"},
+        {title: "Lượng MAP", field: "luong_map"},
+        {title: "Tồn kho chưa mapping", field: "ton_kho_chua_map"},
+        {title: "Chưa nhập kho", field: "chua_nhap_kho"},
+        {title: "Mác phôi", field: "mac_phoi"},
+        {title: "Kích thước phôi", field: "kich_thuoc_phoi"},
+        {title: "Chiều dài phôi", field: "chieu_dai_phoi"},
+        {title: "Khối lượng phôi", field: "khoi_luong_phoi"}
+    ];
+    function select2HeaderFilter(cell, onRendered, success, cancel, filterParams) {
+        var select = document.createElement("select");
+        select.multiple = "multiple";
+        select.style.width = "100%";
+
+        onRendered(function() {
+            let $select = $(select);
+            let table = cell.getColumn().getTable();
+            let field = cell.getColumn().getField();
+
+            function loadOptions() {
+                let currentVals = $select.val() || [];
+                $select.empty();
+                
+                // Lấy tất cả giá trị hiện có trong CSDL (loại bỏ trùng lặp và rỗng)
+                let data = table.getData();
+                let uniqueVals = [...new Set(data.map(item => item[field]))]
+                                  .filter(x => x !== null && x !== undefined && x !== "")
+                                  .sort();
+                
+                // Đổ vào danh sách lựa chọn
+                uniqueVals.forEach(val => {
+                    let isSelected = currentVals.includes(String(val));
+                    let opt = new Option(val, val, false, isSelected);
+                    $select.append(opt);
+                });
+            }
+
+            loadOptions();
+
+            // Khởi tạo thư viện Select2 (Ô Search + Tick chọn nhiều)
+            $select.select2({
+                placeholder: "Tìm & Chọn...",
+                width: '100%',
+                allowClear: true,
+                closeOnSelect: false // Cực quan trọng: Chọn nhiều ô mà menu không bị đóng lại
+            });
+
+            // Khi người dùng gõ tìm hoặc tick chọn -> Báo cho Tabulator lọc ngay
+            $select.on('change', function() {
+                let vals = $select.val();
+                success(vals && vals.length > 0 ? vals : "");
+            });
+
+            // Lắng nghe sự kiện: Khi Import file mới xong -> Cập nhật lại danh sách thả xuống
+            table.on("dataLoaded", function() {
+                loadOptions();
+                $select.trigger("change.select2");
+            });
+        });
+
+        return select;
+    }
+    rawColumns.forEach(col => {
+        let colDept = deptMap[col.field] || "auto";
+
+        // === CẤU HÌNH BỘ LỌC DROPDOWN CHỌN NHIỀU BẰNG CHECKBOX ===
+        if (col.field === "skinpass") {
+            col.headerFilter = "list";
+            col.headerFilterParams = { 
+                values: {"": "Tất cả", "Yes": "Yes", "No": "No"},
+                clearable: true
+            };
+            col.headerFilterFunc = "=";
+        } else if (col.field === "id_donhang") {
+            col.headerFilter = "input";
+        } else {
+            // SỬ DỤNG MULTISELECT ĐỂ TICK CHỌN NHIỀU DÒNG (GIỐNG EXCEL)
+            col.headerFilter = "list";
+            col.headerFilterParams = { 
+                valuesLookup: true, // Tự động gom nhóm giá trị không trùng lặp
+                clearable: true,    // Nút [X] để xóa bộ lọc
+                multiselect: true,  // KÍCH HOẠT TICK CHỌN NHIỀU Ô
+                // Tuyệt đối KHÔNG DÙNG autocomplete: true ở đây để tránh lỗi Tabulator
+            };
+            // VÌ DÙNG MULTISELECT (TRẢ VỀ MẢNG), BẮT BUỘC DÙNG HÀM "in"
+            col.headerFilterFunc = "in"; 
+        }
+
+        // === PHÂN QUYỀN VÀ CẤP MÀU ===
+        let isPermitted = (role === 'admin') || editableFields.includes(col.field);
+        if (colDept === 'auto' || col.field === 'id_donhang') isPermitted = false; 
+
+        if (isPermitted) {
+            col.cssClass = `col-edit-${colDept}`; 
+            if (!col.editor && col.field !== "skinpass") col.editor = "input";
+            
+            col.editable = function(cell) {
+                if (role === 'admin') return true;
+                let row = cell.getRow().getData();
+                if (col.field === 'po_skin_206' && row.skinpass !== 'Yes') return false;
+                if (!editableFields.includes('xndn') && (!row.xndn || !row.mvt_mdd)) {
+                    toastr.warning("P.KD chưa nhập XNĐN/MVT. Cột tạm khóa!");
+                    return false;
+                }
+                return true;
+            };
+
+            col.formatter = col.formatter || function(cell) { 
+                cell.getElement().classList.add("cell-editable"); 
+                return cell.getValue() || ""; 
+            };
+        } else {
+            col.cssClass = (colDept === 'auto') ? "col-auto" : "col-readonly-grey";
+            col.editable = false;
+        }
+    });
+
+    var table = new Tabulator("#donhang-table", {
+        ajaxURL: "{{ url_for('donhang_bp.get_list') }}",
+        ajaxResponse: function(url, params, response){ return response.data; },
+        layout: "fitData", 
+        height: "calc(100vh - 250px)",
+        
+        pagination: "local", paginationSize: 25,
+        paginationSizeSelector: [25, 50, 100, true],
+        paginationCounter: "rows",
+
+        clipboard: true, keybindings: true, editorSelect: true,
+        columns: rawColumns
+    });
+
+    document.querySelectorAll('#quickNavTabs .nav-link').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.querySelectorAll('#quickNavTabs .nav-link').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            table.scrollToColumn(this.getAttribute('data-target'), "left", true);
+        });
+    });
+
+    document.querySelectorAll('#factoryTabs .nav-link').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.querySelectorAll('#factoryTabs .nav-link').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            let filterVal = this.getAttribute('data-filter');
+            if (filterVal) {
+                table.setFilter("nm_san_xuat", "like", filterVal);
+            } else {
+                table.removeFilter("nm_san_xuat", "like", "HRC1");
+                table.removeFilter("nm_san_xuat", "like", "HRC2");
+            }
+        });
+    });
+
+    table.on("cellEdited", function(cell){
+        let field = cell.getField(), rowData = cell.getRow().getData(), oldVal = cell.getOldValue();
+        if(cell.getValue() === oldVal) return;
+
+        let csrfToken = document.querySelector('meta[name="csrf-token"]') 
+                        ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') 
+                        : "{{ csrf_token() if csrf_token else '' }}";
+
+        let apiUrl = (field === "po_can_204" || field === "po_skin_206") 
+                     ? "{{ url_for('donhang_bp.update_po') }}" : "{{ url_for('donhang_bp.update_master') }}";
+        
+        let payload = (field === "po_can_204" || field === "po_skin_206")
+                     ? { id_donhang: rowData.id_donhang, po_can_204: rowData.po_can_204, po_skin_206: rowData.po_skin_206 }
+                     : { id_donhang: rowData.id_donhang, field: field, value: cell.getValue() };
+
+        fetch(apiUrl, { 
+            method: "PUT", 
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken
+            }, 
+            body: JSON.stringify(payload) 
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === "success") { 
+                toastr.success("Đã lưu!"); 
+                if(data.updated_data) {
+                    cell.getRow().update(data.updated_data);
+                }
+            } 
+            else { 
+                toastr.error(data.message); 
+                cell.restoreOldValue(); 
+            }
+        });
+    });
+
+    document.getElementById("btn-submit-upload").addEventListener("click", function() {
+        let f = document.getElementById("file_excel");
+        if(!f.files[0]) return toastr.warning("Vui lòng chọn file Excel!");
+
+        let btn = this;
+        let logContainer = document.getElementById("upload-log-container");
+        let logContent = document.getElementById("upload-log-content");
+        
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> Đang xử lý...`;
+        logContainer.classList.remove("d-none");
+        logContent.innerHTML = `<div class="text-info">> Đang tải file lên và kiểm tra cấu trúc...</div>`;
+
+        let csrfToken = document.querySelector('meta[name="csrf-token"]') 
+                        ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') 
+                        : "{{ csrf_token() if csrf_token else '' }}";
+
+        let fd = new FormData(); 
+        fd.append("file", f.files[0]);
+
+        fetch("{{ url_for('donhang_bp.upload_excel') }}", { 
+            method: "POST", 
+            headers: { "X-CSRFToken": csrfToken },
+            body: fd 
+        })
+        .then(async res => {
+            let rawText = await res.text();
+            try {
+                return { status: res.status, data: JSON.parse(rawText) };
+            } catch (e) {
+                throw new Error(`Server trả về định dạng không hợp lệ (HTTP ${res.status}): ` + rawText.substring(0, 150));
+            }
+        })
+        .then(({ status, data }) => {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fas fa-cloud-upload-alt me-1"></i> Tiến hành Import`;
+
+            let logHTML = "";
+            if (status === 200 && data.status === "success") {
+                toastr.success(data.message);
+                logHTML += `<div class="text-success fw-bold">> [THÀNH CÔNG] ${data.message}</div>`;
+                
+                table.replaceData().then(() => {
+                    logHTML += `<div class="text-success">> [HOÀN TẤT] Bảng đã cập nhật đủ dữ liệu mới!</div>`;
+                    logContent.innerHTML = logHTML;
+                }).catch(tabulatorErr => {
+                    logHTML += `<div class="text-danger fw-bold">> [LỖI TABULATOR]: ${tabulatorErr.message}</div>`;
+                    logContent.innerHTML = logHTML;
+                });
+            } else {
+                toastr.error(data.message || "Có lỗi xảy ra khi Import!");
+                logHTML += `<div class="text-danger fw-bold">> [LỖI BACKEND] ${data.message}</div>`;
+                logContent.innerHTML = logHTML;
+            }
+
+            if (data.details && data.details.length > 0) {
+                logHTML += `<div class="text-warning mt-1">--- Chi tiết chẩn đoán ---</div>`;
+                data.details.forEach(item => {
+                    logHTML += `<div class="text-light">- ${item}</div>`;
+                });
+                logContent.innerHTML = logHTML;
+            }
+            logContent.scrollTop = logContent.scrollHeight;
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fas fa-cloud-upload-alt me-1"></i> Tiến hành Import`;
+            logContent.innerHTML += `<div class="text-danger fw-bold">> [LỖI HỆ THỐNG]: ${err.message}</div>`;
+            toastr.error("Xử lý thất bại! Vui lòng xem khung Log.");
+        });
+    });
+    document.getElementById("btn-export").addEventListener("click", function() { 
+        table.download("xlsx", "Danh_Sach_Don_Hang.xlsx", {
+            sheetName: "Data Don Hang", 
+            documentProcessing: function(workbook) {
+                // (Tùy chọn) Có thể định dạng thêm file Excel ở đây trước khi tải về
+                return workbook;
+            }
+        }); 
+    });
+});
+</script>
+{% endblock %}

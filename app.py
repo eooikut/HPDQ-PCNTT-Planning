@@ -94,6 +94,9 @@ def create_app():
     from routes.mtc.mtc_config import mtc_config_bp
     from routes.mtc.mtc_upload import mtc_upload_bp
     from routes.mtc.mtc_preview import mtc_preview_bp
+    from routes.donhang_bp import donhang_bp
+    from routes.phoivuong_bp import phoivuong_bp    
+    from routes.ctd_bp import ctd_bp
     app.register_blueprint(tools_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(upload_bp)
@@ -112,6 +115,9 @@ def create_app():
     app.register_blueprint(mtc_config_bp)
     app.register_blueprint(mtc_upload_bp)
     app.register_blueprint(mtc_preview_bp)
+    app.register_blueprint(donhang_bp)
+    app.register_blueprint(phoivuong_bp)
+    app.register_blueprint(ctd_bp)
     # ---------- Biến toàn cục cho template ----------
     @app.context_processor
     def inject_file_times():
@@ -157,19 +163,12 @@ def create_app():
         return redirect(url_for('auth.login'))
 
     return app
+
 # ---------- Main ----------
 app = create_app()
 if __name__ == "__main__":
     start_scheduler() 
     logger.info("🚀 Starting Planning App with Cheroot (HTTP mode for Nginx)...")
 
-    # Chỉ chạy HTTP thường trên cổng 8086
-    server_address = ('127.0.0.1', 8086) 
-    server = Server(server_address, app)
-
-    # KHÔNG dùng ssl_adapter ở đây vì Nginx đã giữ SSL rồi
-    try:
-        server.start()
-    except KeyboardInterrupt:
-        server.stop()
-    
+    # app.run(host='0.0.0.0', port=5005, debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=5005, debug=True)

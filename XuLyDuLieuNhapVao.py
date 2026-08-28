@@ -482,7 +482,7 @@ def _normalize_cw(value):
     s_value = str(value).strip().lower()
     
     # 0. Tiền xử lý: Đổi dấu phẩy (,) thành dấu chấm (.) để chuẩn hóa phân cách thập phân
-    s_value = s_value.replace(',', '.')
+    s_value = s_value.replace(',', '.').replace('~', '-')
 
     # 1. Tìm kiếm định dạng min-max (VD: '18.5-25.5')
     # \d+(?:\.\d+)? dùng để bắt cả số nguyên (vd: 18) lẫn số thập phân (vd: 18.5)
@@ -579,12 +579,15 @@ def process_so_details(file_paths: list[str]):
         'Mã TDC': 'TDC_Code',          # <-- MỚI THÊM
         'TDC code': 'TDC_Code',  
         'TDC Code': 'TDC_Code',   
-        'XNĐH': 'XNDH',
-        'Tên KH': 'XNDH',    # <-- MỚI THÊM
+        'XNĐN': 'XNDH',
+        'Tên KH': 'XNDH',        
         'Mác thép': 'gradeSteel',
         'Mục đích sử dụng': 'purpose',
         'Material Description': 'Material description',
         'Material description': 'Material description',
+        'Yêu cầu đặc biệt': 'special_request',
+        'NOTE MÁC ĐẶC BIỆT YÊU CẦU KHÁC': 'special_request', 
+        'NOTE MÁC ĐẶC BIỆT\nYÊU CẦU KHÁC': 'special_request',
         'SO Mapping': 'SO Mapping',
         'SO mapping': 'SO Mapping',
         'số lệnh tách': 'SO Mapping',
@@ -665,7 +668,8 @@ def process_so_details(file_paths: list[str]):
         "KySanXuat", "is_skin_required", "production_status",
         "thickness", "width", "alloc_thick",
         "material_code",
-        "XNDH"
+        "XNDH",
+        "special_request"
     ]
     for col in required_cols:
         if col not in df_combined.columns:
@@ -690,8 +694,8 @@ def process_so_details(file_paths: list[str]):
 
     # --- BƯỚC 3: LÀM SẠCH VÀ CHỐT CHẶN TDC_CODE ---
     # 1. Chuẩn hóa chuỗi
-    df_final['TDC_Code'] = df_final['TDC_Code'].astype(str).str.strip().str.upper()
-    df_final['TDC_Code'] = df_final['TDC_Code'].replace(['NAN', 'NONE', 'NULL', '<NA>'], '')
+    df_final['TDC_Code'] = df_final['TDC_Code'].astype(str).str.strip()
+    df_final['TDC_Code'] = df_final['TDC_Code'].replace(r'(?i)^(nan|none|null|<na>)$', '', regex=True)
 
     # --- CHUẨN HÓA CÁC CỘT CÒN LẠI (Giữ nguyên) ---
     df_final['SO Mapping'] = pd.to_numeric(df_final['SO Mapping'], errors='coerce').astype('Int64')
@@ -701,7 +705,7 @@ def process_so_details(file_paths: list[str]):
     
     # 🚨 ĐÃ XÓA logic làm sạch cột Customer cũ ở đây
 
-    text_cols = ["CW", "NHÓM", "Material description", "gradeSteel", "purpose", "XNDH"]
+    text_cols = ["CW", "NHÓM", "Material description", "gradeSteel", "purpose", "XNDH", "special_request"]
     for col in text_cols:
         if col in df_final.columns:
             df_final[col] = df_final[col].astype(str).replace(['nan', 'None', '<NA>'], '').fillna('')
@@ -729,7 +733,8 @@ def process_so_details(file_paths: list[str]):
         'width': Float(),
         'alloc_thick': Float(),
         'material_code': NVARCHAR(100),
-        'XNDH': NVARCHAR(255)
+        'XNDH': NVARCHAR(255),
+        'special_request': NVARCHAR()
     }
     
     # Lệnh replace sẽ tự động tạo bảng mới với cột TDC_Code, xóa mất cột Customer cũ
@@ -852,7 +857,8 @@ def process_create_lsx(input_file_path):
         cw_str = df_sorted[COL_CW].astype(str).str.strip()
         
         # Trích xuất dải (vd: "18-24") -> group1=18, group2=24
-        range_matches = cw_str.str.extract(r'^\s*(\d+\.?\d*)\s*-\s*(\d+\.?\d*)\s*$') # regex fullmatch
+        # Trích xuất dải (vd: "18-24" hoặc "18~22") -> group1=18, group2=22
+        range_matches = cw_str.str.extract(r'^\s*(\d+\.?\d*)\s*[-~]\s*(\d+\.?\d*)\s*$')
         
         # Trích xuất số đơn (vd: "18") -> group1=18
         single_matches = cw_str.str.extract(r'^\s*(\d+\.?\d*)\s*$') # regex fullmatch

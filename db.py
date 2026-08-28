@@ -35,7 +35,7 @@ mysql_server = os.getenv("MYSQL_SERVER", "localhost").strip()
 mysql_database = os.getenv("MYSQL_DB", "bkmis_hpsdq").strip()
 mysql_username = os.getenv("MYSQL_USER", "root").strip()
 mysql_password = os.getenv("MYSQL_PASS", "").strip()
-mysql_port = os.getenv("MYSQL_PORT", "3306").strip()
+mysql_port = os.getenv("MYSQL_PORT", "3307").strip()
 
 # Dùng pymysql làm driver kết nối chuẩn cho MySQL
 MYSQL_URI = f"mysql+pymysql://{mysql_username}:{urllib.parse.quote_plus(mysql_password)}@{mysql_server}:{mysql_port}/{mysql_database}?charset=utf8mb4"
@@ -43,4 +43,20 @@ MYSQL_URI = f"mysql+pymysql://{mysql_username}:{urllib.parse.quote_plus(mysql_pa
 engine_mysql = create_engine(
     MYSQL_URI,
     pool_recycle=3600 # Tự động kết nối lại để tránh lỗi "MySQL server has gone away"
+)
+
+# ==========================================
+# 3. CẤU HÌNH KẾT NỐI MYSQL PHÔI VUÔNG (Mới - Riêng biệt)
+# ==========================================
+pv_mysql_server = os.getenv("PV_MYSQL_SERVER", "10.192.215.11").strip()
+pv_mysql_database = os.getenv("PV_MYSQL_DB", "bkmis_kcshpsdq").strip()
+pv_mysql_username = os.getenv("PV_MYSQL_USER", "viewkcs").strip()
+pv_mysql_password = os.getenv("PV_MYSQL_PASS", "").strip()
+pv_mysql_port = os.getenv("PV_MYSQL_PORT", "3307").strip()
+
+PV_MYSQL_URI = f"mysql+pymysql://{pv_mysql_username}:{urllib.parse.quote_plus(pv_mysql_password)}@{pv_mysql_server}:{pv_mysql_port}/{pv_mysql_database}?charset=utf8mb4"
+
+engine_phoivuong_mysql = create_engine(
+    PV_MYSQL_URI,
+    pool_recycle=3600
 )
