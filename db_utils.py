@@ -839,39 +839,50 @@ import numpy as np
 def sync_order_production_rules_via_pandas(engine):
     logger.info("🔄 [MIGRATION] Bắt đầu đồng bộ từ so_request sang Production & Sales (Chế độ linh hoạt TDC)...")
     try:
+        # 1. GỘP CÁC QUERY LẠI THÀNH 1 LẦN TRUY VẤN VÀ SO KHỚP TRỰC TIẾP TRONG SQL
+        # Sử dụng UPPER + LTRIM/RTRIM để bỏ qua in hoa/thường và khoảng trắng
+        query_sync = """
+            SELECT 
+                r.[Order], 
+                r.[TDC_Code], 
+                r.[SO Mapping], 
+                r.[CW], 
+                r.[Target_Weight], 
+                r.[Material description], 
+                r.[KySanXuat], 
+                r.[is_skin_required],
+                r.[material_code], 
+                r.[thickness], 
+                r.[width], 
+                r.[alloc_thick], 
+                r.[gradeSteel], 
+                r.[purpose],
+                r.[XNDH], 
+                r.[special_request],
+                m.id AS master_id,
+                v.id AS tdc_version_id,
+                m.customer_name
+            FROM dbo.so_request r WITH (NOLOCK)
+            LEFT JOIN dbo.tdc_master m WITH (NOLOCK) 
+                ON UPPER(RTRIM(LTRIM(r.[TDC_Code]))) = UPPER(RTRIM(LTRIM(m.[tdc_code])))
+            LEFT JOIN (
+                SELECT master_id, MAX(id) AS id
+                FROM dbo.tdc_versions WITH (NOLOCK)
+                WHERE status = 'Active'
+                GROUP BY master_id
+            ) v ON m.id = v.master_id
+            WHERE r.[Order] IS NOT NULL
+        """
+        
         with engine.connect() as conn:
-            # 1. KÉO DỮ LIỆU TỪ so_request
-            # 🌟 ĐÃ BỎ ĐIỀU KIỆN ÉP BUỘC PHẢI CÓ TDC_Code
-            df_request = pd.read_sql("""
-                SELECT [Order], [TDC_Code], [SO Mapping], [CW], [Target_Weight], 
-                       [Material description], [KySanXuat], [is_skin_required],
-                       [material_code], [thickness], [width], [alloc_thick], 
-                       [gradeSteel], [purpose],[XNDH], [special_request]
-                FROM dbo.so_request WITH (NOLOCK) 
-                WHERE [Order] IS NOT NULL 
-            """, conn)
+            df_result = pd.read_sql(query_sync, conn)
 
-            # 2. Kéo Master dữ liệu luật TDC
-            df_master = pd.read_sql("SELECT id as master_id, tdc_code, customer_name, grade FROM dbo.tdc_master WITH (NOLOCK)", conn)
-            df_active_ver = pd.read_sql("SELECT master_id, id as tdc_version_id FROM dbo.tdc_versions WITH (NOLOCK) WHERE status = 'Active'", conn)
-
-        if df_request.empty:
+        if df_result.empty:
             logger.info("✅ Không có Order hợp lệ nào cần đồng bộ.")
             return
 
-        # 3. THỰC HIỆN SO KHỚP BỘ LUẬT TDC (🌟 ĐỔI THÀNH LEFT JOIN)
-        # Dùng LEFT JOIN để giữ lại các Order không có TDC hoặc gõ sai mã TDC
-        df_result = pd.merge(df_request, df_master, left_on='TDC_Code', right_on='tdc_code', how='left')
-        df_result = pd.merge(df_result, df_active_ver, on='master_id', how='left')
-
-        if df_result.empty: return
-
-        # 🌟 XỬ LÝ DỮ LIỆU BỊ NULL SAU KHI LEFT JOIN
-        # Đưa các ID về kiểu Int64 của Pandas (Cho phép chứa giá trị rỗng/NaN mà không bị lỗi số thập phân)
         df_result['master_id'] = pd.to_numeric(df_result['master_id'], errors='coerce').astype('Int64')
         df_result['tdc_version_id'] = pd.to_numeric(df_result['tdc_version_id'], errors='coerce').astype('Int64')
-        
-        # Nếu không có TDC, mặc định khách hàng là 'CHƯA XÁC ĐỊNH'
         df_result['customer_name'] = df_result['customer_name'].fillna('Chưa xác định')
 
         # 4. CHUẨN HÓA DỮ LIỆU CHUNG (MTO/MTS và Khối lượng)
@@ -947,18 +958,18 @@ def sync_order_production_rules_via_pandas(engine):
                     ON target.so_number = source.so_number AND target.material_code = source.material_code
                     WHEN MATCHED THEN
                         UPDATE SET
-                            target.description = source.description,
-                            target.grade = source.grade,
-                            target.thickness = source.thickness,
-                            target.alloc_thick = source.alloc_thick,
-                            target.width = source.width,
-                            target.total_weight = source.total_weight,
-                            target.min_weight = source.min_weight,
-                            target.max_weight = source.max_weight,
+                            target.description = CASE WHEN source.description IS NULL OR source.description = '' THEN target.description ELSE source.description END,
+                            target.grade = CASE WHEN source.grade IS NULL OR source.grade = '' THEN target.grade ELSE source.grade END,
+                            target.thickness = ISNULL(source.thickness, target.thickness),
+                            target.alloc_thick = ISNULL(source.alloc_thick, target.alloc_thick),
+                            target.width = ISNULL(source.width, target.width),
+                            target.total_weight = CASE WHEN ISNULL(source.total_weight, 0) = 0 THEN target.total_weight ELSE source.total_weight END,
+                            target.min_weight = CASE WHEN ISNULL(source.min_weight, 0) = 0 THEN target.min_weight ELSE source.min_weight END,
+                            target.max_weight = CASE WHEN ISNULL(source.max_weight, 0) = 0 THEN target.max_weight ELSE source.max_weight END,
                             target.tdc_id = ISNULL(source.tdc_id, target.tdc_id),                           
-                            target.usage_purpose = source.usage_purpose,
-                            target.XNDH = source.XNDH,
-                            target.special_request = source.special_request                                    
+                            target.usage_purpose = CASE WHEN source.usage_purpose IS NULL OR source.usage_purpose = '' THEN target.usage_purpose ELSE source.usage_purpose END,
+                            target.XNDH = CASE WHEN source.XNDH IS NULL OR source.XNDH = '' THEN target.XNDH ELSE source.XNDH END,
+                            target.special_request = ISNULL(source.special_request, target.special_request)                                   
                     WHEN NOT MATCHED THEN
                         INSERT (so_number, material_code, description, grade, thickness, alloc_thick, width, total_weight, min_weight, max_weight, tdc_id, usage_purpose, status, XNDH, special_request)
                         VALUES (source.so_number, source.material_code, source.description, source.grade, source.thickness, source.alloc_thick, source.width, source.total_weight, source.min_weight, source.max_weight, source.tdc_id, source.usage_purpose, 'Hidden', source.XNDH, source.special_request);
@@ -1002,23 +1013,32 @@ def sync_order_production_rules_via_pandas(engine):
                 SET 
                     c.req_min_w = s.req_min_w,
                     c.req_max_w = s.req_max_w,
-                    c.target_tdc_version_id = s.tdc_version_id -- Bổ sung cập nhật mã TDC
+                    c.target_tdc_version_id = s.tdc_version_id
                 FROM [dbo].[coil_data] c
                 INNER JOIN staging_order_rules s ON c.[Order] = s.[Order] COLLATE DATABASE_DEFAULT
                 LEFT JOIN [dbo].[order_production_rules] r WITH (NOLOCK) ON c.[Order] = r.[Order]
                 WHERE 
-                    -- Tôn trọng chốt chặn: Không update cuộn nếu quy tắc đang bị khóa tay (override)
                     ISNULL(r.is_manual_override, 0) = 0
                     AND (
                         ISNULL(c.req_min_w, -1) <> ISNULL(s.req_min_w, -1)
                         OR ISNULL(c.req_max_w, -1) <> ISNULL(s.req_max_w, -1)
-                        OR ISNULL(c.target_tdc_version_id, -1) <> ISNULL(s.tdc_version_id, -1) -- Bổ sung điều kiện kích hoạt
+                        OR ISNULL(c.target_tdc_version_id, -1) <> ISNULL(s.tdc_version_id, -1)
                     )
+                    -- Nhánh 1: Check cuộn gốc (Dùng Index Seek)
                     AND NOT EXISTS (
                         SELECT 1 
-                        FROM [dbo].[sanluong] sl 
+                        FROM [dbo].[sanluong] sl WITH (NOLOCK) 
                         WHERE sl.[ID Cuộn bó] = c.coil_id 
-                          AND sl.[Đã nhập kho] = N'Yes'
+                        AND sl.[Đã nhập kho] = N'Yes'
+                    )
+                    -- Nhánh 2: Check cuộn xử lý (Chỉ xét khi có ID_xuly và cũng dùng Index Seek)
+                    AND NOT EXISTS (
+                        SELECT 1 
+                        FROM [dbo].[sanluong] sl2 WITH (NOLOCK) 
+                        WHERE c.ID_xuly IS NOT NULL 
+                        AND c.ID_xuly <> ''
+                        AND sl2.[ID Cuộn bó] = c.ID_xuly 
+                        AND sl2.[Đã nhập kho] = N'Yes'
                     );
             """)
             transaction_conn.execute(sync_coil_sql)
@@ -1071,17 +1091,17 @@ def sync_order_production_rules_via_pandas(engine):
                         target.proposed_min_w = CASE WHEN ISNULL(target.is_manual_override, 0) = 1 AND ISNULL(target.req_min_w, -1) <> ISNULL(source.req_min_w, -1) THEN source.req_min_w ELSE NULL END,
                         target.proposed_max_w = CASE WHEN ISNULL(target.is_manual_override, 0) = 1 AND ISNULL(target.req_max_w, -1) <> ISNULL(source.req_max_w, -1) THEN source.req_max_w ELSE NULL END,
 
-                        target.SO_mapping = source.[SO Mapping],
-                        target.total_weight = ISNULL(source.Target_Weight, 0),
-                        target.material_desc = source.material_desc,
-                        target.KySanXuat = source.KySanXuat,
+                        target.SO_mapping = ISNULL(source.[SO Mapping], target.SO_mapping),
+                        target.total_weight = CASE WHEN ISNULL(source.Target_Weight, 0) = 0 THEN target.total_weight ELSE source.Target_Weight END,
+                        target.material_desc = CASE WHEN source.material_desc IS NULL OR source.material_desc = '' THEN target.material_desc ELSE source.material_desc END,
+                        target.KySanXuat = ISNULL(source.KySanXuat, target.KySanXuat),
                         target.is_skin_required = ISNULL(source.is_skin_required, 0),
                         target.production_status = source.production_status,
-                        target.req_thick = source.req_thick,
-                        target.req_width = source.req_width,
-                        target.alloc_thick = source.alloc_thick,
-                        target.XNDH = source.XNDH,
-                        target.special_request = source.special_request
+                        target.req_thick = ISNULL(source.req_thick, target.req_thick),
+                        target.req_width = ISNULL(source.req_width, target.req_width),
+                        target.alloc_thick = ISNULL(source.alloc_thick, target.alloc_thick),
+                        target.XNDH = CASE WHEN source.XNDH IS NULL OR source.XNDH = '' THEN target.XNDH ELSE source.XNDH END,
+                        target.special_request = ISNULL(source.special_request, target.special_request)
                 WHEN NOT MATCHED THEN
                     INSERT ([Order], [target_tdc_version_id], [req_min_w], [req_max_w], is_manual_override, is_conflict,
                             [SO_mapping], [total_weight], [fulfilled_weight], [material_desc], [KySanXuat], [is_skin_required], [production_status], [req_thick], [req_width], [alloc_thick], [XNDH], [special_request])

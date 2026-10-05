@@ -4,11 +4,12 @@ import logging
 from datetime import datetime
 from functools import wraps
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 # Import scheduler và engine SQLAlchemy
 from ETLExceltoDB import start_scheduler
 from db import SQLALCHEMY_URI, engine
 from storage_utils import load_metadata
-from cheroot.wsgi import Server
+from waitress import serve
 from extensions import cache
 from flask_compress import Compress
 import sys
@@ -57,6 +58,7 @@ def login_required(f):
 # ---------- Flask App ----------
 def create_app():
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     cache.init_app(app)
     Compress(app)
     # Config
@@ -94,7 +96,6 @@ def create_app():
     from routes.mtc.mtc_config import mtc_config_bp
     from routes.mtc.mtc_upload import mtc_upload_bp
     from routes.mtc.mtc_preview import mtc_preview_bp
-    from routes.donhang_bp import donhang_bp
     from routes.phoivuong_bp import phoivuong_bp    
     from routes.ctd_bp import ctd_bp
     app.register_blueprint(tools_bp)
@@ -115,7 +116,6 @@ def create_app():
     app.register_blueprint(mtc_config_bp)
     app.register_blueprint(mtc_upload_bp)
     app.register_blueprint(mtc_preview_bp)
-    app.register_blueprint(donhang_bp)
     app.register_blueprint(phoivuong_bp)
     app.register_blueprint(ctd_bp)
     # ---------- Biến toàn cục cho template ----------
@@ -163,12 +163,12 @@ def create_app():
         return redirect(url_for('auth.login'))
 
     return app
-
 # ---------- Main ----------
 app = create_app()
 if __name__ == "__main__":
     start_scheduler() 
-    logger.info("🚀 Starting Planning App with Cheroot (HTTP mode for Nginx)...")
+    logger.info("🚀 Starting Planning App with Waitress on port 8086...")
 
-    # app.run(host='0.0.0.0', port=5005, debug=True, use_reloader=False)
-    app.run(host='0.0.0.0', port=5005, debug=True)
+    # Chạy trên cổng 8086, cấu hình 16 luồng xử lý mượt mà cho 20-40 người dùng
+    serve(app, host='127.0.0.1', port=8086, threads=16, connection_limit=200)
+    

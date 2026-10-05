@@ -11,8 +11,21 @@ import math
 # ===== HÀM ĐỌC FILE CSV/XLSX/XLS =====
 def read_file_auto(file_path, **kwargs):
     ext = os.path.splitext(file_path)[1].lower()
+    
     if ext == ".csv":
-        return pd.read_csv(file_path, encoding="utf-8-sig", **kwargs)
+        # Thiết lập mặc định nếu caller không truyền vào kwargs
+        kwargs.setdefault("encoding", "utf-8-sig")
+        kwargs.setdefault("dtype", str)       # Giữ nguyên chuỗi cho các mã ID / Order / Lô
+        kwargs.setdefault("sep", None)        # Tự động nhận diện dấu phẩy (,) hoặc chấm phẩy (;)
+        kwargs.setdefault("engine", "python") # Bắt buộc khi dùng sep=None
+        
+        try:
+            return pd.read_csv(file_path, **kwargs)
+        except UnicodeDecodeError:
+            # Dự phòng trường hợp file lưu theo chuẩn ANSI / Windows-1252
+            kwargs["encoding"] = "latin1"
+            return pd.read_csv(file_path, **kwargs)
+
     elif ext == ".xlsx":
         return pd.read_excel(file_path, engine="openpyxl", **kwargs)
     elif ext == ".xls":
@@ -471,7 +484,9 @@ def _rename_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 def _normalize_cw(value):
     """
-    Chuẩn hóa giá trị cột CW, hỗ trợ cả số thập phân (dấu chấm hoặc dấu phẩy).
+    Chuẩn hóa giá trị cột CW, loại bỏ các chữ kèm theo như 'aiming', 'MT', 'T',
+    và hỗ trợ cả số thập phân (dấu chấm hoặc dấu phẩy).
+    - '26-29 aiming 28-29', '22-25 (aiming 24-25)' -> '26-29', '22-25'
     - '18.5-25.5', '18,5-25.5' -> '18.5-25.5'
     - 'max25.5', '<25.5', '25.5' -> '0-25.5'
     - Các giá trị khác -> ''
@@ -480,29 +495,27 @@ def _normalize_cw(value):
         return ""
 
     s_value = str(value).strip().lower()
-    
-    # 0. Tiền xử lý: Đổi dấu phẩy (,) thành dấu chấm (.) để chuẩn hóa phân cách thập phân
+
+    # 1. Tiền xử lý: Loại bỏ phần trong ngoặc và bỏ phần ghi chú sau từ 'aiming'
+    s_value = re.sub(r'\(.*?\)', '', s_value)
+    s_value = re.split(r'\baiming\b', s_value)[0].strip()
+
+    # 2. Chuẩn hóa dấu phân cách thập phân và dấu dải
     s_value = s_value.replace(',', '.').replace('~', '-')
 
-    # 1. Tìm kiếm định dạng min-max (VD: '18.5-25.5')
-    # \d+(?:\.\d+)? dùng để bắt cả số nguyên (vd: 18) lẫn số thập phân (vd: 18.5)
+    # 3. Tìm kiếm định dạng min-max (VD: '18.5-25.5', '20-24')
     range_match = re.search(r'(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)', s_value)
     if range_match:
-        # Chuyển đổi sang float thay vì int
         num1 = float(range_match.group(1))
         num2 = float(range_match.group(2))
-        
-        # Dùng format {:g} để in số gọn gàng (vd: 25.0 thành 25, 25.5 vẫn là 25.5)
         return f"{min(num1, num2):g}-{max(num1, num2):g}"
 
-    # 2. Tìm số đơn lẻ (VD: 'max25.5', '<=25.5')
+    # 4. Tìm số đơn lẻ (VD: 'max25.5', '<=25.5', '25')
     numbers = re.findall(r'\d+(?:\.\d+)?', s_value)
     if numbers:
-        # Lấy số đầu tiên tìm thấy và chuyển sang float
         num = float(numbers[0])
         return f"0-{num:g}"
 
-    # 3. Nếu không tìm thấy bất kỳ số nào, trả về chuỗi rỗng
     return ""
 
 def process_so_details(file_paths: list[str]):
@@ -646,17 +659,31 @@ def process_so_details(file_paths: list[str]):
         df_combined['Material description'] # Nếu Skinpass=No, lấy cột đã rename chuẩn
     )    
     if 'material_code' in df_combined.columns:
-        df_combined['material_code'] = df_combined['material_code'].astype(str).str.strip()
-        df_combined['material_code'] = df_combined['material_code'].str.replace(r'\.0$', '', regex=True)
-        df_combined['material_code'] = df_combined['material_code'].replace(['nan', 'None', '<NA>', ''], pd.NA)
+        df_combined['material_code'] = (
+            df_combined['material_code']
+            .astype(str)
+            .str.replace(r'_x[0-9a-fA-F]{4}_', '', regex=True) # Xóa _x000D_
+            .str.replace(r'[\r\n\xa0]+', '', regex=True)        # Xóa xuống dòng, khoảng trắng ẩn
+            .str.replace(r'\.0$', '', regex=True)               # Xóa đuôi .0 của số float
+            .str.strip()
+        )
+        # Loại bỏ text rác hoặc chữ thông báo như "Chưa có đơn SPM"
+        df_combined['material_code'] = df_combined['material_code'].replace(
+            r'(?i)^(nan|none|null|<na>|chưa có.*)$', pd.NA, regex=True
+        ).replace('', pd.NA)
     else:
         df_combined['material_code'] = pd.NA
-    df_combined['thickness'] = pd.to_numeric(df_combined.get('thickness'), errors='coerce')
-    df_combined['width'] = pd.to_numeric(df_combined.get('width'), errors='coerce')
-    df_combined['alloc_thick'] = pd.to_numeric(df_combined.get('alloc_thick'), errors='coerce')
-
+    float_cols = ['thickness', 'width', 'alloc_thick']
+    for col in float_cols:
+        if col in df_combined.columns:
+            clean_series = (
+                df_combined[col]
+                .astype(str)
+                .str.strip()
+                .str.replace(',', '.', regex=False)
+            )
+            df_combined[col] = pd.to_numeric(clean_series, errors='coerce')
     # 2. LOGIC CỐT LÕI: Nếu Chiều dày mục tiêu (alloc_thick) bị rỗng (NaN), 
-    # thì lấy giá trị của Độ dày (thickness) đắp vào.
     df_combined['alloc_thick'] = df_combined['alloc_thick'].fillna(df_combined['thickness'])
     # 🌟 2. THÊM CỘT MẶC ĐỊNH MTO
     df_combined['production_status'] = 'MTO'
@@ -694,10 +721,22 @@ def process_so_details(file_paths: list[str]):
 
     # --- BƯỚC 3: LÀM SẠCH VÀ CHỐT CHẶN TDC_CODE ---
     # 1. Chuẩn hóa chuỗi
-    df_final['TDC_Code'] = df_final['TDC_Code'].astype(str).str.strip()
+    df_final['TDC_Code'] = (
+        df_final['TDC_Code']
+        .astype(str)
+        .str.replace(r'_x000[dD]_', '', regex=True)  # Xóa sạch mã hex _x000D_
+        .str.replace(r'[\r\n\xa0]+', '', regex=True) # Xóa ký tự xuống dòng và khoảng trắng không ngắt
+        .str.strip()
+    )
     df_final['TDC_Code'] = df_final['TDC_Code'].replace(r'(?i)^(nan|none|null|<na>)$', '', regex=True)
 
     # --- CHUẨN HÓA CÁC CỘT CÒN LẠI (Giữ nguyên) ---
+    df_final['SO Mapping'] = (
+        df_final['SO Mapping']
+        .astype(str)
+        .str.replace(r'[\s\xa0]+', '', regex=True)
+        .replace(['nan', 'None', '', '<NA>'], pd.NA)
+    )
     df_final['SO Mapping'] = pd.to_numeric(df_final['SO Mapping'], errors='coerce').astype('Int64')
     df_final['Target_Weight'] = pd.to_numeric(df_final['Target_Weight'], errors='coerce').fillna(0.0) * 1000
     if 'CW' in df_final.columns: df_final['CW'] = df_final['CW'].apply(_normalize_cw)

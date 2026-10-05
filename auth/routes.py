@@ -6,11 +6,24 @@ from sqlalchemy import text
 
 auth_bp = Blueprint('auth', __name__, template_folder='templates')
 
+def get_client_ip():
+    """Trích xuất địa chỉ IP thực tế từ Header do Nginx chuyển tiếp."""
+    forwarded_for = request.headers.get('X-Forwarded-For')
+    if forwarded_for:
+        return forwarded_for.split(',')[0].strip()
+    
+    real_ip = request.headers.get('X-Real-IP')
+    if real_ip:
+        return real_ip.strip()
+        
+    return request.remote_addr
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
+        client_ip = get_client_ip()
 
         if not username or not password:
             flash('Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu', 'danger')
@@ -44,8 +57,8 @@ def login():
                 update_query = text("UPDATE users SET last_login = GETDATE() WHERE id = :id")
                 conn.execute(update_query, {"id": result['id']})
     
-                # Ghi nhật ký đăng nhập thành công
-                log_activity('login_success', user_id=result['id'], username=result['username'], ip_address=request.remote_addr)
+                # Ghi nhật ký đăng nhập thành công với IP thực
+                log_activity('login_success', user_id=result['id'], username=result['username'], ip_address=client_ip)
                 
                 # --- LOGIC CHUYỂN HƯỚNG THÔNG MINH ---
                 # 1. Admin luôn được chuyển đến trang mặc định
@@ -54,9 +67,10 @@ def login():
                     return redirect(url_for('dashboard_bp.dashboard'))
 
                 # 2. User sẽ được chuyển đến trang đầu tiên họ có quyền
-                # Danh sách ưu tiên các quyền và route tương ứng
                 permission_routes = {
                     'view_ship_schedule': 'dashboard_bp.dashboard',
+                    'ctd_view': 'ctd_bp.dashboard_ctd',
+                    'pv_view': 'phoivuong_bp.phoivuong_dashboard',
                     'view_lsx_report': 'reportlsx.lsx_all',
                     'view_order': 'report.order',
                     'view_customer': 'so.so_all',
@@ -75,8 +89,8 @@ def login():
                 # 3. Nếu user không có quyền nào, hiển thị trang thông báo
                 return render_template('no_permissions.html')
 
-        # Nếu result không tồn tại hoặc sai mật khẩu
-        log_activity('login_failure', username=username, ip_address=request.remote_addr, details="Sai tên đăng nhập hoặc mật khẩu")
+        # Ghi nhật ký đăng nhập thất bại với IP thực
+        log_activity('login_failure', username=username, ip_address=client_ip, details="Sai tên đăng nhập hoặc mật khẩu")
         flash('Sai tên đăng nhập hoặc mật khẩu', 'danger')
         return redirect(url_for('auth.login'))
 
@@ -87,8 +101,11 @@ def login():
 def logout():
     user_id = session.get('user_id')
     username = session.get('username')
-    # Ghi nhật ký đăng xuất
-    log_activity('logout', user_id=user_id, username=username, ip_address=request.remote_addr)
+    client_ip = get_client_ip()
+    
+    # Ghi nhật ký đăng xuất với IP thực
+    log_activity('logout', user_id=user_id, username=username, ip_address=client_ip)
+    
     session.pop('user_id', None)
     session.pop('username', None)
     session.pop('role', None)
