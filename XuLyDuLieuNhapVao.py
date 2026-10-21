@@ -484,9 +484,7 @@ def _rename_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 def _normalize_cw(value):
     """
-    Chuẩn hóa giá trị cột CW, loại bỏ các chữ kèm theo như 'aiming', 'MT', 'T',
-    và hỗ trợ cả số thập phân (dấu chấm hoặc dấu phẩy).
-    - '26-29 aiming 28-29', '22-25 (aiming 24-25)' -> '26-29', '22-25'
+    Chuẩn hóa giá trị cột CW, hỗ trợ cả số thập phân (dấu chấm hoặc dấu phẩy).
     - '18.5-25.5', '18,5-25.5' -> '18.5-25.5'
     - 'max25.5', '<25.5', '25.5' -> '0-25.5'
     - Các giá trị khác -> ''
@@ -495,27 +493,29 @@ def _normalize_cw(value):
         return ""
 
     s_value = str(value).strip().lower()
-
-    # 1. Tiền xử lý: Loại bỏ phần trong ngoặc và bỏ phần ghi chú sau từ 'aiming'
-    s_value = re.sub(r'\(.*?\)', '', s_value)
-    s_value = re.split(r'\baiming\b', s_value)[0].strip()
-
-    # 2. Chuẩn hóa dấu phân cách thập phân và dấu dải
+    
+    # 0. Tiền xử lý: Đổi dấu phẩy (,) thành dấu chấm (.) để chuẩn hóa phân cách thập phân
     s_value = s_value.replace(',', '.').replace('~', '-')
 
-    # 3. Tìm kiếm định dạng min-max (VD: '18.5-25.5', '20-24')
+    # 1. Tìm kiếm định dạng min-max (VD: '18.5-25.5')
+    # \d+(?:\.\d+)? dùng để bắt cả số nguyên (vd: 18) lẫn số thập phân (vd: 18.5)
     range_match = re.search(r'(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)', s_value)
     if range_match:
+        # Chuyển đổi sang float thay vì int
         num1 = float(range_match.group(1))
         num2 = float(range_match.group(2))
+        
+        # Dùng format {:g} để in số gọn gàng (vd: 25.0 thành 25, 25.5 vẫn là 25.5)
         return f"{min(num1, num2):g}-{max(num1, num2):g}"
 
-    # 4. Tìm số đơn lẻ (VD: 'max25.5', '<=25.5', '25')
+    # 2. Tìm số đơn lẻ (VD: 'max25.5', '<=25.5')
     numbers = re.findall(r'\d+(?:\.\d+)?', s_value)
     if numbers:
+        # Lấy số đầu tiên tìm thấy và chuyển sang float
         num = float(numbers[0])
         return f"0-{num:g}"
 
+    # 3. Nếu không tìm thấy bất kỳ số nào, trả về chuỗi rỗng
     return ""
 
 def process_so_details(file_paths: list[str]):
@@ -614,7 +614,8 @@ def process_so_details(file_paths: list[str]):
         'MVT\nHRC': 'material_code',
         'MVT HRC': 'material_code',
         'MVT\nMDD': 'material_code',
-        'MVT MDD': 'material_code'
+        'MVT MDD': 'material_code',
+        'Tỉ lệ Nonprime tối đa (%)': 'non_prime_pct'
     }
 
     # Đổi tên cột theo format chuẩn
@@ -659,18 +660,9 @@ def process_so_details(file_paths: list[str]):
         df_combined['Material description'] # Nếu Skinpass=No, lấy cột đã rename chuẩn
     )    
     if 'material_code' in df_combined.columns:
-        df_combined['material_code'] = (
-            df_combined['material_code']
-            .astype(str)
-            .str.replace(r'_x[0-9a-fA-F]{4}_', '', regex=True) # Xóa _x000D_
-            .str.replace(r'[\r\n\xa0]+', '', regex=True)        # Xóa xuống dòng, khoảng trắng ẩn
-            .str.replace(r'\.0$', '', regex=True)               # Xóa đuôi .0 của số float
-            .str.strip()
-        )
-        # Loại bỏ text rác hoặc chữ thông báo như "Chưa có đơn SPM"
-        df_combined['material_code'] = df_combined['material_code'].replace(
-            r'(?i)^(nan|none|null|<na>|chưa có.*)$', pd.NA, regex=True
-        ).replace('', pd.NA)
+        df_combined['material_code'] = df_combined['material_code'].astype(str).str.strip()
+        df_combined['material_code'] = df_combined['material_code'].str.replace(r'\.0$', '', regex=True)
+        df_combined['material_code'] = df_combined['material_code'].replace(['nan', 'None', '<NA>', ''], pd.NA)
     else:
         df_combined['material_code'] = pd.NA
     float_cols = ['thickness', 'width', 'alloc_thick']
@@ -696,7 +688,8 @@ def process_so_details(file_paths: list[str]):
         "thickness", "width", "alloc_thick",
         "material_code",
         "XNDH",
-        "special_request"
+        "special_request",
+        "non_prime_pct"
     ]
     for col in required_cols:
         if col not in df_combined.columns:
@@ -735,10 +728,27 @@ def process_so_details(file_paths: list[str]):
         df_final['SO Mapping']
         .astype(str)
         .str.replace(r'[\s\xa0]+', '', regex=True)
+        .str.replace(r'\.0$', '', regex=True)  # Xóa đuôi .0 nếu có dạng chuỗi
         .replace(['nan', 'None', '', '<NA>'], pd.NA)
     )
-    df_final['SO Mapping'] = pd.to_numeric(df_final['SO Mapping'], errors='coerce').astype('Int64')
+
+    # 2. Chuyển sang số và làm tròn bỏ phần thập phân an toàn trước khi ép Int64
+    so_numeric = pd.to_numeric(df_final['SO Mapping'], errors='coerce')
+    # np.floor hoặc round để đưa các giá trị float về nguyên bản (tránh lỗi non-equivalent)
+    df_final['SO Mapping'] = so_numeric.round(0).astype('Int64')
     df_final['Target_Weight'] = pd.to_numeric(df_final['Target_Weight'], errors='coerce').fillna(0.0) * 1000
+    df_final['non_prime_pct'] = (
+        pd.to_numeric(
+            df_final['non_prime_pct']
+            .astype(str)
+            .str.replace('%', '', regex=False)
+            .str.replace(',', '.', regex=False)
+            .str.strip(),
+            errors='coerce'
+        )
+        .fillna(0.0)
+    )
+    df_final['max_non_prime_weight'] = (df_final['Target_Weight'] * (df_final['non_prime_pct'] / 100.0)).round(2)
     if 'CW' in df_final.columns: df_final['CW'] = df_final['CW'].apply(_normalize_cw)
     if 'NHÓM' in df_final.columns: df_final['NHÓM'] = df_final['NHÓM'].astype(str).str.replace(r'\s*\(.*\)\s*', '', regex=True).str.replace('/', ',', regex=False)
     
@@ -773,7 +783,9 @@ def process_so_details(file_paths: list[str]):
         'alloc_thick': Float(),
         'material_code': NVARCHAR(100),
         'XNDH': NVARCHAR(255),
-        'special_request': NVARCHAR()
+        'special_request': NVARCHAR(),
+        'non_prime_pct': Float(),            
+        'max_non_prime_weight': Float()
     }
     
     # Lệnh replace sẽ tự động tạo bảng mới với cột TDC_Code, xóa mất cột Customer cũ

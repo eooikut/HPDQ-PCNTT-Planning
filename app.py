@@ -98,6 +98,8 @@ def create_app():
     from routes.mtc.mtc_preview import mtc_preview_bp
     from routes.phoivuong_bp import phoivuong_bp    
     from routes.ctd_bp import ctd_bp
+    from routes.tauscheduler import tauscheduler_bp
+    app.register_blueprint(tauscheduler_bp)
     app.register_blueprint(tools_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(upload_bp)
@@ -167,8 +169,8 @@ def create_app():
 app = create_app()
 if __name__ == "__main__":
     start_scheduler() 
-    logger.info("🚀 Starting Planning App with Waitress on port 8086...")
+    logger.info("🚀 Starting Planning App with Waitress on port 5000...")
 
-    # Chạy trên cổng 8086, cấu hình 16 luồng xử lý mượt mà cho 20-40 người dùng
-    serve(app, host='127.0.0.1', port=8086, threads=16, connection_limit=200)
+    # Chạy trên cổng 5000, cấu hình 8 luồng xử lý mượt mà cho 20-40 người dùng
+    serve(app, host='0.0.0.0', port=5000, threads=8, connection_limit=200)
     

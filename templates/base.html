@@ -176,6 +176,11 @@
             <i class="fas fa-anchor"></i><span>Dashboard tàu HRC</span>
           </a>
           {% endif %}
+		  {% if 'view_ship_schedule' in session.get('permissions', []) or session.get('role') == 'admin' %}
+          <a href="{{ url_for('tauscheduler_bp.view_schedule') }}">
+            <i class="fas fa-table text-primary"></i><span>Kế hoạch Lịch tàu </span>
+          </a>
+          {% endif %}
           {% if 'view_cpk_kho' in session.get('permissions', []) or session.get('role') == 'admin' %}
           <a href="{{ url_for('dashboard_so_bp.dashboard_inventory') }}">
             <i class="fas fa-warehouse"></i><span>Dashboard Kho HRC</span>

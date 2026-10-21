@@ -859,6 +859,8 @@ def sync_order_production_rules_via_pandas(engine):
                 r.[purpose],
                 r.[XNDH], 
                 r.[special_request],
+                r.[non_prime_pct],          
+                r.[max_non_prime_weight],
                 m.id AS master_id,
                 v.id AS tdc_version_id,
                 m.customer_name
@@ -932,13 +934,15 @@ def sync_order_production_rules_via_pandas(engine):
             df_to_so_details = df_so_details[[
                 'so_number', 'material_code', 'Material description', 'gradeSteel',
                 'thickness', 'alloc_thick', 'width', 'Target_Weight', 'master_id',
-                'req_min_w', 'req_max_w', 'purpose','XNDH', 'special_request'
+                'req_min_w', 'req_max_w', 'purpose','XNDH', 'special_request',
+                'non_prime_pct', 'max_non_prime_weight'
             ]].copy()
             
             df_to_so_details.columns = [
                 'so_number', 'material_code', 'description', 'grade',
                 'thickness', 'alloc_thick', 'width', 'total_weight', 'tdc_id',
-                'min_weight', 'max_weight', 'usage_purpose','XNDH', 'special_request'
+                'min_weight', 'max_weight', 'usage_purpose','XNDH', 'special_request',
+                'non_prime_pct', 'max_non_prime_weight'
             ]
 
             if not df_to_so_details.empty:
@@ -950,7 +954,9 @@ def sync_order_production_rules_via_pandas(engine):
                                          'usage_purpose': types.NVARCHAR(1000),
                                          'grade': types.VARCHAR(100),
                                          'XNDH': types.NVARCHAR(255),
-                                         'special_request': types.NVARCHAR()
+                                         'special_request': types.NVARCHAR(),
+                                         'non_prime_pct': types.Float(),             
+                                         'max_non_prime_weight': types.Float()
                                      })
                 transaction_conn.execute(text("""
                     MERGE [dbo].[so_details] AS target
@@ -969,10 +975,12 @@ def sync_order_production_rules_via_pandas(engine):
                             target.tdc_id = ISNULL(source.tdc_id, target.tdc_id),                           
                             target.usage_purpose = CASE WHEN source.usage_purpose IS NULL OR source.usage_purpose = '' THEN target.usage_purpose ELSE source.usage_purpose END,
                             target.XNDH = CASE WHEN source.XNDH IS NULL OR source.XNDH = '' THEN target.XNDH ELSE source.XNDH END,
-                            target.special_request = ISNULL(source.special_request, target.special_request)                                   
+                            target.special_request = ISNULL(source.special_request, target.special_request),                                   
+                            target.non_prime_pct = ISNULL(source.non_prime_pct, target.non_prime_pct),                           
+                            target.max_non_prime_weight = ISNULL(source.max_non_prime_weight, target.max_non_prime_weight)      
                     WHEN NOT MATCHED THEN
-                        INSERT (so_number, material_code, description, grade, thickness, alloc_thick, width, total_weight, min_weight, max_weight, tdc_id, usage_purpose, status, XNDH, special_request)
-                        VALUES (source.so_number, source.material_code, source.description, source.grade, source.thickness, source.alloc_thick, source.width, source.total_weight, source.min_weight, source.max_weight, source.tdc_id, source.usage_purpose, 'Hidden', source.XNDH, source.special_request);
+                        INSERT (so_number, material_code, description, grade, thickness, alloc_thick, width, total_weight, min_weight, max_weight, tdc_id, usage_purpose, status, XNDH, special_request, non_prime_pct, max_non_prime_weight)
+                        VALUES (source.so_number, source.material_code, source.description, source.grade, source.thickness, source.alloc_thick, source.width, source.total_weight, source.min_weight, source.max_weight, source.tdc_id, source.usage_purpose, 'Hidden', source.XNDH, source.special_request, source.non_prime_pct, source.max_non_prime_weight);
                 """))
                 transaction_conn.execute(text("DROP TABLE IF EXISTS staging_so_details"))
 
@@ -983,14 +991,16 @@ def sync_order_production_rules_via_pandas(engine):
                 'Order', 'tdc_version_id', 'master_id', 'req_min_w', 'req_max_w', 
                 'SO Mapping', 'Target_Weight', 'Material description', 
                 'KySanXuat', 'is_skin_required', 'production_status',
-                'thickness', 'width', 'alloc_thick' , 'XNDH', 'special_request'
+                'thickness', 'width', 'alloc_thick' , 'XNDH', 'special_request',
+                'non_prime_pct', 'max_non_prime_weight'
             ]].copy()
             
             df_to_sql.columns = [
                 'Order', 'tdc_version_id', 'master_id', 'req_min_w', 'req_max_w', 
                 'SO Mapping', 'Target_Weight', 'material_desc', 
                 'KySanXuat', 'is_skin_required', 'production_status',
-                'req_thick', 'req_width', 'alloc_thick', 'XNDH', 'special_request'
+                'req_thick', 'req_width', 'alloc_thick', 'XNDH', 'special_request',
+                'non_prime_pct', 'max_non_prime_weight'
             ]
             
             df_to_sql['Order'] = df_to_sql['Order'].astype(str).str.replace(r'\.0$', '', regex=True)
@@ -1005,7 +1015,9 @@ def sync_order_production_rules_via_pandas(engine):
                                  'SO Mapping': types.BigInteger(),
                                  'material_desc': types.NVARCHAR(1000),
                                  'XNDH': types.NVARCHAR(255),
-                                 'special_request': types.NVARCHAR()
+                                 'special_request': types.NVARCHAR(),
+                                 'non_prime_pct': types.Float(),             
+                                 'max_non_prime_weight': types.Float()
                              })
             transaction_conn.execute(text("CREATE CLUSTERED INDEX IX_Stag ON staging_order_rules([Order])"))
             sync_coil_sql = text("""
@@ -1101,12 +1113,14 @@ def sync_order_production_rules_via_pandas(engine):
                         target.req_width = ISNULL(source.req_width, target.req_width),
                         target.alloc_thick = ISNULL(source.alloc_thick, target.alloc_thick),
                         target.XNDH = CASE WHEN source.XNDH IS NULL OR source.XNDH = '' THEN target.XNDH ELSE source.XNDH END,
-                        target.special_request = ISNULL(source.special_request, target.special_request)
+                        target.special_request = ISNULL(source.special_request, target.special_request),
+                        target.non_prime_pct = ISNULL(source.non_prime_pct, target.non_prime_pct),                       
+                        target.max_non_prime_weight = ISNULL(source.max_non_prime_weight, target.max_non_prime_weight)  
                 WHEN NOT MATCHED THEN
                     INSERT ([Order], [target_tdc_version_id], [req_min_w], [req_max_w], is_manual_override, is_conflict,
-                            [SO_mapping], [total_weight], [fulfilled_weight], [material_desc], [KySanXuat], [is_skin_required], [production_status], [req_thick], [req_width], [alloc_thick], [XNDH], [special_request])
+                            [SO_mapping], [total_weight], [fulfilled_weight], [material_desc], [KySanXuat], [is_skin_required], [production_status], [req_thick], [req_width], [alloc_thick], [XNDH], [special_request], [non_prime_pct], [max_non_prime_weight])
                     VALUES (CAST(source.[Order] AS VARCHAR(50)), source.tdc_version_id, source.req_min_w, source.req_max_w, 0, 0,
-                            source.[SO Mapping], ISNULL(source.Target_Weight, 0), 0, source.material_desc, source.KySanXuat, ISNULL(source.is_skin_required, 0), source.production_status, source.req_thick, source.req_width, source.alloc_thick, source.XNDH, source.special_request);
+                            source.[SO Mapping], ISNULL(source.Target_Weight, 0), 0, source.material_desc, source.KySanXuat, ISNULL(source.is_skin_required, 0), source.production_status, source.req_thick, source.req_width, source.alloc_thick, source.XNDH, source.special_request, source.non_prime_pct, source.max_non_prime_weight);
             """)
             transaction_conn.execute(merge_sql)
             transaction_conn.execute(text("DROP TABLE staging_order_rules"))

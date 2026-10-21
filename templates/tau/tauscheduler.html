@@ -1,0 +1,3644 @@
+{% extends "base.html" %}
+
+{% block title %}Kế Hoạch Lịch Tàu & LXH | Quản Lý Sản Xuất{% endblock %}
+
+{% block content %}
+<style>
+  .table-schedule-wrap {
+    max-height: calc(100vh - 235px);
+    overflow: auto;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .table-grid {
+    margin-bottom: 0;
+    font-size: 0.8rem;
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+  }
+  .table-grid thead th {
+    position: sticky;
+    top: 0;
+    background-color: #1e293b;
+    color: #f8fafc;
+    font-weight: 600;
+    z-index: 10;
+    border-bottom: 1px solid #334155;
+    border-right: 1px solid #334155;
+    padding: 6px 8px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .table-grid thead tr.filter-row th {
+    top: 33px;
+    background-color: #f1f5f9;
+    padding: 3px 5px;
+    z-index: 9;
+    border-bottom: 2px solid #94a3b8;
+    border-right: 1px solid #cbd5e1;
+  }
+  /* Ghim 3 cột đầu tiên: Checkbox (32px) + STT (42px) + Tên Tàu (195px) */
+  .table-grid th.sticky-col-0,
+  .table-grid td.sticky-col-0 {
+    position: sticky;
+    left: 0;
+    z-index: 8;
+    width: 32px;
+    min-width: 32px;
+    max-width: 32px;
+  }
+  .table-grid th.sticky-col-1,
+  .table-grid td.sticky-col-1 {
+    position: sticky;
+    left: 32px;
+    z-index: 8;
+    width: 42px;
+    min-width: 42px;
+    max-width: 42px;
+  }
+  .table-grid th.sticky-col-2,
+  .table-grid td.sticky-col-2 {
+    position: sticky;
+    left: 74px;
+    z-index: 8;
+    min-width: 195px;
+    max-width: 215px;
+    border-right: 2px solid #94a3b8 !important;
+  }
+  .table-grid thead th.sticky-col-0,
+  .table-grid thead th.sticky-col-1,
+  .table-grid thead th.sticky-col-2 {
+    z-index: 12;
+  }
+  .table-grid td {
+    padding: 5px 7px;
+    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .cell-wrap {
+    white-space: pre-wrap !important;
+    word-break: break-word;
+    line-height: 1.35;
+  }
+  .col-lxh { min-width: 290px; max-width: 360px; }
+  .col-sx { min-width: 190px; max-width: 240px; }
+  .col-note { min-width: 160px; max-width: 220px; }
+  .col-port { min-width: 120px; max-width: 160px; }
+
+  tr.voyage-start td {
+    border-top: 2px solid #64748b !important;
+  }
+  tr.voyage-even td { background-color: #ffffff; }
+  tr.voyage-odd td { background-color: #f8fafc; }
+  tr.row-selected td {
+    background-color: #dbeafe !important;
+  }
+  tr.row-inserted-highlight td {
+    background-color: #dcfce7 !important;
+    transition: background-color 1.2s ease;
+  }
+  .table-grid tbody tr:hover td {
+    background-color: #e0f2fe !important;
+  }
+  /* Phân biệt trực quan giữa ô Được phép sửa và ô Khóa quyền */
+  .cell-editable {
+    cursor: pointer;
+  }
+  .cell-editable:hover {
+    background-color: #fef08a !important;
+    outline: 1px dashed #ca8a04;
+  }
+  .cell-readonly {
+    cursor: not-allowed;
+  }
+  .cell-warn-danger {
+    background-color: #fef2f2 !important;
+    outline: 1.5px solid #ef4444 !important;
+  }
+  .cell-warn-warning {
+    background-color: #fffbeb !important;
+    outline: 1.5px solid #f59e0b !important;
+  }
+  .load-progress-sub {
+    font-size: 0.68rem;
+    display: block;
+    line-height: 1.15;
+    margin-top: 2px;
+  }
+  .btn-insert-inline {
+    opacity: 0.28;
+    padding: 0px 5px;
+    font-size: 0.7rem;
+    transition: opacity 0.15s;
+  }
+  tr:hover .btn-insert-inline,
+  tr.voyage-start .btn-insert-inline {
+    opacity: 1;
+  }
+  .filter-input {
+    font-size: 0.74rem;
+    padding: 2px 5px;
+    height: 24px;
+    border: 1px solid #cbd5e1;
+  }
+  .kpi-card {
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 6px 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    border-left: 4px solid #0d6efd;
+  }
+  .col-lock-icon {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    margin-left: 3px;
+  }
+  .table-grid td.vessel-status-green {
+    background-color: #bbf7d0 !important; /* Xanh lá: Đã xuất >= 95% */
+    border-left: 4px solid #16a34a !important;
+  }
+  .table-grid td.vessel-status-yellow {
+    background-color: #fef08a !important; /* Vàng: Có ít nhất 1 SO đang xuất */
+    border-left: 4px solid #ca8a04 !important;
+  }
+  .btn-coil-list {
+    cursor: pointer;
+    padding: 1px 4px;
+    font-size: 0.7rem;
+  }
+  #scheduleTable.view-mode-pkh [data-vgroup="dieudo"] { display: none !important; }
+  #scheduleTable.view-mode-dieudo [data-vgroup="pkh"] { display: none !important; }
+  /* Layout Split-View cho Khay Giỏ Hàng Ghép Tàu - SO (Staging Dock) */
+  .schedule-workspace {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .schedule-workspace .table-schedule-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .staging-dock {
+    width: 450px;
+    min-width: 450px;
+    max-width: 450px;
+    max-height: calc(100vh - 235px);
+    background: #f8fafc;
+    border: 1px solid #94a3b8;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  }
+  .staging-dock-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .dock-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-left: 4px solid #0d6efd;
+    border-radius: 6px;
+    padding: 7px 9px;
+    margin-bottom: 7px;
+    font-size: 0.76rem;
+    cursor: grab;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+  }
+  .dock-card:hover {
+    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    border-color: #64748b;
+  }
+  .dock-card:active {
+    cursor: grabbing;
+  }
+  .dock-card.dock-card-vessel {
+    border-left-color: #f59e0b;
+  }
+  .dock-card.dragging {
+    opacity: 0.45;
+    transform: scale(0.98);
+  }
+  tr.drop-target-hover td,
+  .dock-card.drop-target-hover {
+    background-color: #fef08a !important;
+    outline: 2px dashed #0284c7 !important;
+  }
+  .btn-unassign-inline {
+    opacity: 0.3;
+    padding: 0px 4px;
+    font-size: 0.68rem;
+    transition: opacity 0.15s;
+  }
+  tr:hover .btn-unassign-inline {
+    opacity: 1;
+  }
+  .col-cw { min-width: 90px; max-width: 135px; }
+  .col-nhip-sx { min-width: 110px; max-width: 170px; }
+</style>
+
+<div class="container-fluid px-3 py-2">
+  <!-- Thanh công cụ & Các nút thao tác tập trung -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+    <div>
+      <h5 class="mb-0 fw-bold text-dark">
+        <i class="fas fa-ship text-primary me-2"></i>KẾ HOẠCH LỊCH TÀU & LỆNH XUẤT HÀNG HRC
+      </h5>
+      <small class="text-muted">
+        Click đúp vào ô được cấp quyền để sửa • Bấm <code>Ctrl + Z</code> để hoàn tác • Giữ <code>Shift + Click</code> vào ô tích để chọn nhanh nhiều dòng
+      </small>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <!-- Nút Hoàn tác (Ctrl + Z) cho từng người dùng -->
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="btnUndo" disabled title="Hoàn tác thao tác vừa thực hiện (Ctrl + Z)">
+        <i class="fas fa-undo me-1"></i>Hoàn tác <span class="badge bg-secondary ms-1" id="badgeUndoCount">0</span>
+      </button>
+
+      <!-- Nút Xóa Nhiều Dòng trên Thanh Công Cụ -->
+      {% if user_access.can_delete %}
+      <button type="button" class="btn btn-danger btn-sm d-none" id="btnBulkDelete" title="Xóa các dòng đang được tích chọn">
+        <i class="fas fa-trash-alt me-1"></i>Xóa (<span id="lblSelectedCount">0</span>)
+      </button>
+      {% endif %}
+
+      <!-- Chế độ thu gọn cột theo bộ phận -->
+      <div class="btn-group btn-group-sm" role="group">
+        <input type="radio" class="btn-check" name="viewMode" id="viewAll" value="all" checked>
+        <label class="btn btn-outline-dark" for="viewAll">Đầy đủ</label>
+
+        <input type="radio" class="btn-check" name="viewMode" id="viewPKH" value="pkh">
+        <label class="btn btn-outline-dark" for="viewPKH">Gọn cho PKH</label>
+
+        <input type="radio" class="btn-check" name="viewMode" id="viewDieuDo" value="dieudo">
+        <label class="btn btn-outline-dark" for="viewDieuDo">Gọn cho Điều độ</label>
+      </div>
+      <!-- Nút Bật/Tắt Khay Giỏ Hàng Ghép Tàu - SO -->
+      <button type="button" class="btn btn-warning btn-sm text-dark fw-bold" id="btnToggleStagingDock" title="Mở Giỏ hàng kéo-thả để ghép các SO chờ tàu và các Tàu còn trống tải">
+        <i class="fas fa-luggage-cart me-1"></i>Ghép Tàu-SO
+        <span class="badge bg-dark text-white ms-1" id="badgeStagingTotal">0</span>
+      </button>
+      <!-- Nút Mở Modal Tra cứu SO cho P.KD -->
+      <button type="button" class="btn btn-info btn-sm text-dark fw-semibold" id="btnOpenPkdLookup" title="Tra cứu toàn diện tình hình Sản xuất, Tồn kho, Lịch tàu & Cảnh báo rủi ro theo Mã SO hoặc Số XNĐH">
+        <i class="fas fa-search-dollar me-1"></i>Tra cứu SO (PKD)
+      </button>
+      <!-- Nút lọc nhanh các dòng có Cảnh báo -->
+      <button type="button" class="btn btn-outline-danger btn-sm" id="btnFilterWarnings" data-active="0" title="Chỉ hiển thị các dòng có cảnh báo vượt tải, sai format mã lệnh hoặc trùng SO">
+        <i class="fas fa-exclamation-triangle me-1"></i>Cảnh báo (<span id="badgeWarnCount">0</span>)
+      </button>
+      <div class="input-group input-group-sm" style="width: 215px;" title="Lọc nhanh chuyến tàu theo màu trạng thái xuất hàng thực tế">
+        <span class="input-group-text bg-light fw-semibold text-secondary">
+          <i class="fas fa-palette me-1"></i>TT Tàu
+        </span>
+        <select class="form-select fw-semibold" id="selectVesselColorFilter">
+          <option value="">Tất cả trạng thái</option>
+          <option value="GREEN" id="optColorGreen">🟢 Đã xuất xong (0)</option>
+          <option value="YELLOW" id="optColorYellow">🟡 Đang xuất hàng (0)</option>
+          <option value="NONE" id="optColorNone">⚪ Chưa xuất hàng (0)</option>
+        </select>
+      </div>
+      <div class="form-check form-switch ms-1 me-1" title="Khi bật: Sửa Trọng tải, ETA, ETB, Đại lý sẽ tự động cập nhật cho các dòng thuộc CÙNG CHUYẾN TÀU đó">
+        <input class="form-check-input" type="checkbox" id="chkPropagateVoyage" checked>
+        <label class="form-check-label small fw-semibold text-secondary" for="chkPropagateVoyage">Đồng bộ chuyến</label>
+      </div>
+
+      <!-- Bộ chọn Kỳ làm việc -->
+      <div class="input-group input-group-sm" style="width: 185px;">
+        <label class="input-group-text bg-light fw-bold" for="selectKyThang">Kỳ</label>
+        <select class="form-select fw-semibold text-primary" id="selectKyThang">
+          {% for ky in ds_ky %}
+            <option value="{{ ky }}" {% if ky == current_ky %}selected{% endif %}>Tháng {{ ky }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {% if user_access.can_import %}
+      <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalImportExcel">
+        <i class="fas fa-file-upload me-1"></i> Import Excel
+      </button>
+      {% endif %}
+
+      {% if user_access.can_sync %}
+      <button class="btn btn-outline-secondary btn-sm" id="btnSyncDB" title="Điền đầy ETA/Trọng tải theo từng cụm chuyến tàu, dọn mã SO và đồng bộ sản lượng từ DB">
+        <i class="fas fa-sync-alt me-1"></i> Đồng bộ DB
+      </button>
+      {% endif %}
+
+      <a href="{{ url_for('tauscheduler_bp.export_excel', ky=current_ky) }}" class="btn btn-outline-success btn-sm">
+        <i class="fas fa-file-excel me-1"></i> Xuất Excel
+      </a>
+
+      {% if user_access.can_add %}
+      <button class="btn btn-primary btn-sm" id="btnOpenAddModal">
+        <i class="fas fa-ship me-1"></i> + Chuyến tàu mới
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Thanh KPI -->
+  <div class="row g-2 mb-2">
+    <div class="col-md-3">
+      <div class="kpi-card">
+        <span class="text-muted small d-block">Tổng KL xuất dự kiến</span>
+        <strong class="fs-6 text-primary" id="kpiTongDK">0 tấn</strong>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="kpi-card" style="border-left-color: #0dcaf0;">
+        <span class="text-muted small d-block">Tổng khối lượng đã Map</span>
+        <strong class="fs-6 text-info" id="kpiDaMap">0 tấn</strong>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="kpi-card" style="border-left-color: #198754;">
+        <span class="text-muted small d-block">Tổng khối lượng đã Xuất</span>
+        <strong class="fs-6 text-success" id="kpiDaXuat">0 tấn</strong>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="kpi-card" style="border-left-color: #f59e0b;">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <span class="text-muted small d-block">Số chuyến tàu & Quyền</span>
+            <strong class="fs-6 text-warning" id="kpiTongTau">0 chuyến</strong>
+          </div>
+          <div class="text-end">
+            <span class="badge bg-primary text-uppercase d-block mb-1">{{ current_user_role }}</span>
+            <span class="badge bg-info text-dark" id="kpiWaitSo">0 chờ SO</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bảng Dữ liệu Excel Grid (Đã bỏ cột XÓA ở cuối, đưa Checkbox chọn nhiều dòng lên đầu) -->
+  <div class="schedule-workspace">
+    <div class="table-schedule-wrap">
+      <table class="table table-bordered table-grid" id="scheduleTable">
+        <thead>
+          <tr>
+            <th class="text-center sticky-col-0">
+              <input type="checkbox" class="form-check-input" id="chkSelectAll" title="Chọn / Bỏ chọn tất cả các dòng đang hiển thị">
+            </th>
+            <th class="text-center sticky-col-1" data-col-field="stt">STT</th>
+            <th class="sticky-col-2" data-col-field="tau_name">TÀU / PHƯƠNG TIỆN</th>
+            <th class="text-end" data-vgroup="both" data-col-field="trong_tai" style="min-width: 115px;">TỔNG TẢI (T)</th>
+            <th data-vgroup="both" data-col-field="eta">ETA DUNG QUẤT</th>
+            <th data-vgroup="dieudo" data-col-field="dai_ly">ĐẠI LÝ</th>
+            <th data-vgroup="dieudo" data-col-field="etb">ETB DUNG QUẤT</th>
+            <th data-vgroup="dieudo" data-col-field="thoi_gian_xong">TG LÀM HÀNG</th>
+            <th data-vgroup="pkh" data-col-field="ngay_duyet_so">DUYỆT SO</th>
+            <th data-vgroup="both" data-col-field="cang_xep">CẢNG XẾP</th>
+            <th data-vgroup="both" data-col-field="cang_den">CẢNG ĐẾN</th>
+            <th data-vgroup="pkh" data-col-field="lsd">LSD</th>
+            <th data-vgroup="both" data-col-field="so_lenh_tach" style="min-width: 120px;">SỐ LỆNH TÁCH</th>
+            <th data-vgroup="both" data-col-field="lenh_xuat_hang" class="col-lxh">LỆNH XUẤT HÀNG (LXH)</th>
+            <th class="text-end" data-vgroup="both" data-col-field="kl_xuat">KL XUẤT (T)</th>
+            <th data-vgroup="pkh" data-col-field="nha_may">NHÀ MÁY</th>
+            <th data-vgroup="pkh" data-col-field="san_xuat" class="col-sx">SẢN XUẤT (HRC 1/2 - TT)</th>
+            <th data-vgroup="pkh" data-col-field="nhip_sx" class="col-nhip-sx" title="Nhịp sản xuất của SO (P.KH điền)">NHỊP SX</th>
+            <th data-vgroup="both" data-col-field="cw_max" class="col-cw text-center" title="Trọng lượng cuộn tối đa tàu nhận được (Tấn)">C.W MAX (T)</th>
+            <th data-vgroup="both" data-col-field="nhip" title="Nhịp xuất hàng của tàu (theo ETB)">NHỊP TÀU</th>
+            <th data-vgroup="pkh" data-col-field="tinh_trang">CHỨNG TỪ / TT</th>
+            <th data-vgroup="pkh" data-col-field="pic">PIC</th>
+            <th class="text-end" data-vgroup="both" title="Tự động tính qua thuật toán Waterfall từ vw_so_kho_sumary2">ĐÃ MAP <i class="fas fa-lock col-lock-icon"></i></th>
+            <th class="text-end" data-vgroup="both" title="Tự động tính qua thuật toán Waterfall từ MySQL v_phieuxuathang_hrc">ĐÃ XUẤT <i class="fas fa-lock col-lock-icon"></i></th>
+            <th class="text-end" data-vgroup="pkh" title="Thực tế: Cuộn Loại 1 Đã nhập kho (Yes) nhưng chưa gán SO Mapping trên SAP">NK CHƯA MAP <i class="fas fa-lock col-lock-icon"></i></th>
+            <th class="text-end" data-vgroup="pkh" title="Dự kiến (T+3): Cuộn Loại 1 trên Web QC nhưng Chưa nhập kho (No)">CHỜ NK (L1) <i class="fas fa-lock col-lock-icon"></i></th>
+            <th class="text-end" data-vgroup="both" title="Tổng Map Dự Kiến = Đã Map (gồm Đã xuất) + NK Chưa Map + Chờ NK Loại 1">TỔNG MAP DK <i class="fas fa-lock col-lock-icon"></i></th>
+            <th class="text-end" data-vgroup="pkh" title="Dự kiến (T+7): Cuộn Chưa nhập kho đạt bề mặt chờ KQ cơ tính (PASSNOCHEM)">CHỜ CƠ TÍNH <i class="fas fa-lock col-lock-icon"></i></th>
+            <th class="text-end" data-vgroup="pkh" title="Dự kiến (T+7): Cuộn Chưa nhập kho đang chờ xử lý lỗi (FAIL/FAILNOCHEM)">CXL <i class="fas fa-lock col-lock-icon"></i></th>
+            <th class="text-end" data-vgroup="pkh" title="Tổng SX = Tổng Map DK + Chờ Cơ Tính + CXL (Không tính Loại 2)">TỔNG SX <i class="fas fa-lock col-lock-icon"></i></th>
+            <th class="text-end" data-vgroup="both" title="Còn lại = KL Xuất - Đã Xuất">CÒN LẠI <i class="fas fa-lock col-lock-icon"></i></th>
+            <th class="text-center" data-vgroup="both" title="Ngày dự kiến hoàn thành hàng (Loại 1: T+3, Chờ cơ tính/CXL: T+7)">NGÀY DK XONG <i class="fas fa-lock col-lock-icon"></i></th>
+            <th data-vgroup="both" data-col-field="ghi_chu" class="col-note">GHI CHÚ</th>
+          </tr>
+          <tr class="filter-row">
+            <th class="sticky-col-0"></th><!-- 0 -->
+            <th class="sticky-col-1"></th><!-- 1 -->
+            <th class="sticky-col-2"><input type="text" class="form-control filter-input col-filter" data-col="2" placeholder="Lọc tàu..."></th><!-- 2 -->
+            <th data-vgroup="both"></th><!-- 3 -->
+            <th data-vgroup="both"><input type="text" class="form-control filter-input col-filter" data-col="4" placeholder="Lọc ETA..."></th><!-- 4 -->
+            <th data-vgroup="dieudo"><input type="text" class="form-control filter-input col-filter" data-col="5" placeholder="Đại lý..."></th><!-- 5 -->
+            <th data-vgroup="dieudo"></th><!-- 6 -->
+            <th data-vgroup="dieudo"></th><!-- 7 -->
+            <th data-vgroup="pkh"></th><!-- 8 -->
+            <th data-vgroup="both"><input type="text" class="form-control filter-input col-filter" data-col="9" placeholder="Cảng xếp..."></th><!-- 9: Cảng xếp -->
+            <th data-vgroup="both"><input type="text" class="form-control filter-input col-filter" data-col="10" placeholder="Cảng đến..."></th><!-- 10: Cảng đến -->
+            <th data-vgroup="pkh"></th><!-- 11: LSD -->
+            <th data-vgroup="both"><input type="text" class="form-control filter-input col-filter" data-col="12" placeholder="Số lệnh / Chờ SO..."></th><!-- 12: Số lệnh tách -->
+            <th data-vgroup="both"><input type="text" class="form-control filter-input col-filter" data-col="13" placeholder="Tìm XNĐH / Khách hàng..."></th><!-- 13: LXH -->
+            <th data-vgroup="both"></th><!-- 14: KL Xuất -->
+            <th data-vgroup="pkh">
+              <select class="form-select filter-input col-filter" data-col="15" style="padding: 1px 3px;">
+                <option value="">Tất cả</option>
+                <option value="HRC1">HRC1</option>
+                <option value="HRC2">HRC2</option>
+                <option value="HRC1+2">HRC1+2</option>
+              </select>
+            </th><!-- 15: Nhà máy -->
+            <th data-vgroup="pkh"><input type="text" class="form-control filter-input col-filter" data-col="16" placeholder="Lọc SX..."></th><!-- 16: Sản xuất -->
+            <th data-vgroup="pkh"><input type="text" class="form-control filter-input col-filter" data-col="17" placeholder="Nhịp SX..."></th><!-- 17: Nhịp SX -->
+            <th data-vgroup="both"></th><!-- 18: C.W MAX -->
+            <th data-vgroup="both">
+              <select class="form-select filter-input col-filter" data-col="19" style="padding: 1px 3px;">
+                <option value="">Tất cả</option>
+                <option value="Nhịp 1">Nhịp 1</option>
+                <option value="Nhịp 2">Nhịp 2</option>
+                <option value="Nhịp 3">Nhịp 3</option>
+              </select>
+            </th><!-- 19: Nhịp Tàu -->
+            <th data-vgroup="pkh"></th><!-- 20: Chứng từ / TT -->
+            <th data-vgroup="pkh"><input type="text" class="form-control filter-input col-filter" data-col="21" placeholder="PIC..."></th><!-- 21: PIC -->
+            <th data-vgroup="both"></th><!-- 22: Đã Map -->
+            <th data-vgroup="both"></th><!-- 23: Đã Xuất -->
+            <th data-vgroup="pkh"></th><!-- 24: NK Chưa Map -->
+            <th data-vgroup="pkh"></th><!-- 25: Chờ NK L1 -->
+            <th data-vgroup="both"></th><!-- 26: Tổng Map DK -->
+            <th data-vgroup="pkh"></th><!-- 27: Chờ Cơ Tính -->
+            <th data-vgroup="pkh"></th><!-- 28: CXL -->
+            <th data-vgroup="pkh"></th><!-- 29: Tổng SX -->
+            <th data-vgroup="both"></th><!-- 30: Còn Lại -->
+            <th data-vgroup="both"><input type="text" class="form-control filter-input col-filter" data-col="31" placeholder="Lọc ngày..."></th><!-- 31: Ngày DK Xong -->
+            <th data-vgroup="both"><input type="text" class="form-control filter-input col-filter" data-col="32" placeholder="Ghi chú..."></th><!-- 32: Ghi chú -->
+          </tr>
+        </thead>
+        <tbody id="scheduleTableBody">
+          <tr>
+            <td colspan="33" class="text-center py-4 text-muted">
+              <i class="fas fa-spinner fa-spin me-2"></i> Đang tải dữ liệu lịch tàu...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="staging-dock d-none" id="stagingDockPanel">
+      <div class="p-2 bg-dark text-white d-flex justify-content-between align-items-center rounded-top">
+        <span class="fw-bold small">
+          <i class="fas fa-random text-warning me-1"></i>GHÉP TÀU - SO 
+        </span>
+        <div class="d-flex align-items-center gap-1">
+          {% if user_access.can_add %}
+          <button type="button" class="btn btn-xs btn-info text-dark fw-bold py-0 px-2 small" id="btnQuickAddPendingSo" title="Tạo mới 1 SO cần xuất đưa vào Giỏ SO chờ ghép tàu">
+            + Tạo SO cần xuất
+          </button>
+          <button type="button" class="btn btn-xs btn-warning text-dark fw-bold py-0 px-2 small" id="btnQuickAddPendingVessel" title="Tạo mới 1 Chuyến tàu đưa vào lịch">
+            + Tạo Tàu
+          </button>
+          {% endif %}
+          <button type="button" class="btn-close btn-close-white ms-1" id="btnCloseStagingDock" style="font-size: 0.65rem;"></button>
+        </div>
+      </div>
+
+      <!-- 2 Tab: Giỏ SO Chờ Tàu & Giỏ Tàu Còn Tải -->
+      <div class="p-1 bg-light border-bottom d-flex gap-1">
+        <button type="button" class="btn btn-sm btn-primary flex-fill fw-semibold py-1" id="tabBtnPendingSo">
+          📦 SO chờ tàu (<span id="lblCountPendingSo">0</span>)
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary flex-fill fw-semibold py-1" id="tabBtnOpenVessels">
+          🚢 Tàu chờ/còn tải (<span id="lblCountOpenVessels">0</span>)
+        </button>
+      </div>
+
+      <!-- Ô tìm kiếm nhanh trong Giỏ + Chế độ ẩn dòng chờ trên bảng chính -->
+      <div class="p-2 border-bottom bg-white">
+        <input type="text" class="form-control form-control-sm mb-1" id="inpFilterStaging" placeholder="Lọc nhanh SO, XNĐH, Cảng đến, Tàu...">
+        <div class="d-flex justify-content-between align-items-center">
+          <small class="text-muted" style="font-size: 0.68rem;">
+            💡 Kéo thẻ thả vào dòng Tàu trên bảng hoặc bấm <strong>Ghép</strong>
+          </small>
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="chkHideUnassignedInGrid">
+            <label class="form-check-label text-secondary" style="font-size: 0.68rem;" for="chkHideUnassignedInGrid" title="Ẩn các dòng Chờ ghép tàu trên bảng chính để bảng gọn hơn">Ẩn dòng chờ</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Danh sách Thẻ trong Giỏ -->
+      <div class="staging-dock-body" id="stagingDockList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 1: Thêm Mới Chuyến Tàu -->
+<div class="modal fade" id="modalAddVessel" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header py-2 bg-light">
+        <h6 class="modal-title fw-bold" id="modalAddVesselTitle">
+          <i class="fas fa-ship me-2 text-primary"></i>Thêm Mới Vào Kỳ {{ current_ky }}
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Thanh chuyển đổi rõ ràng giữa 2 chế độ: Tạo Tàu vs Tạo SO cần xuất -->
+        <div class="btn-group w-100 mb-3" role="group">
+          <input type="radio" class="btn-check" name="addCreationMode" id="modeCreateVessel" value="VESSEL" checked>
+          <label class="btn btn-outline-primary fw-bold btn-sm py-2" for="modeCreateVessel">
+            <i class="fas fa-ship me-1"></i>1. Tạo Chuyến Tàu Mới (Có Cảng xếp & C.W MAX)
+          </label>
+
+          <input type="radio" class="btn-check" name="addCreationMode" id="modeCreatePendingSo" value="PENDING_SO">
+          <label class="btn btn-outline-info text-dark fw-bold btn-sm py-2" for="modeCreatePendingSo">
+            <i class="fas fa-box-open me-1"></i>2. Tạo SO Cần Xuất (Đưa vào Giỏ chờ ghép tàu)
+          </label>
+        </div>
+
+        <form id="formAddShip">
+          <!-- KHỐI A: THÔNG TIN TÀU (Chỉ hiện khi chọn Chế độ 1 - Tạo Tàu) -->
+          <div id="sectionVesselFields">
+            <div class="alert alert-primary py-1 px-2 small mb-2">
+              <i class="fas fa-info-circle me-1"></i>Nhập thông tin Chuyến tàu. Có thể để trống phần Lệnh xuất hàng bên dưới nếu tàu đang đợi chọn SO.
+            </div>
+            <div class="row g-2">
+              <div class="col-md-4">
+                <label class="form-label small fw-bold mb-1">Tên Tàu / Phương tiện <span class="text-danger">*</span></label>
+                <input type="text" class="form-control form-control-sm" id="new_tau_name" placeholder="VD: VIET THUAN 095-02">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Tổng tải tàu (Tấn)</label>
+                <input type="text" class="form-control form-control-sm" id="new_trong_tai" placeholder="VD: 8800">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label small fw-bold mb-1 text-danger" title="Trọng lượng cuộn tối đa tàu nhận được (Tấn)">C.W MAX (Tấn)</label>
+                <input type="number" step="0.1" class="form-control form-control-sm fw-bold text-danger" id="new_cw_max" placeholder="VD: 24">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Đại lý</label>
+                <input type="text" class="form-control form-control-sm" id="new_dai_ly" placeholder="VD: Mặt Trời / Pacific">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">ETA Dung Quất</label>
+                <input type="text" class="form-control form-control-sm" id="new_eta" placeholder="VD: 19.09.2026">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">ETB Dung Quất</label>
+                <input type="text" class="form-control form-control-sm" id="new_etb" placeholder="VD: dự kiến m9-10 cập">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Nhịp xuất tàu (theo ETB)</label>
+                <select class="form-select form-select-sm" id="new_nhip">
+                  <option value="">-- Chọn Nhịp tàu --</option>
+                  <option value="Nhịp 1">Nhịp 1</option>
+                  <option value="Nhịp 2">Nhịp 2</option>
+                  <option value="Nhịp 3">Nhịp 3</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Cảng xếp</label>
+                <input type="text" class="form-control form-control-sm" id="new_cang_xep" value="Dung Quất" placeholder="VD: Dung Quất">
+              </div>
+            </div>
+            <hr class="my-2">
+          </div>
+
+          <!-- KHỐI B: THÔNG TIN SO CẦN XUẤT (Gồm đúng các cột: Cảng đến - LSD - Lệnh xuất hàng - KL Xuất - Nhà máy - Chứng từ TT - PIC + Nhịp SX) -->
+          <div id="sectionSoFields">
+            <div class="alert alert-info py-1 px-2 small mb-2 d-none" id="alertPendingSoGuide">
+              <i class="fas fa-luggage-cart me-1"></i><strong>Tạo SO cần xuất:</strong> Đơn hàng này sẽ được đưa vào <strong>Giỏ SO chờ tàu</strong> để bạn kéo-thả hoặc bấm ghép với Tàu sau.
+            </div>
+            <div class="row g-2">
+              <div class="col-md-8">
+                <label class="form-label small fw-bold mb-1" id="lblNewLxh">Lệnh xuất hàng (LXH - Kèm mã SO 10 số nếu có)</label>
+                <input type="text" class="form-control form-control-sm" id="new_lenh_xuat" placeholder="VD: 2000005045 - 238.T09-26/HPDQ-TOP - 5500T - TRANG">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold mb-1">KL Xuất (Tấn)</label>
+                <input type="text" class="form-control form-control-sm fw-bold text-danger" id="new_kl_xuat" placeholder="VD: 5500">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold mb-1">Cảng đến</label>
+                <input type="text" class="form-control form-control-sm" id="new_cang_den" placeholder="VD: Phú Mỹ / Hải Phòng">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold mb-1">LSD (Hạn giao hàng)</label>
+                <input type="text" class="form-control form-control-sm" id="new_lsd" placeholder="VD: 25.09.2026">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold mb-1">Nhà máy</label>
+                <select class="form-select form-select-sm" id="new_nha_may">
+                  <option value="">-- Tự động / Chọn --</option>
+                  <option value="HRC1">HRC1</option>
+                  <option value="HRC2">HRC2</option>
+                  <option value="HRC1+2">HRC1+2</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold mb-1">Chứng từ / TT</label>
+                <input type="text" class="form-control form-control-sm" id="new_tinh_trang" placeholder="VD: Đã có LC / Chờ sửa chứng từ">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold mb-1">PIC</label>
+                <input type="text" class="form-control form-control-sm" id="new_pic" placeholder="VD: TRANG / KHANH">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold mb-1">Nhịp sản xuất (SO)</label>
+                <input type="text" class="form-control form-control-sm" id="new_nhip_sx" placeholder="Nhập nhịp sản xuất...">
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-primary btn-sm fw-bold" id="btnSubmitAddShip">
+          <i class="fas fa-save me-1"></i>Lưu vào kế hoạch
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 2: Import File Excel -->
+<div class="modal fade" id="modalImportExcel" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title fw-bold"><i class="fas fa-file-excel text-success me-2"></i>Import File Excel Lịch Tàu & LXH</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formImportExcel">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Chọn file Excel (`LỊCH TÀU + LXH ... .xlsx`)</label>
+            <input type="file" class="form-control form-control-sm" id="excelFileInput" accept=".xlsx,.xls" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-bold">Chế độ nạp dữ liệu:</label>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="importMode" id="modeSelectedKy" value="selected_ky" checked>
+              <label class="form-check-label small" for="modeSelectedKy">
+                Chỉ nạp sheet của kỳ đang chọn (<strong class="text-primary">{{ current_ky }}</strong>)
+              </label>
+            </div>
+            <div class="form-check mt-1">
+              <input class="form-check-input" type="radio" name="importMode" id="modeAll2526" value="all_2025_2026">
+              <label class="form-check-label small" for="modeAll2526">
+                Nạp toàn bộ các sheet Lịch tàu năm <strong>2025 & 2026</strong> vào Database
+              </label>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-success btn-sm" id="btnSubmitImportExcel">
+          <i class="fas fa-cloud-upload-alt me-1"></i>Bắt đầu Import
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 3: Xem chi tiết Đơn hàng so_request hoặc danh sách Coil ID dài -->
+<div class="modal fade" id="modalSoDetails" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header py-2 bg-dark text-white">
+        <h6 class="modal-title fw-bold w-100" id="modalInfoTitle">
+          <i class="fas fa-search-dollar text-info me-2"></i>TRUNG TÂM TRA CỨU TIẾN ĐỘ SO & LỊCH TÀU (P.KD)
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <!-- Thanh tìm kiếm nhanh SO / XNĐH dành cho P.KD -->
+      <div class="bg-light border-bottom px-3 py-2" id="pkdSearchBarWrap">
+        <form id="formPkdSoSearch" class="row g-2 align-items-center">
+          <div class="col-md-8">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-white fw-bold text-primary">
+                <i class="fas fa-search me-1"></i>Tìm SO / XNĐH / Khách hàng
+              </span>
+              <input type="text" class="form-control fw-semibold" id="inpPkdSoQuery" placeholder="Nhập Mã SO 10 số (VD: 2000005045) hoặc Số XNĐH / Tên khách hàng (VD: 238.T09, TOP)...">
+              <button class="btn btn-primary fw-bold px-3" type="submit">
+                <i class="fas fa-arrow-right me-1"></i>Tra cứu ngay
+              </button>
+            </div>
+          </div>
+          <div class="col-md-4 text-end small text-muted">
+            <i class="fas fa-info-circle me-1"></i>Tra cứu xuyên suốt mọi Kỳ tháng & Kho/QC
+          </div>
+        </form>
+        <!-- Danh sách gợi ý khi gõ XNĐH có nhiều mã SO -->
+        <div id="pkdSearchCandidates" class="mt-2 d-none"></div>
+      </div>
+      <div class="modal-body p-3" id="soDetailsBody">
+        <div class="text-center py-4 text-muted">
+          Nhập Mã SO hoặc Số XNĐH ở thanh tìm kiếm phía trên để xem toàn bộ Tình hình Sản xuất, Kho & Gắn tàu.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Modal 4: Xác nhận Ghép Tàu - SO & Kiểm tra Cảnh báo Tải trọng / Cảng đến / LSD -->
+<div class="modal fade" id="modalMatchVesselSo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header py-2 bg-primary text-white">
+        <h6 class="modal-title fw-bold" id="modalMatchTitle">
+          <i class="fas fa-link me-2"></i>Ghép Kết Nối Tàu & Đơn Hàng (SO)
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-3">
+        <input type="hidden" id="match_so_row_id">
+        <input type="hidden" id="match_vessel_row_id">
+
+        <!-- Khung 1: Thông tin đối tượng đang cố định (SO đang chọn HOẶC Tàu đang chọn) -->
+        <div class="p-2 bg-light border rounded mb-2 small" id="matchFixedTargetBox"></div>
+
+        <!-- Khung 2: Thanh Lọc Nhanh & Danh sách Gợi ý Đối ứng (Tìm SO chờ cho Tàu HOẶC Tìm Tàu thiếu tải cho SO) -->
+        <div class="mb-2">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label small fw-bold mb-0 text-primary" id="lblMatchSelectorTitle">
+              Chọn đối tượng ghép:
+            </label>
+            <small class="text-muted" id="lblMatchCandidateCount"></small>
+          </div>
+          <div class="input-group input-group-sm mb-2">
+            <span class="input-group-text bg-white"><i class="fas fa-filter text-secondary"></i></span>
+            <input type="text" class="form-control" id="inpMatchCandidateFilter" placeholder="Gõ để lọc nhanh theo Mã SO, XNĐH, Khách hàng, Cảng đến...">
+          </div>
+          <!-- Bảng danh sách chọn trực quan có cuộn -->
+          <div class="table-responsive border rounded bg-white" style="max-height: 210px; overflow-y: auto;">
+            <table class="table table-sm table-hover table-bordered small mb-0">
+              <thead class="table-light" style="position: sticky; top: 0; z-index: 2;" id="tblMatchCandidatesHead"></thead>
+              <tbody id="tblMatchCandidatesBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Khung 3: Cảnh báo Kiểm tra Tức thì (Cảng đến / Vượt tải / LSD / Ngày xong hàng) -->
+        <div id="matchPreCheckAlerts" class="mb-2"></div>
+
+        <!-- Khung 4: Khối lượng ghép lên tàu (Cho phép tách SO nếu vượt tải trống của tàu) -->
+        <div class="p-2 border rounded bg-warning-subtle">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label small fw-bold mb-0 text-dark">Khối lượng đưa lên chuyến tàu này (Tấn):</label>
+            <button type="button" class="btn btn-xs btn-outline-dark py-0 px-2 small d-none" id="btnAutoFillRemainCap">
+              Lấy vừa khít tải trống
+            </button>
+          </div>
+          <input type="number" step="0.01" class="form-control form-control-sm fw-bold text-danger" id="match_split_kl">
+          <small class="text-muted d-block mt-1" id="matchSplitHint">
+            Nếu nhập nhỏ hơn tổng KL của dòng SO, phần còn dư sẽ tự động được tách và giữ lại trong Giỏ SO chờ tàu.
+          </small>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-primary btn-sm fw-bold" id="btnConfirmMatchVesselSo">
+          <i class="fas fa-check-circle me-1"></i>Xác nhận Ghép Tàu - SO
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script id="userAccessJson" type="application/json">
+  {{ (user_access if user_access is defined else {}) | tojson | safe }}
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const currentKy = "{{ current_ky }}";
+  const currentUserRole = "{{ current_user_role }}".toLowerCase();
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  const table = document.getElementById("scheduleTable");
+  const tbody = document.getElementById("scheduleTableBody");
+
+  // Đọc quyền an toàn tuyệt đối, không bao giờ gây lỗi Unexpected end of input
+  let userAccess = {
+    is_admin: currentUserRole === 'admin',
+    can_add: true,
+    can_delete: currentUserRole === 'admin',
+    can_import: true,
+    can_sync: true,
+    editable_fields: [
+      'stt', 'tau_name', 'trong_tai', 'eta', 'etb', 'dai_ly', 'thoi_gian_xong',
+      'ngay_duyet_so', 'cang_xep', 'cang_den', 'lsd', 'so_lenh_tach',
+      'lenh_xuat_hang', 'kl_xuat', 'nha_may', 'san_xuat', 'cw_max',
+      'nhip', 'nhip_sx', 'tinh_trang', 'pic', 'ghi_chu'
+    ]
+  };
+  try {
+    const rawJson = (document.getElementById("userAccessJson")?.textContent || "").trim();
+    if (rawJson && rawJson !== "{}") {
+      const parsed = JSON.parse(rawJson);
+      if (parsed && Array.isArray(parsed.editable_fields)) {
+        userAccess = parsed;
+      }
+    }
+  } catch (e) {
+    console.warn("Sử dụng cấu hình quyền mặc định:", e);
+  }
+
+  let editableFieldsSet = new Set(userAccess.editable_fields || []);
+
+  let currentRowsCache = [];
+  let lastCheckedCheckbox = null;
+
+  // Ngăn xếp Hoàn tác (Per-User Undo Stack) tối đa 20 thao tác
+  const undoStack = [];
+  const MAX_UNDO_STACK = 20;
+
+  const multilineFields = new Set(['lenh_xuat_hang', 'san_xuat', 'ghi_chu', 'cang_den', 'etb']);
+
+  // Hàm Debounce chống giật lag khi gõ tìm kiếm trực tiếp
+  function debounce(fn, delay = 220) {
+    let timer = null;
+    return function (...args) {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+  }
+
+  function escapeHtml(str) {
+    return String(str ?? '')
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function formatNumber(val) {
+    const num = Number(val || 0);
+    return num === 0 ? "0" : num.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  }
+
+  function getCellPermissionClass(field) {
+    return editableFieldsSet.has(field) ? "cell-editable" : "cell-readonly";
+  }
+
+  // Hiển thị biểu tượng ổ khóa 🔒 trên tiêu đề các cột mà tài khoản hiện tại không có quyền sửa
+  function decorateHeaderLocks() {
+    table.querySelectorAll("thead th[data-col-field]").forEach(th => {
+      const f = th.getAttribute("data-col-field");
+      const oldLock = th.querySelector(".col-lock-icon");
+      if (oldLock) oldLock.remove();
+      if (!editableFieldsSet.has(f)) {
+        th.insertAdjacentHTML("beforeend", `<i class="fas fa-lock col-lock-icon" title="Bạn chỉ có quyền xem cột này"></i>`);
+      }
+    });
+  }
+  decorateHeaderLocks();
+
+  // Quản lý ngăn xếp Hoàn tác (Ctrl + Z)
+  function pushUndoAction(undoObj) {
+    if (!undoObj || !undoObj.type) return;
+    if (undoStack.length >= MAX_UNDO_STACK) undoStack.shift();
+    undoStack.push(undoObj);
+    updateUndoButtonUI();
+  }
+
+  function updateUndoButtonUI() {
+    const btnUndo = document.getElementById("btnUndo");
+    const badge = document.getElementById("badgeUndoCount");
+    if (!btnUndo || !badge) return;
+    badge.textContent = undoStack.length;
+    btnUndo.disabled = undoStack.length === 0;
+    if (undoStack.length > 0) {
+      const lastAct = undoStack[undoStack.length - 1];
+      btnUndo.title = `Hoàn tác: ${lastAct.description || lastAct.type} (Ctrl + Z)`;
+    } else {
+      btnUndo.title = "Chưa có thao tác nào để hoàn tác";
+    }
+  }
+
+  function triggerUndo() {
+    if (undoStack.length === 0) return;
+    const lastAction = undoStack.pop();
+    updateUndoButtonUI();
+
+    const btnUndo = document.getElementById("btnUndo");
+    if (btnUndo) btnUndo.disabled = true;
+
+    fetch("/tauscheduler/api/revert-action", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrfToken
+      },
+      body: JSON.stringify({ action: lastAction })
+    })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success) {
+        loadData(document.getElementById("selectKyThang").value);
+      } else {
+        alert("Không thể hoàn tác: " + res.message);
+      }
+    })
+    .catch(err => alert("Lỗi kết nối khi hoàn tác: " + err))
+    .finally(() => updateUndoButtonUI());
+  }
+
+  document.getElementById("btnUndo")?.addEventListener("click", triggerUndo);
+
+  // Phím tắt toàn cục Ctrl + Z (chỉ kích hoạt khi người dùng không đặt con trỏ bên trong ô input/textarea)
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === "INPUT" || activeTag === "TEXTAREA" || activeTag === "SELECT") return;
+      if (undoStack.length > 0) {
+        e.preventDefault();
+        triggerUndo();
+      }
+    }
+  });
+
+  // Quản lý trạng thái nút Xóa nhiều dòng trên thanh công cụ
+  function updateSelectionUI() {
+    const checkedBoxes = tbody.querySelectorAll(".row-select-chk:checked");
+    const count = checkedBoxes.length;
+    const btnBulkDelete = document.getElementById("btnBulkDelete");
+    const lblCount = document.getElementById("lblSelectedCount");
+
+    if (lblCount) lblCount.textContent = count;
+    if (btnBulkDelete) {
+      btnBulkDelete.classList.toggle("d-none", count === 0);
+    }
+  }
+
+  // Phân tích trạng thái Số lệnh tách ngay trên Client
+  function analyzeSoStatusClient(soVal, lxhVal) {
+    const rawSo = String(soVal || '').trim();
+    const rawLxh = String(lxhVal || '').trim();
+
+    const multiMatches = rawLxh.match(/\b(2\d{9})\b/g) || [];
+    const unique10 = [...new Set(multiMatches)];
+    if (unique10.length >= 2) {
+      return { status: 'WARN_MULTI_SO', warn: `Phát hiện ${unique10.length} mã SO (${unique10.join(', ')}) trên 1 dòng! Nên bấm +Lệnh để tách dòng.` };
+    }
+    if (/^\d{10}$/.test(rawSo)) {
+      return { status: 'OK', warn: '' };
+    }
+    if (rawSo) {
+      return { status: 'WARN_FORMAT', warn: `Số lệnh tách '${rawSo}' (${rawSo.length} ký tự) không đúng chuẩn 10 chữ số SAP!` };
+    }
+    if (!rawLxh) {
+      return { status: 'WAIT_SO_ASSIGN', warn: '' };
+    }
+    if (['X', 'HỦY TÀU', 'HUY TAU', 'HỦY'].includes(rawLxh.toUpperCase())) {
+      return { status: 'CANCELLED', warn: '' };
+    }
+    const mStart = rawLxh.match(/^\s*(\d+)(.*)/);
+    if (mStart) {
+      const digits = mStart[1];
+      const rest = mStart[2].trim();
+      if (!rest.startsWith('.') && !/^[A-Z]\d?\./i.test(rest) && digits.length >= 6 && digits.length !== 10) {
+        return { status: 'WARN_FORMAT', warn: `Đầu Lệnh xuất hàng có dãy '${digits}' (${digits.length} số) - Nghi gõ thiếu/thừa chữ số mã SO (chuẩn 10 số)!` };
+      }
+    }
+    return { status: 'WAIT_SAP_SO', warn: '' };
+  }
+
+  function renderCellContent(field, val, rowObj = {}) {
+    const v = val ?? '';
+    if (field === 'tau_name') {
+      const nameStr = String(v).trim();
+      const nameHtml = nameStr
+        ? `<span class="fw-bold text-primary text-truncate vessel-name-label" title="${escapeHtml(nameStr)}">${escapeHtml(nameStr)}</span>`
+        : `<span class="badge bg-warning text-dark" title="Đơn hàng đã lên kế hoạch nhưng đang chờ Điều độ ghép tàu">Chờ ghép tàu</span>`;
+      const coilBtnHtml = (nameStr && !['ĐƯỜNG BỘ', 'DUONG BO'].includes(nameStr.toUpperCase()))
+        ? `<button type="button" class="btn btn-outline-dark btn-coil-list flex-shrink-0" data-tau="${escapeHtml(nameStr)}" data-so="" title="Trích xuất COIL_LIST của chuyến tàu ${escapeHtml(nameStr)}"><i class="fas fa-bars"></i></button>`
+        : '';
+      const addBtnHtml = userAccess.can_add
+        ? `<button type="button" class="btn btn-primary btn-insert-inline flex-shrink-0" data-id="${rowObj.id || ''}" title="Chèn ngay 1 dòng Lệnh xuất hàng mới vào chuyến tàu này">+Lệnh</button>`
+        : '';
+      return `<div class="d-flex justify-content-between align-items-center gap-1">${nameHtml}<div class="d-flex gap-1">${coilBtnHtml}${addBtnHtml}</div></div>`;
+    }
+    if (field === 'trong_tai') {
+      const numVal = Number(v || 0);
+      return `<div class="trong-tai-main">${numVal > 0 ? formatNumber(numVal) : '-'}</div><div class="trong-tai-sub"></div>`;
+    }
+    if (field === 'kl_xuat') {
+      return formatNumber(v);
+    }
+    if (field === 'tong_da_map') {
+      const mapVal = Number(v || 0);
+      const klYc = Number(rowObj.kl_xuat || 0);
+      if (mapVal === 0) return '<span class="text-muted">0</span>';
+      const pct = klYc > 0 ? Math.round((mapVal / klYc) * 100) : 100;
+      const cls = pct >= 90 ? 'text-success' : 'text-info';
+      return `<span class="${cls} fw-bold" title="Đã phân bổ từ kho cho chuyến này: ${formatNumber(mapVal)} / ${formatNumber(klYc)} tấn (${pct}%)">${formatNumber(mapVal)}</span>`;
+    }
+    if (field === 'da_xuat') {
+      const xuatVal = Number(v || 0);
+      const klYc = Number(rowObj.kl_xuat || 0);
+      if (xuatVal === 0) return '<span class="text-muted">0</span>';
+      const isFinished = klYc > 0 && xuatVal >= klYc * 0.95;
+      return `
+        <span class="text-success fw-bold" title="Thực tế đã xuất lên tàu: ${formatNumber(xuatVal)} / ${formatNumber(klYc)} tấn">
+          ${formatNumber(xuatVal)}
+          ${isFinished ? '<i class="fas fa-check-circle text-info ms-1" title="Đã xuất xong (>=95% kế hoạch)"></i>' : ''}
+        </span>
+      `;
+    }
+    if (field === 'con_lai') {
+      const conVal = Number(v || 0);
+      return conVal > 0 ? `<span class="text-danger fw-semibold">${formatNumber(conVal)}</span>` : '<span class="text-muted">0</span>';
+    }
+    if (field === 'nk_chua_map') {
+      const num = Number(v || 0);
+      const soNo = rowObj.so_lenh_tach || '';
+      return num > 0
+        ? `<span class="badge bg-warning text-dark fw-bold btn-qc-coils" style="cursor:pointer;" data-so="${escapeHtml(soNo)}" data-cat="nk_chua_map" title="Bấm để xem danh sách ID cuộn Đã nhập kho nhưng chưa Map vào SO (${formatNumber(num)} tấn)">${formatNumber(num)} <i class="fas fa-list-ul ms-1 small"></i></span>`
+        : '<span class="text-muted">0</span>';
+    }
+    if (field === 'cho_nk_loai1' || field === 'sx_cho_co_tinh' || field === 'sx_cxl') {
+      const num = Number(v || 0);
+      const soNo = rowObj.so_lenh_tach || '';
+      if (num <= 0) return '<span class="text-muted">0</span>';
+      const badgeStyle = field === 'sx_cxl'
+        ? 'bg-danger-subtle text-danger border border-danger-subtle'
+        : (field === 'sx_cho_co_tinh' ? 'bg-info-subtle text-dark border border-info-subtle' : 'bg-secondary-subtle text-dark border');
+      return `<span class="badge ${badgeStyle} fw-bold btn-qc-coils" style="cursor:pointer;" data-so="${escapeHtml(soNo)}" data-cat="${field}" title="Bấm để xem danh sách ID cuộn & đôn đốc nhà máy">${formatNumber(num)} <i class="fas fa-search-plus ms-1 small opacity-75"></i></span>`;
+    }
+    if (field === 'tong_map_dk') {
+      const klYc = Number(rowObj.kl_xuat || 0);
+      const daXuat = Number(rowObj.da_xuat || 0);
+      const daMap = Number(rowObj.tong_da_map || 0);
+      const num = Math.max(Number(v || 0), daMap, daXuat);
+      if (num === 0) return '<span class="text-muted">0</span>';
+      const cls = (klYc > 0 && num >= klYc * 0.95) ? 'text-success' : 'text-primary';
+      return `<span class="${cls} fw-bold">${formatNumber(num)}</span>`;
+    }
+    if (field === 'tong_sx_qc') {
+      const klYc = Number(rowObj.kl_xuat || 0);
+      const daXuat = Number(rowObj.da_xuat || 0);
+      const daMap = Number(rowObj.tong_da_map || 0);
+      // Đảm bảo Tổng SX hiển thị luôn tối thiểu bằng lượng Đã Map / Đã Xuất thực tế
+      const num = Math.max(Number(v || 0), daMap, daXuat);
+
+      // 1. Nếu đã xuất thực tế >= 95% KL yêu cầu -> Đơn hàng đã xuất xong, không báo cán bù
+      // 2. Hoặc nếu Tổng SX >= 95% KL yêu cầu -> Đã đủ hàng trong dung sai cuộn (+/- 5%), không báo cán bù
+      const isExportFinished = (klYc > 0 && daXuat >= klYc * 0.95);
+      const isProductionEnough = (klYc > 0 && num >= klYc * 0.95);
+      const thieuCanBu = Math.round((klYc - num) * 100) / 100;
+
+      if (klYc > 0 && !isExportFinished && !isProductionEnough && thieuCanBu > 0) {
+        return `
+          <div class="fw-bold text-dark">${formatNumber(num)}</div>
+          <span class="load-progress-sub text-danger fw-bold" title="Tổng nguồn hàng Thực tế + Dự kiến (${formatNumber(num)}T) đang thiếu ${formatNumber(thieuCanBu)}T so với KL yêu cầu (${formatNumber(klYc)}T)">Cần cán bù: ${formatNumber(thieuCanBu)}T</span>
+        `;
+      }
+      if (num === 0) return '<span class="text-muted">0</span>';
+      return `<span class="fw-bold text-success" title="Đã đủ nguồn hàng sản xuất cho chuyến tàu (${formatNumber(num)} / ${formatNumber(klYc)} tấn)">${formatNumber(num)}</span>`;
+    }
+    if (field === 'ngay_dk_xong') {
+      if (!v) return '<span class="text-muted">-</span>';
+      if (v === 'Đã đủ hàng kho') {
+        return `<span class="badge bg-success-subtle text-success border border-success-subtle" title="Hàng thực tế trong kho + đã xuất đã đủ >= 95% KL yêu cầu">🟢 Đủ hàng kho</span>`;
+      }
+      // So sánh ngày dự kiến xong (dd.mm.yyyy) với ngày ETA chuẩn hóa (yyyy-mm-dd)
+      let isLate = false;
+      let titleMsg = `Dự kiến hoàn thành nhập kho: ${v}`;
+      const m = String(v).match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+      if (m && rowObj.eta_parsed) {
+        const estIso = `${m[3]}-${m[2]}-${m[1]}`;
+        if (estIso > String(rowObj.eta_parsed).substring(0, 10)) {
+          isLate = true;
+          titleMsg = `CẢNH BÁO TRỄ TÀU: Ngày dự kiến xong hàng (${v}) trễ hơn ETA của tàu (${rowObj.eta || rowObj.eta_parsed})!`;
+        }
+      }
+      if (!rowObj.tau_name) {
+        titleMsg = `Đơn hàng chờ ghép tàu - Có thể đặt tàu sau ngày ${v}`;
+      }
+      const badgeCls = isLate
+        ? 'bg-danger text-white fw-bold'
+        : (!rowObj.tau_name ? 'bg-primary-subtle text-primary border border-primary-subtle fw-semibold' : 'bg-info-subtle text-dark border');
+      return `<span class="badge ${badgeCls}" title="${escapeHtml(titleMsg)}">${isLate ? '⚠️ ' : ''}${escapeHtml(v)}</span>`;
+    }
+    if (field === 'nha_may') {
+      if (!v) return '<span class="text-muted">-</span>';
+      const bg = v.includes('1') && v.includes('2') ? 'bg-warning text-dark' : (v.includes('1') ? 'bg-primary' : 'bg-info text-dark');
+      return `<span class="badge ${bg}">${escapeHtml(v)}</span>`;
+    }
+    if (field === 'nhip') {
+      if (!v) return '<span class="text-muted">-</span>';
+      return `<span class="badge bg-secondary">${escapeHtml(v)}</span>`;
+    }
+    if (field === 'nhip_sx') {
+      return escapeHtml(v);
+    }
+    if (field === 'so_lenh_tach') {
+      const lxhVal = rowObj.lenh_xuat_hang ?? '';
+      const info = analyzeSoStatusClient(v, lxhVal);
+      if (v && /^\d{10}$/.test(String(v).trim())) {
+        const warnIcon = info.warn ? `<i class="fas fa-exclamation-triangle text-danger ms-1" title="${escapeHtml(info.warn)}"></i>` : '';
+        const tauOfRow = (rowObj.tau_name || '').trim();
+        const unassignBtn = (tauOfRow && userAccess.can_add)
+          ? `<i class="fas fa-unlink text-secondary small btn-unassign-inline" style="cursor:pointer" data-id="${rowObj.id || ''}" title="Tách SO này khỏi tàu ${escapeHtml(tauOfRow)} và đưa về Giỏ SO chờ ghép tàu"></i>`
+          : '';
+        return `
+          <div class="d-flex align-items-center justify-content-between gap-1">
+            <span class="fw-bold text-dark">${escapeHtml(v)}${warnIcon}</span>
+            <span class="d-flex align-items-center gap-1">
+              ${unassignBtn}
+              <i class="fas fa-layer-group text-success small btn-coil-list" style="cursor:pointer" data-tau="${escapeHtml(tauOfRow)}" data-so="${escapeHtml(v)}" title="Trích xuất COIL_LIST đã Map & Xuất lên tàu theo Tàu - SO này"></i>
+              <i class="fas fa-search text-info small btn-so-info" style="cursor:pointer" data-so="${escapeHtml(v)}" title="Tra cứu tiến độ Kho & Order sản xuất"></i>
+            </span>
+          </div>
+        `;
+      }
+      if (info.status === 'WARN_FORMAT') {
+        return `<span class="badge bg-danger" title="${escapeHtml(info.warn)}"><i class="fas fa-exclamation-circle me-1"></i>${escapeHtml(v || 'Sai mã SO')}</span>`;
+      }
+      if (info.status === 'WAIT_SAP_SO') {
+        return `<span class="badge bg-info text-dark" title="Đã có XNĐH/Đơn hàng nhưng chưa có mã SO 10 số trên SAP">Chờ cấp SO</span>`;
+      }
+      if (info.status === 'CANCELLED') {
+        return `<span class="badge bg-secondary">Hủy / X</span>`;
+      }
+      return `<span class="badge bg-light text-secondary border" title="Đã đặt tàu giữ chỗ, đang đợi PKH chọn SO phù hợp">Đợi chọn SO</span>`;
+    }
+    if (field === 'cw_max') {
+      const s = String(v ?? '').trim();
+      if (!s) return '<span class="text-muted">-</span>';
+
+      const maxCoilTan = Number(rowObj.max_mapped_coil_tan || 0);
+      const cwTon = Number(rowObj.cw_max_ton || 0);
+
+      // Nếu dữ liệu cũ trong DB là danh sách mã cuộn hoặc ghi chú dài (> 15 ký tự) -> Thu gọn thành badge để không vỡ bảng
+      if (s.length > 15) {
+        const lines = s.split(/\r?\n/).filter(x => x.trim() !== '');
+        const label = lines.length > 1 ? `${lines.length} dòng cuộn` : `${s.substring(0, 12)}...`;
+        return `<span class="badge bg-light text-dark border btn-view-coils" style="cursor:pointer" title="Click để xem chi tiết / Click đúp để sửa thành số Tấn C.W MAX">${escapeHtml(label)} <i class="fas fa-eye text-primary ms-1"></i></span>`;
+      }
+
+      if (cwTon > 0 && maxCoilTan > cwTon) {
+        return `
+          <span class="badge bg-danger text-white fw-bold" title="CẢNH BÁO VƯỢT C.W MAX: Tàu nhận tối đa ${cwTon}T nhưng SO đang có cuộn Map trong kho nặng ${maxCoilTan}T (Mã: ${escapeHtml(rowObj.max_mapped_coil_id || '')})!">
+            ⚠️ &gt;${cwTon}T (${maxCoilTan}T)
+          </span>
+        `;
+      }
+      return `<span class="fw-bold text-dark">${escapeHtml(s)}${/^\d+(\.\d+)?$/.test(s) ? ' T' : ''}</span>`;
+    }
+    return escapeHtml(v);
+  }
+
+  // Hàm nhẹ chỉ tính lại KPI của các dòng đang hiển thị khi gõ bộ lọc (Zero-Reflow, chạy < 3ms)
+  function updateVisibleKPIsOnly() {
+    let sumKlDK = 0, sumMap = 0, sumXuat = 0, visibleCount = 0;
+    const voyages = new Set();
+
+    tbody.querySelectorAll("tr[data-row-id]").forEach(tr => {
+      if (tr.style.display === "none") return;
+      visibleCount++;
+      const vg = parseInt(tr.getAttribute("data-voyage-group") || "0");
+      if (vg > 0) voyages.add(vg);
+
+      sumKlDK += parseFloat(tr.querySelector('[data-field="kl_xuat"]')?.getAttribute('data-raw') || 0);
+      sumMap += parseFloat(tr.querySelector('[data-col-role="tong_da_map"]')?.getAttribute('data-raw') || 0);
+      sumXuat += parseFloat(tr.querySelector('[data-col-role="da_xuat"]')?.getAttribute('data-raw') || 0);
+    });
+
+    document.getElementById("kpiTongDK").textContent = `${Math.round(sumKlDK).toLocaleString()} tấn`;
+    document.getElementById("kpiDaMap").textContent = `${Math.round(sumMap).toLocaleString()} tấn`;
+    document.getElementById("kpiDaXuat").textContent = `${Math.round(sumXuat).toLocaleString()} tấn`;
+    document.getElementById("kpiTongTau").textContent = `${voyages.size} chuyến (${visibleCount} dòng)`;
+  }
+
+  // Hàm kiểm tra cảnh báo tải trọng Chuyến tàu & Trùng SO (Chỉ chạy khi mới tải dữ liệu hoặc sau khi sửa ô)
+  function refreshVoyageLoadAndKPIs() {
+    let waitSoCount = 0;
+    let totalWarnRows = 0;
+    const voyageStats = {};
+
+    tbody.querySelectorAll("tr[data-row-id]").forEach(tr => {
+      const vg = parseInt(tr.getAttribute("data-voyage-group") || "0");
+      const tauName = (tr.querySelector('[data-field="tau_name"]')?.getAttribute('data-raw') || '').trim();
+      const etaVal = (tr.querySelector('[data-field="eta"]')?.getAttribute('data-raw') || '').trim();
+      const taiVal = parseFloat(tr.querySelector('[data-field="trong_tai"]')?.getAttribute('data-raw') || 0);
+      const klVal = parseFloat(tr.querySelector('[data-field="kl_xuat"]')?.getAttribute('data-raw') || 0);
+      const xuatVal = parseFloat(tr.querySelector('[data-col-role="da_xuat"]')?.getAttribute('data-raw') || 0);
+      const soVal = (tr.querySelector('[data-field="so_lenh_tach"]')?.getAttribute('data-raw') || '').trim();
+
+      if (vg > 0) {
+        if (!voyageStats[vg]) {
+          voyageStats[vg] = {
+            tauName: tauName,
+            eta: etaVal,
+            trongTai: 0,
+            sumKl: 0,
+            sumXuat: 0,
+            activeSoCount: 0,
+            rows: [],
+            soCounts: {}
+          };
+        }
+        if (taiVal > 0 && voyageStats[vg].trongTai === 0) {
+          voyageStats[vg].trongTai = taiVal;
+        }
+        if (etaVal && !voyageStats[vg].eta) {
+          voyageStats[vg].eta = etaVal;
+        }
+        if (tauName && !voyageStats[vg].tauName) {
+          voyageStats[vg].tauName = tauName;
+        }
+        voyageStats[vg].sumKl += klVal;
+        voyageStats[vg].sumXuat += xuatVal;
+        if (xuatVal > 0) {
+          voyageStats[vg].activeSoCount += 1;
+        }
+        voyageStats[vg].rows.push(tr);
+        if (/^\d{10}$/.test(soVal)) {
+          voyageStats[vg].soCounts[soVal] = (voyageStats[vg].soCounts[soVal] || 0) + 1;
+        }
+      } else {
+        // Xử lý tô màu và tooltip cho dòng lẻ (Đường bộ / Container / Chưa ghép chuyến)
+        const tauCell = tr.querySelector('[data-field="tau_name"]');
+        if (tauCell) {
+          tauCell.classList.remove("vessel-status-green", "vessel-status-yellow");
+          const isGreen = (klVal > 0 && xuatVal >= klVal * 0.95);
+          const isYellow = (!isGreen && xuatVal > 0);
+          if (isGreen) tauCell.classList.add("vessel-status-green");
+          else if (isYellow) tauCell.classList.add("vessel-status-yellow");
+          tr.setAttribute("data-ship-color", isGreen ? "GREEN" : (isYellow ? "YELLOW" : "NONE"));
+
+          const pct = klVal > 0 ? ((xuatVal / klVal) * 100).toFixed(1) : "0.0";
+          const tip = `Phương tiện: ${tauName || 'Chờ ghép tàu'}\nNgày ETA: ${etaVal || 'Chưa có'}\nLượng xuất / Yêu cầu: ${formatNumber(xuatVal)} / ${formatNumber(klVal)} tấn (${pct}%)`;
+          tauCell.title = tip;
+          const lbl = tauCell.querySelector(".vessel-name-label");
+          if (lbl) lbl.title = tip;
+        }
+      }
+    });
+    let countGreenVoyages = 0;
+    let countYellowVoyages = 0;
+    let countNoneVoyages = 0;
+    Object.keys(voyageStats).forEach(vgKey => {
+      const st = voyageStats[vgKey];
+      const tai = st.trongTai;
+      const sumKl = Math.round(st.sumKl * 100) / 100;
+      const sumXuat = Math.round(st.sumXuat * 100) / 100;
+      const diff = Math.round((sumKl - tai) * 100) / 100;
+
+      // 1. Xác định màu sắc Tàu theo tiêu chí:
+      // - Xanh: Tổng xuất >= 95% Tổng yêu cầu của chuyến tàu
+      // - Vàng: Chưa đạt 95% nhưng có ít nhất 1 SO đang xuất hàng lên tàu (activeSoCount >= 1)
+      // - Không tô màu: Chưa xuất hàng
+      const isGreen = (sumKl > 0 && sumXuat >= sumKl * 0.95);
+      const isYellow = (!isGreen && st.activeSoCount >= 1);
+      const shipColorCode = isGreen ? "GREEN" : (isYellow ? "YELLOW" : "NONE");
+
+      if (isGreen) countGreenVoyages++;
+      else if (isYellow) countYellowVoyages++;
+      else countNoneVoyages++;
+      const pctXuat = sumKl > 0 ? ((sumXuat / sumKl) * 100).toFixed(1) : "0.0";
+      const trangThaiXuat = isGreen
+        ? "Đã xuất hoàn thành (>= 95%)"
+        : (isYellow ? `Đang xuất hàng (${st.activeSoCount} SO đang xuất)` : "Chưa xuất hàng");
+
+      // 2. Nội dung Tooltip khi rà chuột vào Tên tàu theo Ngày ETA
+      const shipHoverTooltip = [
+        `Tàu: ${st.tauName || 'Chưa rõ'}`,
+        `Ngày ETA: ${st.eta || 'Chưa cập nhật'}`,
+        `Lượng xuất / Lượng yêu cầu: ${formatNumber(sumXuat)} / ${formatNumber(sumKl)} tấn (${pctXuat}%)`,
+        `Trạng thái: ${trangThaiXuat}`
+      ].join("\n");
+
+      st.rows.forEach((tr, idx) => {
+        // Cập nhật màu và tooltip cho ô Tên Tàu
+        tr.setAttribute("data-ship-color", shipColorCode);
+        const tauCell = tr.querySelector('[data-field="tau_name"]');
+        if (tauCell) {
+          tauCell.classList.remove("vessel-status-green", "vessel-status-yellow");
+          if (isGreen) tauCell.classList.add("vessel-status-green");
+          else if (isYellow) tauCell.classList.add("vessel-status-yellow");
+
+          tauCell.title = shipHoverTooltip;
+          const lbl = tauCell.querySelector(".vessel-name-label");
+          if (lbl) lbl.title = shipHoverTooltip;
+        }
+
+        // Cập nhật cảnh báo Tổng tải tàu
+        const taiCell = tr.querySelector('[data-field="trong_tai"]');
+        if (!taiCell) return;
+        taiCell.classList.remove("cell-warn-danger", "cell-warn-warning");
+        const subEl = taiCell.querySelector(".trong-tai-sub");
+        if (!subEl) return;
+
+        if (idx === 0 || (tai > 0 && sumKl > tai)) {
+          if (tai > 0) {
+            if (sumKl > tai) {
+              taiCell.classList.add("cell-warn-danger");
+              taiCell.title = `CẢNH BÁO VƯỢT TẢI: Tổng KL các lệnh trong chuyến (${formatNumber(sumKl)}T) > Tổng tải tàu (${formatNumber(tai)}T), vượt +${formatNumber(diff)}T!`;
+              subEl.innerHTML = `<span class="load-progress-sub text-danger fw-bold">Σ ${formatNumber(sumKl)}T (+${formatNumber(diff)}T)</span>`;
+            } else if (sumKl === 0) {
+              taiCell.title = `Tàu đã đặt (${formatNumber(tai)}T), đang đợi PKH phân bổ lệnh xuất hàng`;
+              subEl.innerHTML = `<span class="load-progress-sub text-muted">Đợi gán lệnh</span>`;
+            } else if (sumKl < tai * 0.9) {
+              taiCell.title = `Chưa gom đủ tải: Đã gán ${formatNumber(sumKl)}T / ${formatNumber(tai)}T (Còn trống ${formatNumber(tai - sumKl)}T)`;
+              subEl.innerHTML = `<span class="load-progress-sub text-warning fw-semibold">Σ ${formatNumber(sumKl)}T (Trống ${formatNumber(tai - sumKl)}T)</span>`;
+            } else {
+              taiCell.title = `Đạt tải chuẩn: Tổng KL các lệnh ${formatNumber(sumKl)}T / ${formatNumber(tai)}T`;
+              subEl.innerHTML = `<span class="load-progress-sub text-success">Σ ${formatNumber(sumKl)}T (Đủ tải)</span>`;
+            }
+          } else if (sumKl > 0) {
+            taiCell.classList.add("cell-warn-warning");
+            taiCell.title = `Chuyến tàu đã có ${formatNumber(sumKl)}T hàng nhưng chưa nhập Tổng tải tàu!`;
+            subEl.innerHTML = `<span class="load-progress-sub text-warning fw-bold">Σ ${formatNumber(sumKl)}T (Thiếu tải)</span>`;
+          } else {
+            subEl.innerHTML = "";
+          }
+        } else {
+          subEl.innerHTML = `<span class="load-progress-sub text-muted">↳ cùng chuyến</span>`;
+        }
+      });
+    });
+
+    tbody.querySelectorAll("tr[data-row-id]").forEach(tr => {
+      const vg = parseInt(tr.getAttribute("data-voyage-group") || "0");
+      const soCell = tr.querySelector('[data-field="so_lenh_tach"]');
+      const lxhCell = tr.querySelector('[data-field="lenh_xuat_hang"]');
+      const soVal = (soCell?.getAttribute('data-raw') || '').trim();
+      const lxhVal = (lxhCell?.getAttribute('data-raw') || '').trim();
+
+      soCell?.classList.remove("cell-warn-danger", "cell-warn-warning");
+      lxhCell?.classList.remove("cell-warn-danger", "cell-warn-warning");
+
+      const soInfo = analyzeSoStatusClient(soVal, lxhVal);
+      if (['WAIT_SAP_SO', 'WAIT_SO_ASSIGN'].includes(soInfo.status)) {
+        waitSoCount++;
+      }
+      if (soInfo.warn) {
+        soCell?.classList.add("cell-warn-danger");
+        lxhCell?.classList.add("cell-warn-warning");
+        soCell.title = soInfo.warn;
+        lxhCell.title = soInfo.warn;
+      }
+
+      if (vg > 0 && /^\d{10}$/.test(soVal) && (voyageStats[vg]?.soCounts[soVal] || 0) > 1) {
+        soCell?.classList.add("cell-warn-warning");
+        soCell.title = `Cảnh báo: Số lệnh tách ${soVal} đang bị lặp lại ${voyageStats[vg].soCounts[soVal]} lần trong cùng chuyến tàu này!`;
+      }
+
+      const hasWarn = tr.querySelector(".cell-warn-danger, .cell-warn-warning") !== null;
+      tr.setAttribute("data-has-warning", hasWarn ? "1" : "0");
+      if (hasWarn) totalWarnRows++;
+    });
+
+    document.getElementById("kpiWaitSo").textContent = `${waitSoCount} chờ SO`;
+    document.getElementById("badgeWarnCount").textContent = totalWarnRows;
+    const optGreen = document.getElementById("optColorGreen");
+    const optYellow = document.getElementById("optColorYellow");
+    const optNone = document.getElementById("optColorNone");
+    if (optGreen) optGreen.textContent = `🟢 Đã xuất xong (${countGreenVoyages} chuyến)`;
+    if (optYellow) optYellow.textContent = `🟡 Đang xuất hàng (${countYellowVoyages} chuyến)`;
+    if (optNone) optNone.textContent = `⚪ Chưa xuất hàng (${countNoneVoyages} chuyến)`;
+    updateVisibleKPIsOnly();
+  }
+
+  // 1. Tải dữ liệu từ API (Sử dụng DocumentFragment để render 500 dòng mượt mà trong 1 lần gắn DOM)
+  function loadData(ky, highlightRowId = null, skipAutoRefresh = false) {
+    if (!skipAutoRefresh) {
+      tbody.innerHTML = `<tr><td colspan="33" class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Đang tải dữ liệu...</td></tr>`;
+    }
+    document.getElementById("chkSelectAll").checked = false;
+    updateSelectionUI();
+
+    fetch(`/tauscheduler/api/data?ky=${encodeURIComponent(ky)}`)
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) {
+          tbody.innerHTML = `<tr><td colspan="33" class="text-danger text-center py-3">Lỗi: ${res.message}</td></tr>`;
+          return;
+        }
+
+        if (res.permissions) {
+          userAccess = res.permissions;
+          editableFieldsSet = new Set(userAccess.editable_fields || []);
+          decorateHeaderLocks();
+        }
+
+        currentRowsCache = res.data || [];
+        if (currentRowsCache.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="33" class="text-center py-4 text-muted">Chưa có dữ liệu trong kỳ <strong>${ky}</strong>. Hãy bấm <strong>Import Excel</strong> hoặc <strong>+ Chuyến tàu mới</strong>.</td></tr>`;
+          return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        let prevVoyageGroup = -1;
+
+        currentRowsCache.forEach((row, idx) => {
+          const tr = document.createElement("tr");
+          const vg = row.voyage_group || 0;
+          const isVoyageStart = (vg > 0 && vg !== prevVoyageGroup) || (vg === 0 && idx > 0);
+          prevVoyageGroup = vg;
+
+          tr.setAttribute("data-row-id", row.id);
+          tr.setAttribute("data-voyage-group", vg);
+          tr.classList.add(vg % 2 === 0 ? "voyage-even" : "voyage-odd");
+          if (isVoyageStart && idx > 0) tr.classList.add("voyage-start");
+          if (highlightRowId && Number(row.id) === Number(highlightRowId)) {
+            tr.classList.add("row-inserted-highlight");
+          }
+
+          const rowWarns = row.row_warnings || [];
+          const etaWarn = rowWarns.find(w => w.field === 'eta');
+          const lsdWarn = rowWarns.find(w => w.field === 'lsd');
+          const etaTitle = etaWarn ? etaWarn.msg : (row.eta_parsed ? `Ngày chuẩn hóa: ${row.eta_parsed}` : 'Chưa xác định ngày chuẩn');
+          const cwWarn = rowWarns.find(w => w.field === 'cw_max');
+          tr.innerHTML = `
+            <td class="text-center sticky-col-0">
+              <input type="checkbox" class="form-check-input row-select-chk" value="${row.id}">
+            </td>
+            <td class="text-center fw-bold text-muted sticky-col-1 ${getCellPermissionClass('stt')}" data-field="stt" data-raw="${row.stt || idx + 1}">${row.stt || idx + 1}</td>
+            <td class="sticky-col-2 ${getCellPermissionClass('tau_name')}" data-field="tau_name" data-raw="${escapeHtml(row.tau_name || '')}">${renderCellContent('tau_name', row.tau_name, row)}</td>
+            <td class="text-end fw-bold ${getCellPermissionClass('trong_tai')}" data-vgroup="both" data-field="trong_tai" data-raw="${row.trong_tai || 0}">${renderCellContent('trong_tai', row.trong_tai, row)}</td>
+            <td class="${getCellPermissionClass('eta')} ${etaWarn ? 'cell-warn-warning' : ''}" data-vgroup="both" data-field="eta" data-raw="${escapeHtml(row.eta || '')}" title="${escapeHtml(etaTitle)}">${escapeHtml(row.eta || '')}</td>
+            <td class="${getCellPermissionClass('dai_ly')}" data-vgroup="dieudo" data-field="dai_ly" data-raw="${escapeHtml(row.dai_ly || '')}">${escapeHtml(row.dai_ly || '')}</td>
+            <td class="${getCellPermissionClass('etb')} cell-wrap col-port" data-vgroup="dieudo" data-field="etb" data-raw="${escapeHtml(row.etb || '')}">${escapeHtml(row.etb || '')}</td>
+            <td class="${getCellPermissionClass('thoi_gian_xong')} cell-wrap col-port" data-vgroup="dieudo" data-field="thoi_gian_xong" data-raw="${escapeHtml(row.thoi_gian_xong || '')}">${escapeHtml(row.thoi_gian_xong || '')}</td>
+            <td class="${getCellPermissionClass('ngay_duyet_so')}" data-vgroup="pkh" data-field="ngay_duyet_so" data-raw="${escapeHtml(row.ngay_duyet_so || '')}">${escapeHtml(row.ngay_duyet_so || '')}</td>
+            <td class="${getCellPermissionClass('cang_xep')} text-center fw-semibold text-secondary" data-vgroup="both" data-field="cang_xep" data-raw="${escapeHtml(row.cang_xep || 'Dung Quất')}">${escapeHtml(row.cang_xep || 'Dung Quất')}</td>
+            <td class="${getCellPermissionClass('cang_den')} cell-wrap col-port" data-vgroup="both" data-field="cang_den" data-raw="${escapeHtml(row.cang_den || '')}">${escapeHtml(row.cang_den || '')}</td>
+            <td class="${getCellPermissionClass('lsd')} text-danger small ${lsdWarn ? 'cell-warn-danger' : ''}" data-vgroup="pkh" data-field="lsd" data-raw="${escapeHtml(row.lsd || '')}" title="${escapeHtml(lsdWarn ? lsdWarn.msg : '')}">${escapeHtml(row.lsd || '')}</td>
+            <td class="${getCellPermissionClass('so_lenh_tach')}" data-vgroup="both" data-field="so_lenh_tach" data-raw="${escapeHtml(row.so_lenh_tach || '')}">${renderCellContent('so_lenh_tach', row.so_lenh_tach, row)}</td>
+            <td class="${getCellPermissionClass('lenh_xuat_hang')} cell-wrap col-lxh" data-vgroup="both" data-field="lenh_xuat_hang" data-raw="${escapeHtml(row.lenh_xuat_hang || '')}">${escapeHtml(row.lenh_xuat_hang || '')}</td>
+            <td class="text-end fw-bold text-danger ${getCellPermissionClass('kl_xuat')}" data-vgroup="both" data-field="kl_xuat" data-raw="${row.kl_xuat || 0}">${renderCellContent('kl_xuat', row.kl_xuat)}</td>
+            <td class="text-center ${getCellPermissionClass('nha_may')}" data-vgroup="pkh" data-field="nha_may" data-raw="${escapeHtml(row.nha_may || '')}">${renderCellContent('nha_may', row.nha_may)}</td>
+            <td class="${getCellPermissionClass('san_xuat')} cell-wrap col-sx" data-vgroup="pkh" data-field="san_xuat" data-raw="${escapeHtml(row.san_xuat || '')}">${escapeHtml(row.san_xuat || '')}</td>
+            <td class="${getCellPermissionClass('nhip_sx')} cell-wrap col-nhip-sx" data-vgroup="pkh" data-field="nhip_sx" data-raw="${escapeHtml(row.nhip_sx || '')}">${renderCellContent('nhip_sx', row.nhip_sx, row)}</td>
+            <td class="text-center ${getCellPermissionClass('cw_max')} col-cw ${cwWarn ? 'cell-warn-danger' : ''}" data-vgroup="both" data-field="cw_max" data-raw="${escapeHtml(row.cw_max || '')}" title="${escapeHtml(cwWarn ? cwWarn.msg : '')}">${renderCellContent('cw_max', row.cw_max, row)}</td>
+            <td class="text-center ${getCellPermissionClass('nhip')}" data-vgroup="both" data-field="nhip" data-raw="${escapeHtml(row.nhip || '')}">${renderCellContent('nhip', row.nhip, row)}</td>
+            <td class="${getCellPermissionClass('tinh_trang')} small" data-vgroup="pkh" data-field="tinh_trang" data-raw="${escapeHtml(row.tinh_trang || '')}">${escapeHtml(row.tinh_trang || '')}</td>
+            <td class="text-center fw-semibold text-secondary ${getCellPermissionClass('pic')}" data-vgroup="pkh" data-field="pic" data-raw="${escapeHtml(row.pic || '')}">${escapeHtml(row.pic || '')}</td>
+            <td class="text-end text-info fw-bold cell-readonly" data-vgroup="both" data-col-role="tong_da_map" data-raw="${row.tong_da_map || 0}">${renderCellContent('tong_da_map', row.tong_da_map, row)}</td>
+            <td class="text-end text-success fw-bold cell-readonly" data-vgroup="both" data-col-role="da_xuat" data-raw="${row.da_xuat || 0}">${renderCellContent('da_xuat', row.da_xuat, row)}</td>
+            <td class="text-end cell-readonly" data-vgroup="pkh" data-col-role="nk_chua_map" data-raw="${row.nk_chua_map || 0}">${renderCellContent('nk_chua_map', row.nk_chua_map, row)}</td>
+            <td class="text-end cell-readonly" data-vgroup="pkh" data-col-role="cho_nk_loai1" data-raw="${row.cho_nk_loai1 || 0}">${renderCellContent('cho_nk_loai1', row.cho_nk_loai1, row)}</td>
+            <td class="text-end cell-readonly" data-vgroup="both" data-col-role="tong_map_dk" data-raw="${row.tong_map_dk || 0}">${renderCellContent('tong_map_dk', row.tong_map_dk, row)}</td>
+            <td class="text-end cell-readonly" data-vgroup="pkh" data-col-role="sx_cho_co_tinh" data-raw="${row.sx_cho_co_tinh || 0}">${renderCellContent('sx_cho_co_tinh', row.sx_cho_co_tinh, row)}</td>
+            <td class="text-end cell-readonly" data-vgroup="pkh" data-col-role="sx_cxl" data-raw="${row.sx_cxl || 0}">${renderCellContent('sx_cxl', row.sx_cxl, row)}</td>
+            <td class="text-end cell-readonly" data-vgroup="pkh" data-col-role="tong_sx_qc" data-raw="${row.tong_sx_qc || 0}">${renderCellContent('tong_sx_qc', row.tong_sx_qc, row)}</td>
+            <td class="text-end fw-semibold cell-readonly" data-vgroup="both" data-col-role="con_lai" data-raw="${row.con_lai || 0}">${renderCellContent('con_lai', row.con_lai, row)}</td>
+            <td class="text-center cell-readonly" data-vgroup="both" data-col-role="ngay_dk_xong" data-raw="${escapeHtml(row.ngay_dk_xong || '')}">${renderCellContent('ngay_dk_xong', row.ngay_dk_xong, row)}</td>
+            <td class="${getCellPermissionClass('ghi_chu')} cell-wrap col-note text-muted small" data-vgroup="both" data-field="ghi_chu" data-raw="${escapeHtml(row.ghi_chu || '')}">${escapeHtml(row.ghi_chu || '')}</td>
+          `;
+          fragment.appendChild(tr);
+        });
+
+        applyViewMode();
+        tbody.innerHTML = "";
+        tbody.appendChild(fragment);
+
+        // Tính toán trạng thái chuyến tàu & KPI 1 lần duy nhất
+        refreshVoyageLoadAndKPIs();
+        if (typeof renderStagingDock === "function") renderStagingDock();
+        // Chỉ chạy lọc nếu đang có bộ lọc được nhập
+        const hasActiveFilter = Array.from(filterInputs).some(inp => inp.value.trim() !== "")
+          || document.getElementById("btnFilterWarnings")?.getAttribute("data-active") === "1"
+          || (document.getElementById("selectVesselColorFilter")?.value || "") !== "";
+        if (hasActiveFilter) {
+          applyColumnFilter();
+        }
+
+        if (highlightRowId) {
+          const targetTr = tbody.querySelector(`tr[data-row-id="${highlightRowId}"]`);
+          if (targetTr) {
+            targetTr.scrollIntoView({ behavior: "smooth", block: "center" });
+            const lxhCell = targetTr.querySelector('[data-field="lenh_xuat_hang"]');
+            if (lxhCell && editableFieldsSet.has('lenh_xuat_hang')) {
+              setTimeout(() => startInlineEdit(lxhCell), 250);
+            }
+          }
+        }
+        if (!skipAutoRefresh) {
+          fetch("/tauscheduler/api/refresh-schedule", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrfToken
+            },
+            body: JSON.stringify({ ky: ky })
+          })
+          .then(r => r.json())
+          .then(syncRes => {
+            // Nếu có số liệu mới từ Kho/MySQL/QC vừa được cập nhật vào tbl_ShipSchedule_KeHoach thì vẽ lại bảng (giữ nguyên vị trí cuộn)
+            if (syncRes && syncRes.success && syncRes.updated) {
+              loadData(ky, highlightRowId, true);
+            }
+          })
+          .catch(err => console.warn("Auto-refresh schedule skipped:", err));
+        }
+      })
+      
+      .catch(err => {
+        tbody.innerHTML = `<tr><td colspan="33" class="text-danger text-center py-3">Lỗi kết nối máy chủ: ${err}</td></tr>`;
+      });
+  }
+
+  loadData(currentKy);
+
+  // 2. Xử lý Checkbox chọn nhiều dòng (Multi-select + Shift-click chọn dải dòng)
+  document.getElementById("chkSelectAll").addEventListener("change", function () {
+    const isChecked = this.checked;
+    tbody.querySelectorAll("tr[data-row-id]").forEach(tr => {
+      if (tr.style.display === "none") return;
+      const chk = tr.querySelector(".row-select-chk");
+      if (chk) {
+        chk.checked = isChecked;
+        tr.classList.toggle("row-selected", isChecked);
+      }
+    });
+    updateSelectionUI();
+  });
+
+  tbody.addEventListener("click", function (e) {
+    const chk = e.target.closest(".row-select-chk");
+    if (!chk) return;
+
+    const tr = chk.closest("tr");
+    tr.classList.toggle("row-selected", chk.checked);
+
+    // Hỗ trợ giữ Shift + Click để chọn nhanh một dải dòng liên tiếp
+    if (e.shiftKey && lastCheckedCheckbox && lastCheckedCheckbox !== chk) {
+      const allChks = Array.from(tbody.querySelectorAll("tr[data-row-id]:not([style*='display: none']) .row-select-chk"));
+      const startIdx = allChks.indexOf(lastCheckedCheckbox);
+      const endIdx = allChks.indexOf(chk);
+      if (startIdx !== -1 && endIdx !== -1) {
+        const [low, high] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+        for (let i = low; i <= high; i++) {
+          allChks[i].checked = chk.checked;
+          allChks[i].closest("tr").classList.toggle("row-selected", chk.checked);
+        }
+      }
+    }
+    lastCheckedCheckbox = chk;
+    updateSelectionUI();
+  });
+
+  // 3. Xử lý nút Xóa nhiều dòng trên Thanh công cụ
+  document.getElementById("btnBulkDelete")?.addEventListener("click", function () {
+    const checkedBoxes = Array.from(tbody.querySelectorAll(".row-select-chk:checked"));
+    const rowIds = checkedBoxes.map(c => c.value);
+    if (rowIds.length === 0) return;
+
+    if (!confirm(`Bạn có chắc chắn muốn xóa ${rowIds.length} dòng kế hoạch đang chọn?\n(Bạn có thể bấm Ctrl + Z để khôi phục lại nếu xóa nhầm)`)) {
+      return;
+    }
+
+    const btn = this;
+    btn.disabled = true;
+
+    fetch("/tauscheduler/api/delete-rows", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrfToken
+      },
+      body: JSON.stringify({ row_ids: rowIds })
+    })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success) {
+        if (res.undo_action) pushUndoAction(res.undo_action);
+        loadData(document.getElementById("selectKyThang").value);
+      } else {
+        alert("Lỗi xóa: " + res.message);
+      }
+    })
+    .catch(err => alert("Lỗi kết nối khi xóa: " + err))
+    .finally(() => {
+      btn.disabled = false;
+    });
+  });
+
+  // 4. Chế độ thu gọn cột
+  document.querySelectorAll('input[name="viewMode"]').forEach(radio => {
+    radio.addEventListener("change", applyViewMode);
+  });
+
+  function applyViewMode() {
+    const mode = document.querySelector('input[name="viewMode"]:checked')?.value || 'all';
+    table.classList.remove("view-mode-pkh", "view-mode-dieudo");
+    if (mode === "pkh") table.classList.add("view-mode-pkh");
+    else if (mode === "dieudo") table.classList.add("view-mode-dieudo");
+  }
+
+  // 5. Nút lọc nhanh các dòng có Cảnh báo
+  document.getElementById("btnFilterWarnings").addEventListener("click", function() {
+    const isAct = this.getAttribute("data-active") === "1";
+    this.setAttribute("data-active", isAct ? "0" : "1");
+    this.classList.toggle("btn-danger", !isAct);
+    this.classList.toggle("btn-outline-danger", isAct);
+    applyColumnFilter();
+  });
+
+  document.getElementById("selectKyThang").addEventListener("change", function(e) {
+    window.location.href = `/tauscheduler/?ky=${encodeURIComponent(e.target.value)}`;
+  });
+
+  // 6. Cơ chế Inline Edit (Kiểm tra quyền trước khi mở ô sửa & đẩy thao tác vào Undo Stack)
+  function startInlineEdit(cell) {
+    if (!cell || cell.querySelector("input, textarea, select")) return;
+
+    const fieldName = cell.getAttribute("data-field");
+    if (!editableFieldsSet.has(fieldName)) {
+      return; // Cột bị khóa quyền đối với tài khoản này
+    }
+
+    const originalRaw = cell.getAttribute("data-raw") ?? '';
+    const tr = cell.closest("tr");
+    const rowId = tr.getAttribute("data-row-id");
+    const voyageGroup = parseInt(tr.getAttribute("data-voyage-group") || "0");
+
+    const isMulti = multilineFields.has(fieldName);
+    let editor;
+
+    if (fieldName === 'nha_may' || fieldName === 'nhip') {
+      editor = document.createElement("select");
+      editor.className = "form-select form-select-sm p-1";
+      editor.style.minWidth = "100px";
+
+      const options = fieldName === 'nha_may'
+        ? [
+            { value: "", label: "-- Trống --" },
+            { value: "HRC1", label: "HRC1" },
+            { value: "HRC2", label: "HRC2" },
+            { value: "HRC1+2", label: "HRC1+2" }
+          ]
+        : [
+            { value: "", label: "-- Trống --" },
+            { value: "Nhịp 1", label: "Nhịp 1" },
+            { value: "Nhịp 2", label: "Nhịp 2" },
+            { value: "Nhịp 3", label: "Nhịp 3" }
+          ];
+
+      const normOriginal = String(originalRaw || '').trim().toUpperCase();
+      options.forEach(opt => {
+        const optEl = document.createElement("option");
+        optEl.value = opt.value;
+        optEl.textContent = opt.label;
+        if (opt.value.toUpperCase() === normOriginal) optEl.selected = true;
+        editor.appendChild(optEl);
+      });
+
+      cell.innerHTML = "";
+      cell.appendChild(editor);
+      editor.focus();
+      editor.addEventListener("change", () => editor.blur());
+    } else {
+      editor = document.createElement(isMulti ? "textarea" : "input");
+      if (!isMulti) editor.type = "text";
+      else editor.rows = 3;
+
+      editor.className = "form-control form-control-sm p-1";
+      editor.style.minWidth = isMulti ? "250px" : "85px";
+      editor.value = originalRaw;
+
+      cell.innerHTML = "";
+      cell.appendChild(editor);
+      editor.focus();
+      editor.select();
+    }
+
+    let isSaving = false;
+    function saveCell() {
+      if (isSaving) return;
+      isSaving = true;
+      const newValue = editor.value.trim();
+
+      const currentLxh = tr.querySelector('[data-field="lenh_xuat_hang"]')?.getAttribute("data-raw") || '';
+      if (newValue === String(originalRaw).trim()) {
+        cell.innerHTML = renderCellContent(fieldName, originalRaw, { id: rowId, lenh_xuat_hang: currentLxh });
+        return;
+      }
+
+      const propagateVoyage = document.getElementById("chkPropagateVoyage").checked;
+      const companionIds = [];
+      if (propagateVoyage && voyageGroup > 0) {
+        tbody.querySelectorAll(`tr[data-voyage-group="${voyageGroup}"]`).forEach(r => {
+          companionIds.push(r.getAttribute("data-row-id"));
+        });
+      }
+
+      fetch("/tauscheduler/api/update-cell", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken
+        },
+        body: JSON.stringify({
+          row_id: rowId,
+          field: fieldName,
+          value: newValue,
+          propagate_voyage: propagateVoyage,
+          companion_ids: companionIds
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) {
+          alert("Lưu thất bại: " + data.message);
+          cell.innerHTML = renderCellContent(fieldName, originalRaw, { id: rowId, lenh_xuat_hang: currentLxh });
+          return;
+        }
+
+        if (data.undo_action) pushUndoAction(data.undo_action);
+
+        cell.setAttribute("data-raw", data.value);
+        const updatedLxh = fieldName === 'lenh_xuat_hang' ? data.value : currentLxh;
+        cell.innerHTML = renderCellContent(fieldName, data.value, { id: rowId, lenh_xuat_hang: updatedLxh });
+
+        const extra = data.extra_updates || {};
+        ['so_lenh_tach', 'nha_may', 'nhip', 'pic'].forEach(f => {
+          if (extra[f] !== undefined) {
+            const targetCell = tr.querySelector(`[data-field="${f}"]`);
+            if (targetCell) {
+              targetCell.setAttribute("data-raw", extra[f]);
+              targetCell.innerHTML = renderCellContent(f, extra[f], { id: rowId, lenh_xuat_hang: updatedLxh });
+            }
+          }
+        });
+        if (fieldName === 'lenh_xuat_hang' && extra.so_lenh_tach === undefined) {
+          const soCell = tr.querySelector('[data-field="so_lenh_tach"]');
+          if (soCell) {
+            soCell.innerHTML = renderCellContent('so_lenh_tach', soCell.getAttribute("data-raw"), { id: rowId, lenh_xuat_hang: updatedLxh });
+          }
+        }
+        if (extra.con_lai !== undefined) {
+          const conLaiCell = tr.querySelector('[data-col-role="con_lai"]');
+          const mapCell = tr.querySelector('[data-col-role="tong_da_map"]');
+          const xuatCell = tr.querySelector('[data-col-role="da_xuat"]');
+          const mapDkCell = tr.querySelector('[data-col-role="tong_map_dk"]');
+          const tongSxCell = tr.querySelector('[data-col-role="tong_sx_qc"]');
+
+          const newKlXuat = parseFloat(tr.querySelector('[data-field="kl_xuat"]')?.getAttribute('data-raw') || 0);
+          const curMap = parseFloat(mapCell?.getAttribute('data-raw') || 0);
+          const curXuat = parseFloat(xuatCell?.getAttribute('data-raw') || 0);
+          const rowContext = { id: rowId, kl_xuat: newKlXuat, tong_da_map: curMap, da_xuat: curXuat };
+
+          if (conLaiCell) {
+            conLaiCell.setAttribute("data-raw", extra.con_lai);
+            conLaiCell.innerHTML = renderCellContent('con_lai', extra.con_lai, rowContext);
+          }
+          if (mapCell) {
+            mapCell.innerHTML = renderCellContent('tong_da_map', curMap, rowContext);
+          }
+          if (xuatCell) {
+            xuatCell.innerHTML = renderCellContent('da_xuat', curXuat, rowContext);
+          }
+          if (mapDkCell) {
+            mapDkCell.innerHTML = renderCellContent('tong_map_dk', mapDkCell.getAttribute("data-raw"), rowContext);
+          }
+          if (tongSxCell) {
+            tongSxCell.innerHTML = renderCellContent('tong_sx_qc', tongSxCell.getAttribute("data-raw"), rowContext);
+          }
+        }
+
+        if (data.propagated_ids && data.propagated_ids.length > 0) {
+          data.propagated_ids.forEach(cid => {
+            const compTr = tbody.querySelector(`tr[data-row-id="${cid}"]`);
+            const compCell = compTr?.querySelector(`[data-field="${fieldName}"]`);
+            if (compCell) {
+              compCell.setAttribute("data-raw", data.value);
+              compCell.innerHTML = renderCellContent(fieldName, data.value, { id: cid });
+            }
+          });
+        }
+
+        refreshVoyageLoadAndKPIs();
+        // Sau khi lưu ô thành công, tự động gọi ngầm tính lại waterfall dưới nền mà không làm đơ giao diện
+        if (['so_lenh_tach', 'lenh_xuat_hang', 'kl_xuat', 'eta', 'tau_name', 'cw_max'].includes(fieldName)) {
+          const curKy = document.getElementById("selectKyThang").value;
+          fetch("/tauscheduler/api/refresh-schedule", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+            body: JSON.stringify({ ky: curKy })
+          })
+          .then(r => r.json())
+          .then(syncRes => {
+            if (syncRes && syncRes.success && (syncRes.updated || fieldName === 'cw_max')) {
+              loadData(curKy, null, true); // Tự động làm mới bảng êm ái khi tính xong
+            }
+          })
+          .catch(err => console.warn("Background waterfall refresh skipped:", err));
+        }
+      })
+      .catch(err => {
+        alert("Lỗi kết nối khi lưu: " + err);
+        cell.innerHTML = renderCellContent(fieldName, originalRaw, { id: rowId, lenh_xuat_hang: currentLxh });
+      });
+    }
+
+    editor.addEventListener("blur", saveCell);
+    editor.addEventListener("keydown", function(ev) {
+      if (ev.key === "Enter" && (!isMulti || !ev.shiftKey)) {
+        ev.preventDefault();
+        editor.blur();
+      }
+      if (ev.key === "Escape") {
+        isSaving = true;
+        const currentLxh = tr.querySelector('[data-field="lenh_xuat_hang"]')?.getAttribute("data-raw") || '';
+        cell.innerHTML = renderCellContent(fieldName, originalRaw, { id: rowId, lenh_xuat_hang: currentLxh });
+      }
+    });
+  }
+
+  table.addEventListener("dblclick", function (e) {
+    if (e.target.closest("button, input, select, .btn-so-info, .btn-view-coils, .btn-coil-list")) return;
+    const cell = e.target.closest("td[data-field]");
+    if (!cell) return;
+    const f = cell.getAttribute("data-field");
+    if (!editableFieldsSet.has(f)) return;
+    startInlineEdit(cell);
+  });
+
+  // 7. Xử lý các nút thao tác nhanh trên dòng (+Lệnh, Xem Coil ID, Tra cứu SO)
+  tbody.addEventListener("click", function(e) {
+    const btnInsert = e.target.closest(".btn-insert-inline");
+    if (btnInsert) {
+      e.stopPropagation();
+      const baseRowId = btnInsert.getAttribute("data-id");
+      btnInsert.disabled = true;
+      btnInsert.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+
+      fetch("/tauscheduler/api/insert-row-below", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken
+        },
+        body: JSON.stringify({ base_row_id: baseRowId })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          if (res.undo_action) pushUndoAction(res.undo_action);
+          loadData(document.getElementById("selectKyThang").value, res.new_row_id);
+        } else {
+          alert("Lỗi chèn dòng: " + res.message);
+          btnInsert.disabled = false;
+          btnInsert.innerText = "+Lệnh";
+        }
+      })
+      .catch(err => {
+        alert("Lỗi kết nối: " + err);
+        btnInsert.disabled = false;
+        btnInsert.innerText = "+Lệnh";
+      });
+      return;
+    }
+
+    const btnCoils = e.target.closest(".btn-view-coils");
+    if (btnCoils) {
+      const cell = btnCoils.closest("td");
+      const rawText = cell?.getAttribute("data-raw") || "";
+      document.getElementById("modalInfoTitle").innerHTML = `<i class="fas fa-list-ol text-primary me-2"></i>Chi tiết C.W Max / Danh sách Mã Cuộn`;
+      document.getElementById("soDetailsBody").innerHTML = `<pre class="bg-light p-3 border rounded small mb-0" style="max-height: 380px; overflow:auto;">${escapeHtml(rawText)}</pre>`;
+      if (pkdSearchWrap) pkdSearchWrap.classList.add("d-none");
+        showSoModalSafely();
+      return;
+    }
+    const btnCoilList = e.target.closest(".btn-coil-list");
+    if (btnCoilList) {
+      e.stopPropagation();
+      const tau = btnCoilList.getAttribute("data-tau") || "";
+      const so = btnCoilList.getAttribute("data-so") || "";
+      openCoilListModal(tau, so);
+      return;
+    }
+    const btnQcCoils = e.target.closest(".btn-qc-coils");
+    if (btnQcCoils) {
+      e.stopPropagation();
+      const so = btnQcCoils.getAttribute("data-so") || "";
+      const cat = btnQcCoils.getAttribute("data-cat") || "ALL";
+      openQcPendingCoilsModal(so, cat);
+      return;
+    }
+    const btnSo = e.target.closest(".btn-so-info");
+    if (btnSo) {
+      openSoDetailsModal(btnSo.getAttribute("data-so"));
+      return;
+    }
+  });
+
+
+
+  const filterInputs = document.querySelectorAll(".col-filter");
+  function applyColumnFilter() {
+    const onlyWarn = document.getElementById("btnFilterWarnings")?.getAttribute("data-active") === "1";
+    const selectedShipColor = document.getElementById("selectVesselColorFilter")?.value || "";
+
+    const activeFilters = [];
+    filterInputs.forEach(inp => {
+      const val = inp.value.toLowerCase().trim();
+      if (val) {
+        activeFilters.push({ colIdx: parseInt(inp.getAttribute("data-col")), val });
+      }
+    });
+
+    const rows = tbody.querySelectorAll("tr[data-row-id]");
+    rows.forEach(row => {
+      let isVisible = true;
+
+      // 1. Kiểm tra lọc Cảnh báo
+      if (onlyWarn && row.getAttribute("data-has-warning") !== "1") {
+        isVisible = false;
+      }
+
+      // 2. Kiểm tra lọc Trạng thái màu tàu (GREEN / YELLOW / NONE)
+      if (isVisible && selectedShipColor) {
+        const rowColor = row.getAttribute("data-ship-color") || "NONE";
+        if (rowColor !== selectedShipColor) {
+          isVisible = false;
+        }
+      }
+
+      // 3. Kiểm tra lọc theo từng cột
+      if (isVisible && activeFilters.length > 0) {
+        for (let i = 0; i < activeFilters.length; i++) {
+          const f = activeFilters[i];
+          const cell = row.children[f.colIdx];
+          const cellText = (cell?.getAttribute("data-raw") || cell?.textContent || "").toLowerCase();
+          if (!cellText.includes(f.val)) {
+            isVisible = false;
+            break;
+          }
+        }
+      }
+
+      row.style.display = isVisible ? "" : "none";
+    });
+
+    if (rows.length > 0) updateVisibleKPIsOnly();
+  }
+  const debouncedFilter = debounce(applyColumnFilter, 220);
+  document.getElementById("selectVesselColorFilter")?.addEventListener("change", function () {
+      this.classList.remove("bg-success-subtle", "bg-warning-subtle", "bg-light");
+      if (this.value === "GREEN") this.classList.add("bg-success-subtle");
+      else if (this.value === "YELLOW") this.classList.add("bg-warning-subtle");
+      applyColumnFilter();
+    });
+  filterInputs.forEach(input => {
+    if (input.tagName === "SELECT") {
+      input.addEventListener("change", applyColumnFilter);
+    } else {
+      input.addEventListener("input", debouncedFilter);
+    }
+  });
+  // 9. Thêm Chuyến tàu mới ở cuối bảng
+  function setAddModalMode(mode) {
+    const isPendingSo = (mode === "PENDING_SO");
+    const radVessel = document.getElementById("modeCreateVessel");
+    const radSo = document.getElementById("modeCreatePendingSo");
+    if (radVessel && radSo) {
+      radVessel.checked = !isPendingSo;
+      radSo.checked = isPendingSo;
+    }
+
+    document.getElementById("sectionVesselFields")?.classList.toggle("d-none", isPendingSo);
+    document.getElementById("alertPendingSoGuide")?.classList.toggle("d-none", !isPendingSo);
+
+    const lblLxh = document.getElementById("lblNewLxh");
+    if (lblLxh) {
+      lblLxh.innerHTML = isPendingSo
+        ? `Lệnh xuất hàng (LXH - Kèm mã SO 10 số nếu có) <span class="text-danger">*</span>`
+        : `Lệnh xuất hàng đầu tiên của chuyến (Tùy chọn)`;
+    }
+
+    const btnSubmit = document.getElementById("btnSubmitAddShip");
+    if (btnSubmit) {
+      btnSubmit.innerHTML = isPendingSo
+        ? `<i class="fas fa-box-open me-1"></i>Tạo SO cần xuất (Đưa vào Giỏ chờ)`
+        : `<i class="fas fa-ship me-1"></i>Tạo Chuyến Tàu Mới`;
+      btnSubmit.className = isPendingSo ? "btn btn-info text-dark btn-sm fw-bold" : "btn btn-primary btn-sm fw-bold";
+    }
+  }
+
+  document.querySelectorAll('input[name="addCreationMode"]').forEach(rad => {
+    rad.addEventListener("change", function () {
+      setAddModalMode(this.value);
+    });
+  });
+
+  function openAddModalWithMode(mode = "VESSEL") {
+    document.getElementById("formAddShip")?.reset();
+    const cxepInput = document.getElementById("new_cang_xep");
+    if (cxepInput) cxepInput.value = "Dung Quất";
+    setAddModalMode(mode);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("modalAddVessel")).show();
+  }
+
+  document.getElementById("btnOpenAddModal")?.addEventListener("click", () => openAddModalWithMode("VESSEL"));
+  document.getElementById("btnQuickAddPendingSo")?.addEventListener("click", () => openAddModalWithMode("PENDING_SO"));
+  document.getElementById("btnQuickAddPendingVessel")?.addEventListener("click", () => openAddModalWithMode("VESSEL"));
+
+  document.getElementById("btnSubmitAddShip")?.addEventListener("click", function () {
+    const mode = document.querySelector('input[name="addCreationMode"]:checked')?.value || "VESSEL";
+    const tauName = mode === "PENDING_SO" ? "" : document.getElementById("new_tau_name").value.trim();
+    const lxhVal = document.getElementById("new_lenh_xuat").value.trim();
+
+    if (mode === "VESSEL" && !tauName) {
+      return alert("Vui lòng nhập Tên Tàu / Phương tiện!");
+    }
+    if (mode === "PENDING_SO" && !lxhVal) {
+      return alert("Vui lòng nhập Lệnh xuất hàng (LXH) cho SO cần xuất!");
+    }
+
+    const postData = {
+      ky_thang: document.getElementById("selectKyThang").value,
+      tau_name: tauName,
+      trong_tai: mode === "PENDING_SO" ? 0 : document.getElementById("new_trong_tai").value,
+      cw_max: mode === "PENDING_SO" ? "" : (document.getElementById("new_cw_max")?.value || ""),
+      eta: mode === "PENDING_SO" ? "" : document.getElementById("new_eta").value,
+      etb: mode === "PENDING_SO" ? "" : document.getElementById("new_etb").value,
+      dai_ly: mode === "PENDING_SO" ? "" : document.getElementById("new_dai_ly").value,
+      nhip: mode === "PENDING_SO" ? "" : (document.getElementById("new_nhip")?.value || ""),
+      cang_xep: mode === "PENDING_SO" ? "Dung Quất" : (document.getElementById("new_cang_xep")?.value || "Dung Quất"),
+      cang_den: document.getElementById("new_cang_den").value,
+      lsd: document.getElementById("new_lsd")?.value || "",
+      lenh_xuat_hang: lxhVal,
+      kl_xuat: document.getElementById("new_kl_xuat").value,
+      nha_may: document.getElementById("new_nha_may")?.value || "",
+      tinh_trang: document.getElementById("new_tinh_trang")?.value || "",
+      pic: document.getElementById("new_pic")?.value || "",
+      nhip_sx: document.getElementById("new_nhip_sx")?.value || ""
+    };
+
+    fetch("/tauscheduler/api/add-vessel", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrfToken
+      },
+      body: JSON.stringify(postData)
+    })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success) {
+        if (res.undo_action) pushUndoAction(res.undo_action);
+        bootstrap.Modal.getInstance(document.getElementById("modalAddVessel"))?.hide();
+        // Nếu tạo SO chờ thì tự động bật Khay Ghép Tàu - SO ở tab "SO chờ tàu"
+        if (mode === "PENDING_SO") {
+          dockPanel?.classList.remove("d-none");
+          document.getElementById("tabBtnPendingSo")?.click();
+        }
+        loadData(postData.ky_thang, res.new_row_id);
+      } else {
+        alert("Lỗi: " + res.message);
+      }
+    });
+  });
+
+  // 10. Đồng bộ DB
+  document.getElementById("btnSyncDB")?.addEventListener("click", function () {
+    const self = this;
+    const currentSelectedKy = document.getElementById("selectKyThang").value;
+    self.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> Đang đồng bộ...`;
+    self.disabled = true;
+
+    fetch("/tauscheduler/api/sync-db", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrfToken
+      },
+      body: JSON.stringify({ ky: currentSelectedKy })
+    })
+    .then(res => res.json())
+    .then(res => {
+      alert(res.message);
+      loadData(currentSelectedKy);
+    })
+    .catch(err => alert("Lỗi đồng bộ: " + err))
+    .finally(() => {
+      self.innerHTML = `<i class="fas fa-sync-alt me-1"></i> Đồng bộ DB`;
+      self.disabled = false;
+    });
+  });
+
+  // 11. Import Excel
+  document.getElementById("btnSubmitImportExcel")?.addEventListener("click", function() {
+    const fileInput = document.getElementById("excelFileInput");
+    if (!fileInput.files || fileInput.files.length === 0) {
+      return alert("Vui lòng chọn file Excel lịch tàu!");
+    }
+
+    const mode = document.querySelector('input[name="importMode"]:checked').value;
+    const currentSelectedKy = document.getElementById("selectKyThang").value;
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+    formData.append("mode", mode);
+    formData.append("ky_thang", currentSelectedKy);
+
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> Đang nạp dữ liệu...`;
+
+    fetch("/tauscheduler/api/import-excel", {
+      method: "POST",
+      headers: { "X-CSRFToken": csrfToken },
+      body: formData
+    })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success) {
+        alert(res.message);
+        window.location.reload();
+      } else {
+        alert("Lỗi Import: " + res.message);
+      }
+    })
+    .catch(err => alert("Lỗi kết nối khi Import: " + err))
+    .finally(() => {
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fas fa-cloud-upload-alt me-1"></i>Bắt đầu Import`;
+    });
+  });
+
+  // 12. Tra cứu chi tiết SO
+  const modalSoEl = document.getElementById("modalSoDetails");
+  const pkdSearchWrap = document.getElementById("pkdSearchBarWrap");
+  const pkdCandidatesBox = document.getElementById("pkdSearchCandidates");
+  const inpPkdQuery = document.getElementById("inpPkdSoQuery");
+
+  // Hàm mở Modal an toàn tuyệt đối: Chỉ gọi .show() nếu Modal đang đóng
+  function showSoModalSafely() {
+    if (!modalSoEl) return;
+    const inst = bootstrap.Modal.getOrCreateInstance(modalSoEl);
+    if (!modalSoEl.classList.contains("show")) {
+      inst.show();
+    }
+  }
+
+  // Tự động dọn sạch mọi lớp màn mờ (.modal-backdrop) bị kẹt khi đóng Modal
+  modalSoEl?.addEventListener("hidden.bs.modal", function () {
+    document.querySelectorAll(".modal-backdrop").forEach(el => el.remove());
+    document.body.classList.remove("modal-open");
+    document.body.style.removeProperty("overflow");
+    document.body.style.removeProperty("padding-right");
+  });
+
+  // Nút mở Modal Tra cứu SO từ Thanh công cụ
+  document.getElementById("btnOpenPkdLookup")?.addEventListener("click", function () {
+    if (pkdSearchWrap) pkdSearchWrap.classList.remove("d-none");
+    if (pkdCandidatesBox) pkdCandidatesBox.classList.add("d-none");
+    document.getElementById("modalInfoTitle").innerHTML = `<i class="fas fa-search-dollar text-info me-2"></i>TRUNG TÂM TRA CỨU TIẾN ĐỘ SO & LỊCH TÀU (P.KD)`;
+
+    const currentQ = (inpPkdQuery?.value || "").trim();
+    const body = document.getElementById("soDetailsBody");
+    // Nếu chưa có nội dung báo cáo SO trong body thì hiển thị lời nhắc sạch sẽ
+    if (body && !body.querySelector("#btnViewPendingQcFromSo") && !body.querySelector(".pkd-candidate-row")) {
+      if (/^\d{10}$/.test(currentQ)) {
+        openSoDetailsModal(currentQ, true);
+      } else {
+        body.innerHTML = `
+          <div class="text-center py-4 text-muted">
+            <i class="fas fa-search-dollar fs-3 text-info mb-2 d-block"></i>
+            Nhập <strong>Mã SO (10 số)</strong> hoặc <strong>Số XNĐH / Tên khách hàng</strong> ở thanh tìm kiếm phía trên để xem toàn bộ Tình hình Sản xuất, Kho & Gắn tàu.
+          </div>
+        `;
+      }
+    }
+
+    showSoModalSafely();
+    setTimeout(() => {
+      inpPkdQuery?.focus();
+      inpPkdQuery?.select();
+    }, 250);
+  });
+
+  // Sự kiện Submit thanh tìm kiếm SO / XNĐH trong Modal
+  document.getElementById("formPkdSoSearch")?.addEventListener("submit", function (e) {
+    e.preventDefault();
+    const q = (inpPkdQuery?.value || "").trim();
+    if (!q) return;
+
+    // Nếu người dùng nhập thẳng chuỗi chứa đúng 1 mã SO 10 chữ số -> Mở chi tiết SO luôn
+    const exact10 = q.match(/^\s*(\d{10})\s*$/);
+    if (exact10) {
+      if (pkdCandidatesBox) pkdCandidatesBox.classList.add("d-none");
+      openSoDetailsModal(exact10[1], true);
+      return;
+    }
+
+    // Nếu nhập số XNĐH, tên khách hàng hoặc 1 phần SO -> Gọi API tìm kiếm danh sách SO khớp
+    const body = document.getElementById("soDetailsBody");
+    body.innerHTML = `<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Đang tìm kiếm các đơn hàng khớp với <strong>"${escapeHtml(q)}"</strong>...</div>`;
+
+    fetch(`/tauscheduler/api/pkd-so-search?q=${encodeURIComponent(q)}`)
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) {
+          body.innerHTML = `<div class="alert alert-warning mb-0 small">${escapeHtml(res.message)}</div>`;
+          return;
+        }
+        const list = res.results || [];
+        if (list.length === 0) {
+          body.innerHTML = `<div class="alert alert-danger mb-0 small"><i class="fas fa-times-circle me-1"></i>Không tìm thấy Mã SO hay XNĐH nào khớp với từ khóa <strong>"${escapeHtml(q)}"</strong>.</div>`;
+          return;
+        }
+        // Nếu chỉ có đúng 1 SO khớp -> Tải thẳng báo cáo chi tiết của SO đó
+        if (list.length === 1) {
+          if (pkdCandidatesBox) pkdCandidatesBox.classList.add("d-none");
+          openSoDetailsModal(list[0].so_no, true);
+          return;
+        }
+        // Nếu có nhiều SO khớp -> Hiển thị bảng chọn nhanh
+        const rowsHtml = list.map(item => `
+          <tr class="pkd-candidate-row" style="cursor:pointer;" data-so="${escapeHtml(item.so_no)}">
+            <td class="fw-bold text-danger font-monospace">${escapeHtml(item.so_no)}</td>
+            <td>${escapeHtml(item.xndh || '-')}</td>
+            <td class="text-center"><span class="badge ${item.ship_count > 0 ? 'bg-primary' : 'bg-secondary'}">${item.ship_count} chuyến</span></td>
+            <td class="text-end fw-semibold">${formatNumber(item.sum_kl_tau)} T</td>
+            <td class="text-center"><span class="badge bg-light text-dark border">${escapeHtml(item.latest_ky || '-')}</span></td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 btn-pick-so" data-so="${escapeHtml(item.so_no)}">
+                Xem chi tiết <i class="fas fa-chevron-right ms-1"></i>
+              </button>
+            </td>
+          </tr>
+        `).join("");
+
+        body.innerHTML = `
+          <div class="alert alert-info py-2 small mb-2">
+            <i class="fas fa-list-ul me-1"></i>Tìm thấy <strong>${list.length} mã SO</strong> khớp với từ khóa <strong>"${escapeHtml(q)}"</strong>. Bấm vào dòng bất kỳ để xem chi tiết:
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered table-hover small mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Mã SO (10 số)</th>
+                  <th>Số XNĐH / Lệnh xuất hàng / Mô tả</th>
+                  <th class="text-center">Số chuyến tàu</th>
+                  <th class="text-end">Tổng KL xếp tàu</th>
+                  <th class="text-center">Kỳ gần nhất</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>${rowsHtml}</tbody>
+            </table>
+          </div>
+        `;
+
+        body.querySelectorAll(".pkd-candidate-row, .btn-pick-so").forEach(el => {
+          el.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            const pickedSo = this.getAttribute("data-so");
+            if (pickedSo) openSoDetailsModal(pickedSo, true);
+          });
+        });
+      })
+      .catch(err => {
+        body.innerHTML = `<div class="alert alert-danger mb-0 small">Lỗi kết nối tìm kiếm: ${err}</div>`;
+      });
+  });
+
+  function openSoDetailsModal(soLenh, keepModalOpen = false) {
+    if (pkdSearchWrap) pkdSearchWrap.classList.remove("d-none");
+    if (inpPkdQuery) inpPkdQuery.value = soLenh;
+
+    document.getElementById("modalInfoTitle").innerHTML = `
+      <i class="fas fa-search-dollar text-info me-2"></i>BÁO CÁO TIẾN ĐỘ SẢN XUẤT & LỊCH TÀU — SO:
+      <span class="badge bg-warning text-dark fs-6 ms-1 font-monospace">${escapeHtml(soLenh)}</span>
+    `;
+    const body = document.getElementById("soDetailsBody");
+    body.innerHTML = `<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Đang tổng hợp dữ liệu Sản xuất, Kho, QC & Lịch tàu cho SO <strong>${escapeHtml(soLenh)}</strong>...</div>`;
+    if (!keepModalOpen) {
+      showSoModalSafely();
+    }
+
+    fetch(`/tauscheduler/api/so-info/${encodeURIComponent(soLenh)}`)
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) {
+          body.innerHTML = `<div class="alert alert-danger mb-0 small">${escapeHtml(res.message)}</div>`;
+          return;
+        }
+
+        const ks = res.kho_summary || {};
+        const mats = ks.materials || [];
+        const ships = res.ship_allocations || [];
+        const orders = res.items || [];
+        const alerts = res.pkd_alerts || [];
+
+        // 1. Render Khối Cảnh báo thông minh cho P.KD
+        const alertsHtml = alerts.map(a => {
+          const alertCls = a.level === 'danger' ? 'alert-danger border-danger'
+            : (a.level === 'warning' ? 'alert-warning border-warning'
+            : (a.level === 'success' ? 'alert-success border-success' : 'alert-info border-info'));
+          return `
+            <div class="alert ${alertCls} py-2 px-3 mb-2 d-flex align-items-start gap-2 small shadow-sm">
+              <i class="fas ${a.icon || 'fa-bell'} mt-1 fs-6"></i>
+              <div>
+                <div class="fw-bold">${escapeHtml(a.title)}</div>
+                <div>${escapeHtml(a.msg)}</div>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        // 2. Tính tỷ lệ % cho Thanh tiến độ Pipeline tổng thể
+        const baseTotal = Math.max(Number(ks.tong_don_chuan_tan || 0), Number(ks.tong_nguon_toan_so || 0), 1);
+        const pctXuat = Math.min(100, Math.round((Number(ks.thuc_xuat_tan || 0) / baseTotal) * 100));
+        const pctMap = Math.min(100 - pctXuat, Math.round((Number(ks.mapping_kho_tan || 0) / baseTotal) * 100));
+        const pctUnmap = Math.min(100 - pctXuat - pctMap, Math.round((Number(ks.nk_chua_map_tan || 0) / baseTotal) * 100));
+        const pctWip = Math.min(100 - pctXuat - pctMap - pctUnmap, Math.round((Number(ks.tong_wip_qc_tan || 0) / baseTotal) * 100));
+
+        // 3. Render Bảng Phân bổ trên các Chuyến tàu (mọi kỳ)
+        const shipRowsHtml = ships.length > 0 ? ships.map(s => {
+          const klYc = Number(s.kl_xuat || 0);
+          const daXuat = Number(s.da_xuat || 0);
+          const daMap = Number(s.tong_da_map || 0);
+          const tongSx = Math.max(Number(s.tong_sx_qc || 0), daMap, daXuat);
+          const isDone = klYc > 0 && daXuat >= klYc * 0.95;
+          const isMoving = !isDone && daXuat > 0;
+
+          const statusBadge = isDone
+            ? `<span class="badge bg-success">🟢 Đã xuất xong</span>`
+            : (isMoving
+              ? `<span class="badge bg-warning text-dark">🟡 Đang xuất</span>`
+              : (s.tau_name ? `<span class="badge bg-secondary">⚪ Chờ xuất</span>` : `<span class="badge bg-warning text-dark">⏳ Chờ ghép tàu</span>`));
+
+          const thieuTau = (klYc > 0 && !isDone && tongSx < klYc * 0.95)
+            ? `<div class="text-danger fw-bold" style="font-size:0.7rem;">Thiếu: ${formatNumber(klYc - tongSx)}T</div>`
+            : '';
+
+          return `
+            <tr>
+              <td class="text-center"><span class="badge bg-light text-dark border">${escapeHtml(s.ky_thang)}</span></td>
+              <td class="fw-bold text-primary">${escapeHtml(s.tau_name || 'Chờ ghép tàu')}</td>
+              <td>${escapeHtml(s.cang_den || '-')}</td>
+              <td class="fw-semibold">${escapeHtml(s.eta || '-')}</td>
+              <td class="text-danger small">${escapeHtml(s.lsd || '-')}</td>
+              <td class="text-end fw-bold text-danger">${formatNumber(klYc)}</td>
+              <td class="text-end text-info fw-bold">${formatNumber(daMap)}</td>
+              <td class="text-end text-success fw-bold">${formatNumber(daXuat)}</td>
+              <td class="text-end text-warning-emphasis fw-semibold">${formatNumber(s.nk_chua_map)}</td>
+              <td class="text-end fw-bold">${formatNumber(s.tong_map_dk)}</td>
+              <td class="text-end fw-bold">${formatNumber(tongSx)}${thieuTau}</td>
+              <td class="text-center"><span class="badge bg-info-subtle text-dark border">${escapeHtml(s.ngay_dk_xong || '-')}</span></td>
+              <td class="text-center">${statusBadge}</td>
+              <td class="text-center">
+                <div class="btn-group btn-group-sm">
+                  <button type="button" class="btn btn-outline-success py-0 px-2 btn-modal-coil-list" data-tau="${escapeHtml(s.tau_name || '')}" data-so="${escapeHtml(res.so_lenh)}" title="Xem danh sách cuộn đã Map & Xuất của tàu này">
+                    <i class="fas fa-bars"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-primary py-0 px-2 btn-jump-to-row" data-ky="${escapeHtml(s.ky_thang)}" data-id="${s.id}" title="Nhảy tới dòng tàu này trên bảng lịch tàu">
+                    <i class="fas fa-external-link-alt"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join("") : `<tr><td colspan="14" class="text-center text-muted py-3">Mã SO này hiện chưa được gắn vào chuyến tàu nào trong Kế hoạch.</td></tr>`;
+
+        // 4. Render Bảng Tiến độ Vật tư từ Kho (vw_so_kho_sumary2)
+        const matRowsHtml = mats.length > 0 ? mats.map(m => {
+          const threshold = m.qty_tan <= 100 ? 80 : 90;
+          const badgeCls = m.progress_pct >= threshold ? 'bg-success' : (m.progress_pct >= 30 ? 'bg-warning text-dark' : 'bg-danger');
+          return `
+            <tr>
+              <td class="fw-semibold">${escapeHtml(m.material)}</td>
+              <td class="text-center"><span class="badge bg-secondary">${escapeHtml(m.nha_may || '-')}</span></td>
+              <td class="text-end">${formatNumber(m.qty_tan)}</td>
+              <td class="text-end text-info fw-semibold">${formatNumber(m.mapping_tan)}</td>
+              <td class="text-end text-success fw-semibold">${formatNumber(m.shipped_tan)}</td>
+              <td class="text-end fw-bold">${formatNumber(m.delivered_tan)}</td>
+              <td class="text-center"><span class="badge ${badgeCls}">${m.progress_pct}%</span></td>
+            </tr>
+          `;
+        }).join("") : `<tr><td colspan="7" class="text-center text-muted">Chưa có dữ liệu trong vw_so_kho_sumary2</td></tr>`;
+
+        // 5. Render Bảng Chi tiết Order Sản xuất (order_production_rules)
+        const orderRowsHtml = orders.length > 0 ? orders.map(item => {
+          const klTan = (item.target_weight_kg || 0) / 1000.0;
+          const daCanTan = (item.fulfilled_weight_kg || 0) / 1000.0;
+          const pctCan = klTan > 0 ? Math.round((daCanTan / klTan) * 100) : 0;
+          const skinBadge = item.is_skin ? '<span class="badge bg-warning text-dark ms-1">Skinpass</span>' : '';
+          return `
+            <tr>
+              <td class="fw-bold text-primary">${escapeHtml(item.order_no || '')}${skinBadge}</td>
+              <td>${escapeHtml(item.xndh || '')}</td>
+              <td><span class="badge bg-secondary">${escapeHtml(item.mac_thep || '')}</span></td>
+              <td class="fw-semibold">${escapeHtml(item.do_day || '')} x ${escapeHtml(item.kho_rong || '')}</td>
+              <td>${escapeHtml(item.cw || '')}</td>
+              <td class="text-end fw-semibold">${formatNumber(klTan)}</td>
+              <td class="text-end text-success fw-bold">${formatNumber(daCanTan)}</td>
+              <td class="text-center"><span class="badge ${pctCan >= 95 ? 'bg-success' : (pctCan >= 50 ? 'bg-info text-dark' : 'bg-secondary')}">${pctCan}%</span></td>
+              <td>${escapeHtml(item.ky_sx || '')}</td>
+            </tr>
+          `;
+        }).join("") : `<tr><td colspan="9" class="text-center text-muted">Không có dữ liệu Order trong order_production_rules</td></tr>`;
+
+        body.innerHTML = `
+          <!-- Thông tin định danh SO & Nút thao tác nhanh -->
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+            <div>
+              <span class="text-muted small">Đơn hàng / XNĐH:</span>
+              <strong class="text-dark ms-1">${escapeHtml(res.xndh_info || 'Chưa cập nhật XNĐH')}</strong>
+              ${ks.nha_may ? `<span class="badge bg-primary ms-2">${escapeHtml(ks.nha_may)}</span>` : ''}
+            </div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-warning btn-sm fw-semibold text-dark" id="btnViewPendingQcFromSo" data-so="${escapeHtml(res.so_lenh)}">
+                <i class="fas fa-clipboard-check me-1"></i>Xem ${res.pending_coils_count || 0} cuộn Chưa Map / WIP QC
+              </button>
+              <button type="button" class="btn btn-success btn-sm fw-semibold" id="btnViewAllCoilsFromSo" data-so="${escapeHtml(res.so_lenh)}">
+                <i class="fas fa-layer-group me-1"></i>Xem COIL_LIST Đã Map & Xuất
+              </button>
+            </div>
+          </div>
+
+          <!-- Khối Cảnh báo thông minh cho P.KD -->
+          <div class="mb-3">${alertsHtml}</div>
+
+          <!-- 6 Thẻ KPI Tổng hợp Pipeline của SO -->
+          <div class="row g-2 mb-2 text-center">
+            <div class="col-md-2 col-6">
+              <div class="p-2 border rounded bg-light">
+                <div class="text-muted" style="font-size:0.72rem;">TỔNG ĐƠN (SAP / LSX)</div>
+                <div class="fw-bold fs-6 text-dark">${formatNumber(ks.tong_don_chuan_tan)} T</div>
+                <small class="text-muted" style="font-size:0.68rem;">SAP: ${formatNumber(ks.total_qty_tan)}T | LSX: ${formatNumber(res.tong_lsx_tan)}T</small>
+              </div>
+            </div>
+            <div class="col-md-2 col-6">
+              <div class="p-2 border rounded bg-success-subtle border-success-subtle">
+                <div class="text-success fw-semibold" style="font-size:0.72rem;">ĐÃ XUẤT LÊN TÀU</div>
+                <div class="fw-bold fs-6 text-success">${formatNumber(ks.thuc_xuat_tan)} T</div>
+                <small class="text-muted" style="font-size:0.68rem;">SAP: ${formatNumber(ks.shipped_tan)}T</small>
+              </div>
+            </div>
+            <div class="col-md-2 col-6">
+              <div class="p-2 border rounded bg-info-subtle border-info-subtle">
+                <div class="text-info-emphasis fw-semibold" style="font-size:0.72rem;">ĐANG MAP TẠI KHO</div>
+                <div class="fw-bold fs-6 text-info-emphasis">${formatNumber(ks.mapping_kho_tan)} T</div>
+                <small class="text-muted" style="font-size:0.68rem;">Sẵn sàng xuất: ${formatNumber(ks.available_tan)}T</small>
+              </div>
+            </div>
+            <div class="col-md-2 col-6">
+              <div class="p-2 border rounded bg-warning-subtle border-warning-subtle">
+                <div class="text-warning-emphasis fw-semibold" style="font-size:0.72rem;">NK CHƯA MAP (L1)</div>
+                <div class="fw-bold fs-6 text-dark">${formatNumber(ks.nk_chua_map_tan)} T</div>
+                <small class="text-danger fw-semibold" style="font-size:0.68rem;">Có sẵn kho, cần Map SAP</small>
+              </div>
+            </div>
+            <div class="col-md-2 col-6">
+              <div class="p-2 border rounded bg-light">
+                <div class="text-secondary fw-semibold" style="font-size:0.72rem;">ĐANG Ở NHÀ MÁY / QC</div>
+                <div class="fw-bold fs-6 text-primary">${formatNumber(ks.tong_wip_qc_tan)} T</div>
+                <small class="text-muted" style="font-size:0.68rem;">L1: ${formatNumber(ks.cho_nk_l1_tan)}T | CT: ${formatNumber(ks.cho_co_tinh_tan)}T | CXL: ${formatNumber(ks.cxl_tan)}T</small>
+              </div>
+            </div>
+            <div class="col-md-2 col-6">
+              <div class="p-2 border rounded ${ks.chua_xep_tau_tan > 0 ? 'bg-danger-subtle border-danger-subtle' : 'bg-light'}">
+                <div class="fw-semibold ${ks.chua_xep_tau_tan > 0 ? 'text-danger' : 'text-secondary'}" style="font-size:0.72rem;">ĐÃ GẮN TÀU / CHƯA GẮN</div>
+                <div class="fw-bold fs-6 ${ks.chua_xep_tau_tan > 0 ? 'text-danger' : 'text-dark'}">${formatNumber(ks.sum_kl_xep_tau)} T</div>
+                <small class="${ks.chua_xep_tau_tan > 0 ? 'text-danger fw-bold' : 'text-muted'}" style="font-size:0.68rem;">Chưa gắn tàu: ${formatNumber(ks.chua_xep_tau_tan)}T</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thanh Progress Bar trực quan hóa Pipeline -->
+          <div class="mb-3">
+            <div class="d-flex justify-content-between small mb-1">
+              <span class="fw-semibold text-secondary">Tiến độ lấp đầy nguồn hàng toàn SO (Tổng nguồn: <strong class="text-dark">${formatNumber(ks.tong_nguon_toan_so)} T</strong> / Đơn: <strong class="text-dark">${formatNumber(ks.tong_don_chuan_tan)} T</strong>)</span>
+              ${ks.thieu_nguon_toan_so > 0
+                ? `<span class="text-danger fw-bold">Cần sản xuất/cán bù thêm: ${formatNumber(ks.thieu_nguon_toan_so)} T</span>`
+                : `<span class="text-success fw-bold">Đã đủ 100% nguồn hàng cho SO</span>`}
+            </div>
+            <div class="progress" style="height: 18px; border-radius: 6px;">
+              <div class="progress-bar bg-success" style="width: ${pctXuat}%" title="Đã xuất: ${formatNumber(ks.thuc_xuat_tan)}T (${pctXuat}%)">${pctXuat >= 8 ? `Xuất ${pctXuat}%` : ''}</div>
+              <div class="progress-bar bg-info text-dark fw-semibold" style="width: ${pctMap}%" title="Đang Map kho: ${formatNumber(ks.mapping_kho_tan)}T (${pctMap}%)">${pctMap >= 8 ? `Map ${pctMap}%` : ''}</div>
+              <div class="progress-bar bg-warning text-dark fw-semibold" style="width: ${pctUnmap}%" title="NK Chưa Map: ${formatNumber(ks.nk_chua_map_tan)}T (${pctUnmap}%)">${pctUnmap >= 8 ? `Chưa Map ${pctUnmap}%` : ''}</div>
+              <div class="progress-bar bg-primary" style="width: ${pctWip}%" title="Đang WIP/QC: ${formatNumber(ks.tong_wip_qc_tan)}T (${pctWip}%)">${pctWip >= 8 ? `WIP ${pctWip}%` : ''}</div>
+            </div>
+          </div>
+
+          <!-- BẢNG 1: TÌNH HÌNH GẮN TÀU & PHÂN BỔ WATERFALL XUYÊN KỲ -->
+          <h6 class="fw-bold small text-uppercase text-primary mb-1">
+            <i class="fas fa-ship me-1"></i>1. Tình hình Gắn Tàu & Phân bổ Waterfall (${ships.length} dòng kế hoạch)
+          </h6>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-bordered table-hover small mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="text-center">Kỳ</th>
+                  <th>Chuyến Tàu / Phương Tiện</th>
+                  <th>Cảng Đến</th>
+                  <th>ETA</th>
+                  <th>LSD</th>
+                  <th class="text-end">KL Yêu Cầu</th>
+                  <th class="text-end">Đã Map</th>
+                  <th class="text-end">Đã Xuất</th>
+                  <th class="text-end">NK Chưa Map</th>
+                  <th class="text-end">Tổng Map DK</th>
+                  <th class="text-end">Tổng SX</th>
+                  <th class="text-center">Ngày DK Xong</th>
+                  <th class="text-center">Trạng Thái</th>
+                  <th class="text-center">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>${shipRowsHtml}</tbody>
+            </table>
+          </div>
+
+          <!-- BẢNG 2: TIẾN ĐỘ VẬT TƯ TỪ KHO -->
+          <h6 class="fw-bold small text-uppercase text-secondary mb-1">
+            <i class="fas fa-boxes me-1"></i>2. Tiến độ Vật tư theo Quy cách trên SAP Kho (vw_so_kho_sumary2)
+          </h6>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-bordered small mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Material Description</th>
+                  <th class="text-center">Nhà máy</th>
+                  <th class="text-end">KL Đơn (T)</th>
+                  <th class="text-end">Map Kho (T)</th>
+                  <th class="text-end">Đã Xuất SAP (T)</th>
+                  <th class="text-end">Tổng Có (T)</th>
+                  <th class="text-center">Tiến độ</th>
+                </tr>
+              </thead>
+              <tbody>${matRowsHtml}</tbody>
+            </table>
+          </div>
+
+          <!-- BẢNG 3: CHI TIẾT ORDER SẢN XUẤT -->
+          <h6 class="fw-bold small text-uppercase text-secondary mb-1">
+            <i class="fas fa-industry me-1"></i>3. Chi tiết Order Sản xuất tại Nhà máy (Tổng LSX: ${formatNumber(res.tong_lsx_tan)} T | Đã cán đạt QC: ${formatNumber(res.tong_da_can_tan)} T)
+          </h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered small mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Order SX</th>
+                  <th>XNĐH / Khách hàng</th>
+                  <th>Mác thép</th>
+                  <th>Kích cỡ (Dày x Rộng)</th>
+                  <th>CW (Tấn)</th>
+                  <th class="text-end">KL LSX (T)</th>
+                  <th class="text-end">Đã cán đạt QC (T)</th>
+                  <th class="text-center">% Cán</th>
+                  <th>Kỳ SX</th>
+                </tr>
+              </thead>
+              <tbody>${orderRowsHtml}</tbody>
+            </table>
+          </div>
+        `;
+
+        // Gắn sự kiện cho các nút hành động bên trong Modal
+        document.getElementById("btnViewPendingQcFromSo")?.addEventListener("click", function () {
+          openQcPendingCoilsModal(this.getAttribute("data-so"), "ALL");
+        });
+
+        document.getElementById("btnViewAllCoilsFromSo")?.addEventListener("click", function () {
+          openCoilListModal("", this.getAttribute("data-so"));
+        });
+
+        body.querySelectorAll(".btn-modal-coil-list").forEach(btn => {
+          btn.addEventListener("click", function () {
+            openCoilListModal(this.getAttribute("data-tau"), this.getAttribute("data-so"));
+          });
+        });
+
+        body.querySelectorAll(".btn-jump-to-row").forEach(btn => {
+          btn.addEventListener("click", function () {
+            const targetKy = this.getAttribute("data-ky");
+            const targetRowId = this.getAttribute("data-id");
+            const activeKy = document.getElementById("selectKyThang").value;
+
+            bootstrap.Modal.getOrCreateInstance(modalSoEl).hide();
+            if (targetKy && targetKy !== activeKy) {
+              window.location.href = `/tauscheduler/?ky=${encodeURIComponent(targetKy)}`;
+            } else {
+              const tr = tbody.querySelector(`tr[data-row-id="${targetRowId}"]`);
+              if (tr) {
+                tr.style.display = "";
+                tr.scrollIntoView({ behavior: "smooth", block: "center" });
+                tr.classList.add("row-inserted-highlight");
+                setTimeout(() => tr.classList.remove("row-inserted-highlight"), 2500);
+              }
+            }
+          });
+        });
+      })
+      .catch(err => {
+        body.innerHTML = `<div class="alert alert-danger mb-0 small">Lỗi tra cứu: ${err}</div>`;
+      });
+  }
+// 13. Xem & Trích xuất COIL_LIST đã Mapping và Xuất lên tàu theo Tàu - SO
+function openCoilListModal(tauName, soLenh) {
+  const ky = document.getElementById("selectKyThang").value;
+  const exportUrl = `/tauscheduler/export-coil-list?tau=${encodeURIComponent(tauName || '')}&so=${encodeURIComponent(soLenh || '')}&ky=${encodeURIComponent(ky)}`;
+  const backToSoBtn = soLenh
+    ? `<button type="button" class="btn btn-outline-light btn-sm" id="btnBackToSoFromCoil"><i class="fas fa-arrow-left me-1"></i>Quay lại SO ${escapeHtml(soLenh)}</button>`
+    : '';
+  document.getElementById("modalInfoTitle").innerHTML = `
+    <div class="d-flex justify-content-between align-items-center w-100 pe-3">
+      <span>
+        <i class="fas fa-layer-group text-success me-2"></i>COIL_LIST THEO TÀU - SO:
+        <strong class="text-info">${escapeHtml(tauName || 'Tất cả')}</strong>
+        ${soLenh ? ` - <span class="text-warning">SO ${escapeHtml(soLenh)}</span>` : ''}
+      </span>
+      <div class="d-flex align-items-center gap-2">
+        ${backToSoBtn}
+        <a href="${exportUrl}" class="btn btn-success btn-sm">
+          <i class="fas fa-file-excel me-1"></i>Tải Excel COIL_LIST
+        </a>
+      </div>
+    </div>
+  `;
+
+  const body = document.getElementById("soDetailsBody");
+  body.innerHTML = `<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Đang trích xuất danh sách cuộn (COIL_LIST)...</div>`;
+  if (pkdSearchWrap) pkdSearchWrap.classList.add("d-none");
+  showSoModalSafely();
+  document.getElementById("btnBackToSoFromCoil")?.addEventListener("click", () => openSoDetailsModal(soLenh, true));
+  fetch(`/tauscheduler/api/coil-list?tau=${encodeURIComponent(tauName || '')}&so=${encodeURIComponent(soLenh || '')}&ky=${encodeURIComponent(ky)}`)
+    .then(res => res.json())
+    .then(res => {
+      if (!res.success) {
+        body.innerHTML = `<div class="alert alert-danger mb-0 small">${escapeHtml(res.message || 'Lỗi tải dữ liệu')}</div>`;
+        return;
+      }
+
+      const expList = res.exported_coils || [];
+      const mapList = res.mapped_coils || [];
+
+      const expRowsHtml = expList.length > 0 ? expList.map((c, i) => `
+        <tr>
+          <td class="text-center text-muted">${i + 1}</td>
+          <td class="fw-bold text-success">${escapeHtml(c.coil_id || '-')}</td>
+          <td class="fw-semibold">${escapeHtml(c.so_no || '')}</td>
+          <td>${escapeHtml(c.tau_name || '')}</td>
+          <td>${escapeHtml(c.material || '')}</td>
+          <td class="text-end">${formatNumber(c.weight_kg)}</td>
+          <td class="text-end fw-bold text-success">${formatNumber(c.weight_tan)}</td>
+          <td>${escapeHtml(c.issue_date || '')}</td>
+        </tr>
+      `).join("") : `<tr><td colspan="8" class="text-center text-muted py-2">Chưa có cuộn nào xuất lên tàu cho cặp Tàu - SO này</td></tr>`;
+
+      const mapRowsHtml = mapList.length > 0 ? mapList.map((c, i) => `
+        <tr>
+          <td class="text-center text-muted">${i + 1}</td>
+          <td class="fw-bold text-primary">${escapeHtml(c.coil_id || '-')}</td>
+          <td class="fw-semibold">${escapeHtml(c.so_no || '')}</td>
+          <td>${escapeHtml(c.material || '')}</td>
+          <td class="text-center"><span class="badge bg-secondary">${escapeHtml(c.nha_may || '-')}</span></td>
+          <td class="text-end">${formatNumber(c.weight_kg)}</td>
+          <td class="text-end fw-bold text-info">${formatNumber(c.weight_tan)}</td>
+          <td>${escapeHtml(c.status || '')}</td>
+        </tr>
+      `).join("") : `<tr><td colspan="8" class="text-center text-muted py-2">Chưa có dữ liệu cuộn Mapping kho cho SO này</td></tr>`;
+
+      body.innerHTML = `
+        <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-2 rounded border mb-2 small">
+          <div><strong>Tàu:</strong> <span class="text-primary fw-bold">${escapeHtml(res.tau_name || 'Tất cả')}</span></div>
+          <div><strong>SO:</strong> <span class="text-danger fw-bold">${escapeHtml((res.so_list || []).join(', ') || 'Tất cả')}</span></div>
+          <div class="text-success"><strong>Đã xuất lên tàu:</strong> ${res.total_exported_coils} cuộn (${formatNumber(res.total_exported_tan)} T)</div>
+          <div class="text-info"><strong>Đã Map kho:</strong> ${res.total_mapped_items} mục (${formatNumber(res.total_mapped_tan)} T)</div>
+        </div>
+
+        <h6 class="fw-bold small text-uppercase text-success mb-1">
+          <i class="fas fa-ship me-1"></i>1. Danh sách cuộn ĐÃ XUẤT LÊN TÀU (${res.total_exported_coils} cuộn - ${formatNumber(res.total_exported_tan)} Tấn)
+        </h6>
+        <div class="table-responsive mb-3" style="max-height: 240px; overflow: auto;">
+          <table class="table table-sm table-bordered table-hover small mb-0">
+            <thead class="table-light" style="position: sticky; top: 0;">
+              <tr>
+                <th class="text-center">#</th>
+                <th>Mã Cuộn (Coil ID)</th>
+                <th>SO</th>
+                <th>Tàu</th>
+                <th>Quy cách / Vật tư</th>
+                <th class="text-end">KL (KG)</th>
+                <th class="text-end">KL (Tấn)</th>
+                <th>Ngày xuất</th>
+              </tr>
+            </thead>
+            <tbody>${expRowsHtml}</tbody>
+          </table>
+        </div>
+
+        <h6 class="fw-bold small text-uppercase text-primary mb-1">
+          <i class="fas fa-warehouse me-1"></i>2. Danh sách cuộn / lô ĐÃ MAPPING KHO (${res.total_mapped_items} mục - ${formatNumber(res.total_mapped_tan)} Tấn)
+        </h6>
+        <div class="table-responsive" style="max-height: 220px; overflow: auto;">
+          <table class="table table-sm table-bordered table-hover small mb-0">
+            <thead class="table-light" style="position: sticky; top: 0;">
+              <tr>
+                <th class="text-center">#</th>
+                <th>Mã Cuộn / Lô Map</th>
+                <th>SO</th>
+                <th>Vật tư (Material)</th>
+                <th class="text-center">Nhà máy</th>
+                <th class="text-end">KL Map (KG)</th>
+                <th class="text-end">KL Map (Tấn)</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>${mapRowsHtml}</tbody>
+          </table>
+        </div>
+      `;
+    })
+    .catch(err => {
+      body.innerHTML = `<div class="alert alert-danger mb-0 small">Lỗi kết nối khi trích xuất COIL_LIST: ${err}</div>`;
+    });
+}
+// 14. Xem danh sách ID cuộn của 4 cột: NK Chưa Map, Chờ NK (L1), Chờ Cơ Tính, CXL
+  function openQcPendingCoilsModal(soLenh, initialCat = "ALL") {
+    if (!soLenh) {
+      return alert("Dòng này chưa có Số lệnh tách (SO) để tra cứu cuộn!");
+    }
+
+    const catLabels = {
+      ALL: "Tất cả (4 nhóm)",
+      nk_chua_map: "NK Chưa Map (Loại 1)",
+      cho_nk_loai1: "Chờ NK (Loại 1 - T+3)",
+      sx_cho_co_tinh: "Chờ KQ Cơ Tính (T+7)",
+      sx_cxl: "Chờ Xử Lý - CXL (T+7)"
+    };
+
+    document.getElementById("modalInfoTitle").innerHTML = `
+      <div class="d-flex justify-content-between align-items-center w-100 pe-3">
+        <span>
+          <i class="fas fa-clipboard-check text-warning me-2"></i>RÀ SOÁT ID CUỘN CẦN ĐÔN ĐỐC - SO:
+          <strong class="text-warning">${escapeHtml(soLenh)}</strong>
+        </span>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="btn btn-outline-light btn-sm" id="btnBackToSoFromQc">
+            <i class="fas fa-arrow-left me-1"></i>Quay lại SO ${escapeHtml(soLenh)}
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" id="btnCopyQcCoilIds" title="Copy toàn bộ cột Mã Cuộn (ID) đang hiển thị để gửi Nhà máy / QC">
+            <i class="fas fa-copy me-1"></i>Copy danh sách ID
+          </button>
+        </div>
+      </div>
+    `;
+
+    const body = document.getElementById("soDetailsBody");
+    body.innerHTML = `<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Đang tải danh sách ID cuộn từ hệ thống QC & Kho...</div>`;
+    if (pkdSearchWrap) pkdSearchWrap.classList.add("d-none");
+    showSoModalSafely();
+    document.getElementById("btnBackToSoFromQc")?.addEventListener("click", () => openSoDetailsModal(soLenh, true));
+
+    fetch(`/tauscheduler/api/qc-coils/${encodeURIComponent(soLenh)}`)
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) {
+          body.innerHTML = `<div class="alert alert-danger mb-0 small">${escapeHtml(res.message || "Lỗi tải dữ liệu")}</div>`;
+          return;
+        }
+
+        const allCoils = res.coils || [];
+        let activeCat = initialCat || "ALL";
+
+        function renderQcTable() {
+          const filtered = activeCat === "ALL"
+            ? allCoils
+            : allCoils.filter(c => c.cat_code === activeCat);
+
+          const totalTan = filtered.reduce((acc, c) => acc + Number(c.weight_tan || 0), 0);
+
+          // Đếm số cuộn & tổng tấn từng nhóm trên thanh Tab
+          const countByCat = (code) => {
+            const list = code === "ALL" ? allCoils : allCoils.filter(c => c.cat_code === code);
+            const t = list.reduce((s, x) => s + Number(x.weight_tan || 0), 0);
+            return `${list.length} cuộn (${formatNumber(t)}T)`;
+          };
+
+          const tabsHtml = Object.keys(catLabels).map(code => {
+            const isAct = code === activeCat;
+            const btnCls = isAct ? "btn-primary" : "btn-outline-secondary";
+            return `
+              <button type="button" class="btn btn-sm ${btnCls} qc-cat-tab-btn" data-cat="${code}">
+                ${catLabels[code]} <span class="badge ${isAct ? 'bg-light text-dark' : 'bg-secondary'} ms-1">${countByCat(code)}</span>
+              </button>
+            `;
+          }).join("");
+
+          const rowsHtml = filtered.length > 0 ? filtered.map((c, idx) => `
+            <tr>
+              <td class="text-center text-muted">${idx + 1}</td>
+              <td class="fw-bold text-primary font-monospace">${escapeHtml(c.coil_id)}</td>
+              <td class="fw-semibold">${escapeHtml(c.order_no || '-')}</td>
+              <td class="text-center"><span class="badge bg-secondary">${escapeHtml(c.factory || '-')}</span></td>
+              <td>${escapeHtml(c.grade || '-')}</td>
+              <td class="text-end fw-bold">${formatNumber(c.weight_tan)}</td>
+              <td><span class="badge bg-light text-dark border">${escapeHtml(c.category)}</span></td>
+              <td class="text-danger small">${escapeHtml(c.qc_msg || '-')}</td>
+              <td class="text-muted small">${escapeHtml(c.prod_date || '-')}</td>
+              <td class="text-center fw-semibold text-success">${escapeHtml(c.est_date || '-')}</td>
+            </tr>
+          `).join("") : `<tr><td colspan="10" class="text-center text-muted py-3">Không có cuộn nào trong nhóm <strong>${catLabels[activeCat]}</strong></td></tr>`;
+
+          body.innerHTML = `
+            <div class="d-flex flex-wrap gap-1 mb-2 pb-2 border-bottom">
+              ${tabsHtml}
+            </div>
+            <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded border mb-2 small">
+              <div>Đang xem: <strong class="text-primary">${catLabels[activeCat]}</strong></div>
+              <div>Tổng cộng: <strong class="text-danger">${filtered.length} cuộn</strong> — <strong class="text-success">${formatNumber(totalTan)} Tấn</strong></div>
+            </div>
+            <div class="table-responsive" style="max-height: 380px; overflow: auto;">
+              <table class="table table-sm table-bordered table-hover small mb-0">
+                <thead class="table-light" style="position: sticky; top: 0;">
+                  <tr>
+                    <th class="text-center">#</th>
+                    <th>Mã Cuộn (ID)</th>
+                    <th>Order SX</th>
+                    <th class="text-center">Nhà máy</th>
+                    <th>Mác thép</th>
+                    <th class="text-end">KL (Tấn)</th>
+                    <th>Phân nhóm</th>
+                    <th>Ghi chú QC / Lỗi cần xử lý</th>
+                    <th>Ngày SX</th>
+                    <th class="text-center">Dự kiến xong</th>
+                  </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+              </table>
+            </div>
+          `;
+
+          // Gắn sự kiện đổi Tab ngay trong Modal
+          body.querySelectorAll(".qc-cat-tab-btn").forEach(btn => {
+            btn.addEventListener("click", function () {
+              activeCat = this.getAttribute("data-cat");
+              renderQcTable();
+            });
+          });
+
+          // Gắn sự kiện nút Copy nhanh danh sách ID cuộn đang hiển thị
+          const btnCopy = document.getElementById("btnCopyQcCoilIds");
+          if (btnCopy) {
+            btnCopy.onclick = function () {
+              if (filtered.length === 0) return alert("Không có ID cuộn nào để copy!");
+              const idText = filtered.map(c => c.coil_id).join("\n");
+
+              const showCopySuccess = () => {
+                const oldHtml = btnCopy.innerHTML;
+                btnCopy.innerHTML = `<i class="fas fa-check me-1"></i>Đã copy ${filtered.length} ID!`;
+                btnCopy.classList.replace("btn-outline-primary", "btn-success");
+                setTimeout(() => {
+                  btnCopy.innerHTML = oldHtml;
+                  btnCopy.classList.replace("btn-success", "btn-outline-primary");
+                }, 2000);
+              };
+
+              if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(idText).then(showCopySuccess);
+              } else {
+                const ta = document.createElement("textarea");
+                ta.value = idText;
+                ta.style.position = "fixed";
+                ta.style.left = "-9999px";
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                try {
+                  document.execCommand("copy");
+                  showCopySuccess();
+                } catch (err) {
+                  alert("Không thể copy tự động: " + err);
+                }
+                document.body.removeChild(ta);
+              }
+            };
+          }
+        }
+
+        renderQcTable();
+      })
+      .catch(err => {
+        body.innerHTML = `<div class="alert alert-danger mb-0 small">Lỗi kết nối: ${err}</div>`;
+      });
+  }
+// ============================================================================
+  // 15. HỆ THỐNG GIỎ HÀNG GHÉP TÀU - SO (STAGING DOCK & 2-WAY SMART MATCHING)
+  // ============================================================================
+  let activeDockTab = "SO"; // "SO" (SO chờ tàu) hoặc "VESSEL" (Tàu thiếu tải / chờ SO)
+  let draggedStagingItem = null; // { type: 'SO' | 'VESSEL', rowId: number }
+
+  const dockPanel = document.getElementById("stagingDockPanel");
+  const dockListEl = document.getElementById("stagingDockList");
+  const inpFilterStaging = document.getElementById("inpFilterStaging");
+  const chkHideUnassigned = document.getElementById("chkHideUnassignedInGrid");
+
+  // Thu thập danh sách:
+  // 1. pendingSos: Các dòng đã có SO / LXH nhưng chưa có Tàu
+  // 2. openVessels: CHỈ lấy các Chuyến tàu ĐANG CHỜ SO hoặc CHƯA ĐỦ TẢI (< 90% trọng tải) và CHƯA XUẤT XONG
+  function collectStagingData() {
+    const pendingSos = [];
+    const voyageMap = new Map();
+
+    (currentRowsCache || []).forEach(r => {
+      const tau = String(r.tau_name || "").trim();
+      const lxh = String(r.lenh_xuat_hang || "").trim();
+      const so = String(r.so_lenh_tach || "").trim();
+      const vg = Number(r.voyage_group || 0);
+      
+      // 1. Dòng SO chưa có tên tàu (và không phải dòng hủy) -> Đưa vào Giỏ SO chờ ghép tàu
+      if (!tau && (so || lxh) && r.so_status !== "CANCELLED") {
+        pendingSos.push(r);
+        return;
+      }
+
+      // 2. Gom thông tin theo từng Cụm chuyến tàu (Voyage Block)
+      if (vg > 0 && tau) {
+        if (!voyageMap.has(vg)) {
+          voyageMap.set(vg, {
+            voyage_group: vg,
+            head_row_id: r.id,
+            tau_name: tau,
+            eta: r.voyage_eta || r.eta || "",
+            eta_parsed: r.eta_parsed || "",
+            trong_tai: Number(r.voyage_trong_tai || r.trong_tai || 0),
+            sum_kl: Number(r.voyage_sum_kl || 0),
+            sum_xuat: Number(r.voyage_sum_xuat || 0),
+            load_status: r.load_status || "",
+            ship_export_color: r.ship_export_color || "NONE",
+            ports: new Set(),
+            lsds: new Set(),
+            cang_xep: r.cang_xep || "Dung Quất",
+            cw_max_ton: Number(r.cw_max_ton || parseFloat(String(r.cw_max || '').replace(',', '.')) || 0),
+            so_count: 0,
+            is_empty_slot: false
+          });
+        }
+        const vInfo = voyageMap.get(vg);
+        const rCwTon = Number(r.cw_max_ton || parseFloat(String(r.cw_max || '').replace(',', '.')) || 0);
+        if (rCwTon > 0 && vInfo.cw_max_ton === 0) vInfo.cw_max_ton = rCwTon;
+        if (r.cang_den) vInfo.ports.add(String(r.cang_den).trim());
+        if (r.lsd) vInfo.lsds.add(String(r.lsd).trim());
+        if (so || lxh) vInfo.so_count += 1;
+        else if (Number(r.kl_xuat || 0) === 0) vInfo.is_empty_slot = true;
+      }
+    });
+
+    const allVoyages = Array.from(voyageMap.values()).map(v => {
+      v.remain_cap = Math.max(0, Math.round((v.trong_tai - v.sum_kl) * 100) / 100);
+      v.fill_pct = v.trong_tai > 0 ? Math.round((v.sum_kl * 100) / v.trong_tai) : 0;
+      v.ports_str = Array.from(v.ports).join(", ");
+      // Chuyến tàu được coi là ĐÃ ĐỦ TẢI nếu:
+      // - Đã xuất xong (GREEN)
+      // - Hoặc load_status là FULL_OK (>= 90% trọng tải) hoặc OVERLOAD (> 100% trọng tải)
+      v.is_full_or_done = (
+        v.ship_export_color === "GREEN" ||
+        v.load_status === "FULL_OK" ||
+        v.load_status === "OVERLOAD" ||
+        (v.trong_tai > 0 && v.sum_kl >= v.trong_tai * 0.90)
+      );
+      return v;
+    });
+
+    // CHỈ GỢI Ý các tàu thực sự chưa đủ tải (< 90% tải) hoặc tàu trống đợi chọn SO
+    const openVessels = allVoyages.filter(v => !v.is_full_or_done);
+
+    return { pendingSos, openVessels, allVoyages };
+  }
+
+  function renderStagingDock() {
+    const { pendingSos, openVessels } = collectStagingData();
+    const totalBadge = document.getElementById("badgeStagingTotal");
+    const lblSo = document.getElementById("lblCountPendingSo");
+    const lblVessel = document.getElementById("lblCountOpenVessels");
+
+    if (totalBadge) totalBadge.textContent = pendingSos.length + openVessels.length;
+    if (lblSo) lblSo.textContent = pendingSos.length;
+    if (lblVessel) lblVessel.textContent = openVessels.length;
+
+    // Đổi placeholder của thanh lọc đúng theo ngữ cảnh Tab đang mở
+    if (inpFilterStaging) {
+      inpFilterStaging.placeholder = activeDockTab === "SO"
+        ? "🔍 Lọc SO chờ tàu (Mã SO, XNĐH, Cảng đến, LSD)..."
+        : "🔍 Lọc Tàu thiếu tải (Tên tàu, ETA, Cảng đích)...";
+    }
+
+    // Ẩn/hiện các dòng Chờ ghép tàu trên bảng chính nếu người dùng bật switch
+    const hideWaitRows = chkHideUnassigned?.checked;
+    tbody.querySelectorAll("tr[data-row-id]").forEach(tr => {
+      const tauRaw = (tr.querySelector('[data-field="tau_name"]')?.getAttribute("data-raw") || "").trim();
+      if (!tauRaw) {
+        tr.classList.toggle("d-none", Boolean(hideWaitRows));
+      } else {
+        tr.classList.remove("d-none");
+      }
+    });
+
+    if (!dockListEl) return;
+    const kw = (inpFilterStaging?.value || "").toLowerCase().trim();
+
+    if (activeDockTab === "SO") {
+      const filteredSos = pendingSos.filter(r => {
+        if (!kw) return true;
+        const text = `${r.so_lenh_tach || ''} ${r.lenh_xuat_hang || ''} ${r.cang_den || ''} ${r.lsd || ''} ${r.pic || ''}`.toLowerCase();
+        return text.includes(kw);
+      });
+
+      if (filteredSos.length === 0) {
+        dockListEl.innerHTML = `
+          <div class="text-center py-4 text-muted small">
+            <i class="fas fa-box-open fs-4 mb-2 d-block text-secondary"></i>
+            Không có đơn SO nào đang chờ ghép tàu.
+          </div>
+        `;
+      } else {
+        dockListEl.innerHTML = filteredSos.map(r => {
+          const kl = Number(r.kl_xuat || 0);
+          const tongSx = Math.max(Number(r.tong_sx_qc || 0), Number(r.tong_da_map || 0));
+          const isReady = kl > 0 && Number(r.tong_da_map || 0) >= kl * 0.95;
+          const stockBadge = isReady
+            ? `<span class="badge bg-success-subtle text-success border border-success-subtle">🟢 Đủ hàng kho (${formatNumber(r.tong_da_map)}T)</span>`
+            : `<span class="badge bg-info-subtle text-dark border">SX+Kho: ${formatNumber(tongSx)}T ${r.ngay_dk_xong ? '• ' + escapeHtml(r.ngay_dk_xong) : ''}</span>`;
+
+          return `
+            <div class="dock-card" draggable="true" data-dock-type="SO" data-row-id="${r.id}">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold text-primary font-monospace">
+                  <i class="fas fa-grip-vertical text-muted me-1"></i>${escapeHtml(r.so_lenh_tach || 'Chờ cấp SO')}
+                </span>
+                <span class="badge bg-danger">${formatNumber(kl)} T</span>
+              </div>
+              <div class="text-dark fw-semibold text-truncate mb-1" title="${escapeHtml(r.lenh_xuat_hang || '')}">
+                ${escapeHtml(r.lenh_xuat_hang || 'Chưa nhập chi tiết LXH')}
+              </div>
+              <div class="d-flex flex-wrap justify-content-between align-items-center text-muted mb-1" style="font-size:0.7rem;">
+                <span><i class="fas fa-map-marker-alt text-danger me-1"></i>Cảng: <strong class="text-dark">${escapeHtml(r.cang_den || 'Chưa rõ')}</strong></span>
+                <span><i class="fas fa-calendar-alt text-warning me-1"></i>LSD: <strong class="text-danger">${escapeHtml(r.lsd || '-')}</strong></span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-1 pt-1 border-top">
+                ${stockBadge}
+                <div class="btn-group btn-group-sm">
+                  <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 btn-locate-staging-row" data-id="${r.id}" title="Cuộn tới dòng này trên bảng">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  <button type="button" class="btn btn-xs btn-primary py-0 px-2 fw-bold btn-open-match-from-so" data-so-id="${r.id}">
+                    Tìm tàu ghép <i class="fas fa-ship ms-1"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+    } else {
+      // Tab 2: CHỈ hiển thị các Chuyến tàu đang chờ lệnh hoặc chưa đủ tải (< 90%)
+      const filteredVessels = openVessels.filter(v => {
+        if (!kw) return true;
+        const text = `${v.tau_name} ${v.eta} ${v.ports_str}`.toLowerCase();
+        return text.includes(kw);
+      });
+
+      if (filteredVessels.length === 0) {
+        dockListEl.innerHTML = `
+          <div class="text-center py-4 text-muted small">
+            <i class="fas fa-check-circle fs-4 mb-2 d-block text-success"></i>
+            Tất cả các chuyến tàu trong kỳ đều đã đủ tải (&ge; 90%)!
+          </div>
+        `;
+      } else {
+        dockListEl.innerHTML = filteredVessels.map(v => {
+          const capBadge = v.trong_tai > 0
+            ? (v.so_count === 0
+              ? `<span class="badge bg-warning text-dark">Đợi chọn SO (Trống ${formatNumber(v.trong_tai)}T)</span>`
+              : `<span class="badge bg-info text-dark">Thiếu tải: Còn trống ${formatNumber(v.remain_cap)} T</span>`)
+            : `<span class="badge bg-secondary">Chưa nhập tải tàu</span>`;
+
+          return `
+            <div class="dock-card dock-card-vessel" draggable="true" data-dock-type="VESSEL" data-row-id="${v.head_row_id}" data-vessel-id="${v.head_row_id}">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold text-dark">
+                  <i class="fas fa-grip-vertical text-muted me-1"></i><i class="fas fa-ship text-primary me-1"></i>${escapeHtml(v.tau_name)}
+                </span>
+                ${capBadge}
+              </div>
+              <div class="d-flex justify-content-between text-muted mb-1" style="font-size:0.7rem;">
+                <span>ETA: <strong class="text-dark">${escapeHtml(v.eta || '-')}</strong></span>
+                <span>Đã gán: <strong>${formatNumber(v.sum_kl)} / ${formatNumber(v.trong_tai)} T</strong> (${v.fill_pct}%)</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-1 pt-1 border-top">
+                <span class="text-muted text-truncate" style="font-size:0.68rem; max-width:165px;" title="${escapeHtml(v.ports_str)}">
+                  Cảng đích: <strong>${escapeHtml(v.ports_str || 'Chưa định')}</strong>
+                </span>
+                <div class="btn-group btn-group-sm">
+                  <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 btn-locate-staging-row" data-id="${v.head_row_id}" title="Cuộn tới tàu này trên bảng">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  <button type="button" class="btn btn-xs btn-warning text-dark py-0 px-2 fw-bold btn-open-match-from-vessel" data-vessel-id="${v.head_row_id}">
+                    <i class="fas fa-search-plus me-1"></i>Tìm SO ghép vào
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    bindStagingCardEvents();
+  }
+
+  // ==========================================================================
+  // MODAL GHÉP NỐI 2 CHIỀU THÔNG MINH:
+  // - mode = "FROM_SO": Đứng từ 1 SO chờ -> Lọc & chọn trong các Tàu CÒN THIẾU TẢI (openVessels)
+  // - mode = "FROM_VESSEL": Đứng từ 1 Tàu thiếu tải -> Thanh lọc & chọn trong các SO ĐANG CHỜ TÀU (pendingSos)
+  // ==========================================================================
+  function openSmartMatchModal({ mode = "FROM_SO", soRowId = null, vesselRowId = null }) {
+    const { pendingSos, openVessels, allVoyages } = collectStagingData();
+
+    if (mode === "FROM_SO" && openVessels.length === 0) {
+      return alert("Hiện tại tất cả các chuyến tàu trong kỳ đều đã đủ tải (>= 90%)! Vui lòng bấm '+ Chuyến tàu mới' nếu muốn thêm tàu.");
+    }
+    if (mode === "FROM_VESSEL" && pendingSos.length === 0) {
+      return alert("Hiện không có đơn hàng (SO) nào trong Giỏ chờ ghép tàu!");
+    }
+
+    const fixedBox = document.getElementById("matchFixedTargetBox");
+    const lblTitle = document.getElementById("lblMatchSelectorTitle");
+    const lblCount = document.getElementById("lblMatchCandidateCount");
+    const inpCandidateFilter = document.getElementById("inpMatchCandidateFilter");
+    const tblHead = document.getElementById("tblMatchCandidatesHead");
+    const tblBody = document.getElementById("tblMatchCandidatesBody");
+    const inpSoId = document.getElementById("match_so_row_id");
+    const inpVesselId = document.getElementById("match_vessel_row_id");
+    const inpSplitKl = document.getElementById("match_split_kl");
+
+    if (inpCandidateFilter) inpCandidateFilter.value = "";
+
+    let selectedSoRow = soRowId
+      ? (pendingSos.find(r => Number(r.id) === Number(soRowId)) || (currentRowsCache || []).find(r => Number(r.id) === Number(soRowId)))
+      : pendingSos[0];
+
+    // Nếu người dùng kéo thả vào 1 tàu cụ thể trên bảng, lấy tàu đó; nếu mở từ nút thì ưu tiên tàu đầu tiên trong openVessels
+    let selectedVesselObj = vesselRowId
+      ? (openVessels.find(v => Number(v.head_row_id) === Number(vesselRowId)) || allVoyages.find(v => Number(v.head_row_id) === Number(vesselRowId)))
+      : openVessels[0];
+
+    function syncHiddenInputsAndDefaultKl() {
+      inpSoId.value = selectedSoRow ? selectedSoRow.id : "";
+      inpVesselId.value = selectedVesselObj ? selectedVesselObj.head_row_id : "";
+      const klSo = Number(selectedSoRow?.kl_xuat || 0);
+      inpSplitKl.value = klSo > 0 ? klSo : "";
+    }
+
+    function evaluatePreMatchWarnings() {
+      const alertBox = document.getElementById("matchPreCheckAlerts");
+      const btnAutoCap = document.getElementById("btnAutoFillRemainCap");
+      if (!alertBox) return;
+
+      if (!selectedSoRow || !selectedVesselObj) {
+        alertBox.innerHTML = `<div class="alert alert-secondary py-1 px-2 mb-0 small">Vui lòng click chọn 1 dòng trong danh sách phía trên.</div>`;
+        btnAutoCap?.classList.add("d-none");
+        return;
+      }
+
+      const klSo = Number(selectedSoRow.kl_xuat || 0);
+      const inputKl = parseFloat(inpSplitKl.value || 0);
+      const warns = [];
+
+      // 0. Nếu kéo thả nhầm vào tàu đã đủ tải -> Cảnh báo đỏ ngay
+      if (selectedVesselObj.is_full_or_done) {
+        warns.push({
+          cls: "alert-danger",
+          msg: `<strong>Tàu đã đủ tải / Đã xuất xong:</strong> Tàu <strong>${escapeHtml(selectedVesselObj.tau_name)}</strong> đã gán ${formatNumber(selectedVesselObj.sum_kl)} / ${formatNumber(selectedVesselObj.trong_tai)}T (${selectedVesselObj.fill_pct}%). Không khuyến nghị ghép thêm!`
+        });
+      }
+
+      // 1. Kiểm tra lệch Cảng đến
+      const soPort = String(selectedSoRow.cang_den || "").trim().toUpperCase();
+      if (soPort && selectedVesselObj.ports.size > 0) {
+        const vesselPortsUpper = Array.from(selectedVesselObj.ports).map(p => p.toUpperCase());
+        if (!vesselPortsUpper.some(vp => vp.includes(soPort) || soPort.includes(vp))) {
+          warns.push({
+            cls: "alert-warning",
+            msg: `<strong>Cảnh báo lệch Cảng đến:</strong> Tàu <strong>${escapeHtml(selectedVesselObj.tau_name)}</strong> đang đi <strong>${escapeHtml(selectedVesselObj.ports_str)}</strong>, còn SO này đi <strong>${escapeHtml(selectedSoRow.cang_den)}</strong>.`
+          });
+        }
+      }
+
+      // 2. Kiểm tra Trọng tải trống của tàu
+      if (selectedVesselObj.trong_tai > 0 && (selectedVesselObj.sum_kl + inputKl) > selectedVesselObj.trong_tai) {
+        const over = Math.round(((selectedVesselObj.sum_kl + inputKl) - selectedVesselObj.trong_tai) * 100) / 100;
+        warns.push({
+          cls: "alert-danger",
+          msg: `<strong>Cảnh báo Vượt tải tàu (+${formatNumber(over)}T):</strong> Tàu còn trống <strong>${formatNumber(selectedVesselObj.remain_cap)}T</strong> nhưng đang ghép <strong>${formatNumber(inputKl)}T</strong>.`
+        });
+        if (selectedVesselObj.remain_cap > 0 && selectedVesselObj.remain_cap < klSo) {
+          btnAutoCap.classList.remove("d-none");
+          btnAutoCap.textContent = `Lấy vừa khít tải trống (${formatNumber(selectedVesselObj.remain_cap)}T)`;
+          btnAutoCap.onclick = () => {
+            inpSplitKl.value = selectedVesselObj.remain_cap;
+            evaluatePreMatchWarnings();
+          };
+        } else {
+          btnAutoCap.classList.add("d-none");
+        }
+      } else {
+        btnAutoCap.classList.add("d-none");
+      }
+      // 3. Kiểm tra cuộn Mapping trong Kho của SO có vượt C.W MAX của Tàu hay không
+      const vesselCwMax = Number(selectedVesselObj.cw_max_ton || 0);
+      const soMaxCoil = Number(selectedSoRow.max_mapped_coil_tan || 0);
+      if (vesselCwMax > 0 && soMaxCoil > vesselCwMax) {
+        warns.push({
+          cls: "alert-danger",
+          msg: `<i class="fas fa-weight-hanging me-1"></i><strong>CẢNH BÁO VƯỢT C.W MAX CỦA TÀU:</strong> Tàu <strong>${escapeHtml(selectedVesselObj.tau_name)}</strong> chỉ nhận tối đa <strong>${vesselCwMax} T/cuộn</strong>, nhưng SO <strong>${escapeHtml(selectedSoRow.so_lenh_tach || '')}</strong> đang có cuộn Map trong kho nặng tới <strong>${soMaxCoil} T</strong> (Mã cuộn: <code>${escapeHtml(selectedSoRow.max_mapped_coil_id || '')}</code>)!`
+        });
+      }
+
+      if (warns.length === 0) {
+        alertBox.innerHTML = `
+          <div class="alert alert-success py-1 px-2 mb-0 small">
+            <i class="fas fa-check-circle me-1"></i><strong>Hợp lệ:</strong> Ghép SO <strong>${escapeHtml(selectedSoRow.so_lenh_tach || 'Chờ cấp SO')}</strong> (${formatNumber(inputKl)}T) vào tàu <strong>${escapeHtml(selectedVesselObj.tau_name)}</strong> (Sau khi ghép: ${formatNumber(selectedVesselObj.sum_kl + inputKl)} / ${formatNumber(selectedVesselObj.trong_tai)}T).
+          </div>
+        `;
+      } else {
+        alertBox.innerHTML = warns.map(w => `<div class="alert ${w.cls} py-1 px-2 mb-1 small">${w.msg}</div>`).join("");
+      }
+    }
+
+    function renderCandidatesList() {
+      const kw = (inpCandidateFilter?.value || "").toLowerCase().trim();
+
+      if (mode === "FROM_VESSEL") {
+        // CHẾ ĐỘ: ĐANG ĐỨNG TỪ TÀU THIẾU TẢI -> TÌM & LỌC DANH SÁCH SO CHỜ TÀU
+        document.getElementById("modalMatchTitle").innerHTML = `<i class="fas fa-ship me-2"></i>Tìm & Gán SO Chờ Vào Tàu: <span class="text-warning">${escapeHtml(selectedVesselObj?.tau_name || '')}</span>`;
+        lblTitle.innerHTML = `<i class="fas fa-boxes me-1"></i>Chọn Đơn hàng (SO) đang chờ ghép tàu:`;
+        inpCandidateFilter.placeholder = "🔍 Tìm SO cần ghép theo Mã SO, Số XNĐH, Khách hàng, Cảng đến, LSD...";
+
+        fixedBox.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center">
+            <span><strong>Tàu đang chọn:</strong> <span class="text-primary fw-bold">${escapeHtml(selectedVesselObj.tau_name)}</span> (ETA: <strong>${escapeHtml(selectedVesselObj.eta || '-')}</strong>)</span>
+            <span class="badge bg-info text-dark fs-6">Tải còn trống: ${formatNumber(selectedVesselObj.remain_cap)} T</span>
+          </div>
+          <div class="d-flex justify-content-between mt-1 text-muted">
+            <span>Đã gán: <strong>${formatNumber(selectedVesselObj.sum_kl)} / ${formatNumber(selectedVesselObj.trong_tai)} T</strong> (${selectedVesselObj.so_count} lệnh)</span>
+            <span>Cảng đích hiện tại: <strong class="text-dark">${escapeHtml(selectedVesselObj.ports_str || 'Chưa định')}</strong></span>
+          </div>
+        `;
+
+        tblHead.innerHTML = `
+          <tr>
+            <th class="text-center" style="width:32px;">Chọn</th>
+            <th>Mã SO</th>
+            <th>Lệnh xuất hàng (XNĐH / Khách)</th>
+            <th>Cảng đến</th>
+            <th>LSD</th>
+            <th class="text-end">KL Xuất</th>
+            <th class="text-center">Nguồn hàng</th>
+          </tr>
+        `;
+
+        // Ưu tiên đẩy các SO có cùng Cảng đến với Tàu lên đầu danh sách
+        const vPortsUpper = Array.from(selectedVesselObj.ports || []).map(p => p.toUpperCase());
+        const filteredSos = pendingSos
+          .filter(r => {
+            if (!kw) return true;
+            const hay = `${r.so_lenh_tach || ''} ${r.lenh_xuat_hang || ''} ${r.cang_den || ''} ${r.lsd || ''} ${r.pic || ''}`.toLowerCase();
+            return hay.includes(kw);
+          })
+          .sort((a, b) => {
+            const pA = String(a.cang_den || "").trim().toUpperCase();
+            const pB = String(b.cang_den || "").trim().toUpperCase();
+            const matchA = pA && vPortsUpper.some(vp => vp.includes(pA) || pA.includes(vp)) ? 1 : 0;
+            const matchB = pB && vPortsUpper.some(vp => vp.includes(pB) || pB.includes(vp)) ? 1 : 0;
+            return matchB - matchA;
+          });
+
+        lblCount.textContent = `Hiển thị ${filteredSos.length} / ${pendingSos.length} SO chờ tàu`;
+
+        if (filteredSos.length === 0) {
+          tblBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-3">Không tìm thấy SO chờ tàu nào khớp với từ khóa "${escapeHtml(kw)}".</td></tr>`;
+        } else {
+          tblBody.innerHTML = filteredSos.map(r => {
+            const isSel = selectedSoRow && Number(selectedSoRow.id) === Number(r.id);
+            const kl = Number(r.kl_xuat || 0);
+            const tongSx = Math.max(Number(r.tong_sx_qc || 0), Number(r.tong_da_map || 0));
+            return `
+              <tr class="match-candidate-item ${isSel ? 'table-primary fw-semibold' : ''}" style="cursor:pointer;" data-pick-so-id="${r.id}">
+                <td class="text-center"><input type="radio" name="radPickMatchCandidate" class="form-check-input" ${isSel ? 'checked' : ''}></td>
+                <td class="fw-bold text-danger font-monospace">${escapeHtml(r.so_lenh_tach || 'Chờ cấp SO')}</td>
+                <td class="text-truncate" style="max-width:220px;" title="${escapeHtml(r.lenh_xuat_hang || '')}">${escapeHtml(r.lenh_xuat_hang || '-')}</td>
+                <td class="fw-semibold">${escapeHtml(r.cang_den || '-')}</td>
+                <td class="text-danger">${escapeHtml(r.lsd || '-')}</td>
+                <td class="text-end fw-bold text-danger">${formatNumber(kl)} T</td>
+                <td class="text-center"><span class="badge bg-light text-dark border">${formatNumber(tongSx)}T ${r.ngay_dk_xong ? '• ' + escapeHtml(r.ngay_dk_xong) : ''}</span></td>
+              </tr>
+            `;
+          }).join("");
+        }
+
+        tblBody.querySelectorAll(".match-candidate-item").forEach(tr => {
+          tr.addEventListener("click", function () {
+            const pickedId = Number(this.getAttribute("data-pick-so-id"));
+            selectedSoRow = pendingSos.find(r => Number(r.id) === pickedId);
+            syncHiddenInputsAndDefaultKl();
+            renderCandidatesList();
+            evaluatePreMatchWarnings();
+          });
+        });
+
+      } else {
+        // CHẾ ĐỘ: ĐANG ĐỨNG TỪ 1 ĐƠN SO CHỜ -> CHỈ GỢI Ý CÁC TÀU CÒN THIẾU TẢI / CHỜ LỆNH (openVessels)
+        document.getElementById("modalMatchTitle").innerHTML = `<i class="fas fa-link me-2"></i>Chọn Tàu Còn Trống Tải Cho SO: <span class="text-warning font-monospace">${escapeHtml(selectedSoRow?.so_lenh_tach || 'Chờ cấp SO')}</span>`;
+        lblTitle.innerHTML = `<i class="fas fa-ship me-1"></i>Chỉ gợi ý các Chuyến tàu đang chờ lệnh hoặc chưa đủ tải (&lt; 90%):`;
+        inpCandidateFilter.placeholder = "🔍 Lọc tàu còn trống theo Tên tàu, ETA, Cảng đến...";
+
+        const klSo = Number(selectedSoRow?.kl_xuat || 0);
+        fixedBox.innerHTML = `
+          <div class="d-flex justify-content-between align-items-center">
+            <span><strong>SO đang chọn:</strong> <span class="text-danger fw-bold font-monospace">${escapeHtml(selectedSoRow.so_lenh_tach || 'Chờ cấp SO')}</span></span>
+            <span class="badge bg-danger fs-6">KL cần xuất: ${formatNumber(klSo)} T</span>
+          </div>
+          <div class="text-truncate mt-1"><strong>LXH:</strong> ${escapeHtml(selectedSoRow.lenh_xuat_hang || '-')}</div>
+          <div class="d-flex justify-content-between mt-1 text-muted">
+            <span><strong>Cảng đến yêu cầu:</strong> <span class="text-dark fw-bold">${escapeHtml(selectedSoRow.cang_den || 'Chưa rõ')}</span></span>
+            <span><strong>LSD:</strong> <span class="text-danger fw-bold">${escapeHtml(selectedSoRow.lsd || '-')}</span></span>
+            <span><strong>DK Xong:</strong> <span class="text-success fw-bold">${escapeHtml(selectedSoRow.ngay_dk_xong || '-')}</span></span>
+          </div>
+        `;
+
+        tblHead.innerHTML = `
+          <tr>
+            <th class="text-center" style="width:32px;">Chọn</th>
+            <th>Chuyến Tàu (Chưa đủ tải)</th>
+            <th>ETA</th>
+            <th>Cảng đích hiện tại</th>
+            <th class="text-end">Đã gán / Tổng tải</th>
+            <th class="text-end">Tải còn trống</th>
+          </tr>
+        `;
+
+        // Nếu người dùng kéo thả vào 1 tàu cụ thể (kể cả tàu đã đủ tải), vẫn hiển thị tàu đó kèm danh sách openVessels
+        const candidatePool = [...openVessels];
+        if (selectedVesselObj && !candidatePool.some(v => Number(v.head_row_id) === Number(selectedVesselObj.head_row_id))) {
+          candidatePool.unshift(selectedVesselObj);
+        }
+
+        const soPortUpper = String(selectedSoRow?.cang_den || "").trim().toUpperCase();
+        const filteredVessels = candidatePool
+          .filter(v => {
+            if (!kw) return true;
+            const hay = `${v.tau_name} ${v.eta} ${v.ports_str}`.toLowerCase();
+            return hay.includes(kw);
+          })
+          .sort((a, b) => {
+            // Ưu tiên tàu cùng Cảng đến hoặc tàu đang trống chờ SO lên đầu
+            const pA = Array.from(a.ports || []).map(p => p.toUpperCase());
+            const pB = Array.from(b.ports || []).map(p => p.toUpperCase());
+            const matchA = soPortUpper && pA.some(vp => vp.includes(soPortUpper) || soPortUpper.includes(vp)) ? 2 : (a.so_count === 0 ? 1 : 0);
+            const matchB = soPortUpper && pB.some(vp => vp.includes(soPortUpper) || soPortUpper.includes(vp)) ? 2 : (b.so_count === 0 ? 1 : 0);
+            return matchB - matchA;
+          });
+
+        lblCount.textContent = `Có ${filteredVessels.length} chuyến tàu còn trống tải (Đã ẩn các tàu đủ tải)`;
+
+        if (filteredVessels.length === 0) {
+          tblBody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">Không có chuyến tàu nào khớp từ khóa "${escapeHtml(kw)}".</td></tr>`;
+        } else {
+          tblBody.innerHTML = filteredVessels.map(v => {
+            const isSel = selectedVesselObj && Number(selectedVesselObj.head_row_id) === Number(v.head_row_id);
+            const remainBadge = v.trong_tai > 0
+              ? `<span class="badge ${v.remain_cap >= klSo ? 'bg-success' : 'bg-warning text-dark'}">Trống ${formatNumber(v.remain_cap)} T</span>`
+              : `<span class="badge bg-secondary">Chưa nhập tải</span>`;
+
+            return `
+              <tr class="match-candidate-item ${isSel ? 'table-primary fw-semibold' : ''}" style="cursor:pointer;" data-pick-vessel-id="${v.head_row_id}">
+                <td class="text-center"><input type="radio" name="radPickMatchCandidate" class="form-check-input" ${isSel ? 'checked' : ''}></td>
+                <td class="fw-bold text-primary">${escapeHtml(v.tau_name)}</td>
+                <td>${escapeHtml(v.eta || '-')}</td>
+                <td>${escapeHtml(v.ports_str || 'Đợi chọn SO')}</td>
+                <td class="text-end">${formatNumber(v.sum_kl)} / ${formatNumber(v.trong_tai)} T (${v.fill_pct}%)</td>
+                <td class="text-end">${remainBadge}</td>
+              </tr>
+            `;
+          }).join("");
+        }
+
+        tblBody.querySelectorAll(".match-candidate-item").forEach(tr => {
+          tr.addEventListener("click", function () {
+            const pickedVid = Number(this.getAttribute("data-pick-vessel-id"));
+            selectedVesselObj = candidatePool.find(v => Number(v.head_row_id) === pickedVid);
+            inpVesselId.value = selectedVesselObj ? selectedVesselObj.head_row_id : "";
+            renderCandidatesList();
+            evaluatePreMatchWarnings();
+          });
+        });
+      }
+    }
+
+    syncHiddenInputsAndDefaultKl();
+    renderCandidatesList();
+    evaluatePreMatchWarnings();
+
+    inpCandidateFilter.oninput = renderCandidatesList;
+    inpSplitKl.oninput = evaluatePreMatchWarnings;
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("modalMatchVesselSo")).show();
+    setTimeout(() => inpCandidateFilter?.focus(), 200);
+  }
+
+  // Gắn sự kiện cho các thẻ trong Giỏ hàng (Kéo thả 2 chiều + Click nút)
+  function bindStagingCardEvents() {
+    if (!dockListEl) return;
+
+    dockListEl.querySelectorAll(".dock-card[draggable='true']").forEach(card => {
+      card.addEventListener("dragstart", function (e) {
+        draggedStagingItem = {
+          type: this.getAttribute("data-dock-type"),
+          rowId: this.getAttribute("data-row-id")
+        };
+        this.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", this.getAttribute("data-row-id"));
+      });
+      card.addEventListener("dragend", function () {
+        this.classList.remove("dragging");
+        tbody.querySelectorAll("tr.drop-target-hover").forEach(tr => tr.classList.remove("drop-target-hover"));
+      });
+    });
+
+    dockListEl.querySelectorAll(".btn-locate-staging-row").forEach(btn => {
+      btn.addEventListener("click", function () {
+        const rid = this.getAttribute("data-id");
+        const tr = tbody.querySelector(`tr[data-row-id="${rid}"]`);
+        if (tr) {
+          tr.classList.remove("d-none");
+          tr.style.display = "";
+          tr.scrollIntoView({ behavior: "smooth", block: "center" });
+          tr.classList.add("row-inserted-highlight");
+          setTimeout(() => tr.classList.remove("row-inserted-highlight"), 2200);
+        }
+      });
+    });
+
+    // Bấm nút "Tìm tàu ghép" trên thẻ SO -> Mở Modal ở chế độ FROM_SO (chỉ gợi ý các Tàu thiếu tải)
+    dockListEl.querySelectorAll(".btn-open-match-from-so").forEach(btn => {
+      btn.addEventListener("click", function () {
+        openSmartMatchModal({
+          mode: "FROM_SO",
+          soRowId: this.getAttribute("data-so-id"),
+          vesselRowId: null
+        });
+      });
+    });
+
+    // Bấm nút "Tìm SO ghép vào" trên thẻ Tàu thiếu tải -> Mở Modal ở chế độ FROM_VESSEL (hiện thanh lọc & danh sách SO chờ tàu)
+    dockListEl.querySelectorAll(".btn-open-match-from-vessel").forEach(btn => {
+      btn.addEventListener("click", function () {
+        openSmartMatchModal({
+          mode: "FROM_VESSEL",
+          soRowId: null,
+          vesselRowId: this.getAttribute("data-vessel-id")
+        });
+      });
+    });
+  }
+
+  // Cho phép Kéo Thẻ từ Giỏ thả trực tiếp vào dòng trên Bảng chính (hỗ trợ cả kéo SO thả vào Tàu VÀ kéo Tàu thả vào dòng SO chờ)
+  tbody.addEventListener("dragover", function (e) {
+    if (!draggedStagingItem) return;
+    const tr = e.target.closest("tr[data-row-id]");
+    if (!tr) return;
+    const tauName = (tr.querySelector('[data-field="tau_name"]')?.getAttribute("data-raw") || "").trim();
+
+    if (draggedStagingItem.type === "SO" && !tauName) return; // Kéo SO thì chỉ thả vào dòng đã có Tàu
+    if (draggedStagingItem.type === "VESSEL" && tauName) return; // Kéo Tàu thì chỉ thả vào dòng SO đang chờ Tàu
+
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    tbody.querySelectorAll("tr.drop-target-hover").forEach(r => {
+      if (r !== tr) r.classList.remove("drop-target-hover");
+    });
+    tr.classList.add("drop-target-hover");
+  });
+
+  tbody.addEventListener("dragleave", function (e) {
+    const tr = e.target.closest("tr[data-row-id]");
+    if (tr && !tr.contains(e.relatedTarget)) {
+      tr.classList.remove("drop-target-hover");
+    }
+  });
+
+  tbody.addEventListener("drop", function (e) {
+    if (!draggedStagingItem) return;
+    const tr = e.target.closest("tr[data-row-id]");
+    if (!tr) return;
+    tr.classList.remove("drop-target-hover");
+    const targetRowId = tr.getAttribute("data-row-id");
+    const tauName = (tr.querySelector('[data-field="tau_name"]')?.getAttribute("data-raw") || "").trim();
+
+    if (draggedStagingItem.type === "SO" && tauName) {
+      e.preventDefault();
+      openSmartMatchModal({ mode: "FROM_SO", soRowId: draggedStagingItem.rowId, vesselRowId: targetRowId });
+    } else if (draggedStagingItem.type === "VESSEL" && !tauName) {
+      e.preventDefault();
+      openSmartMatchModal({ mode: "FROM_VESSEL", soRowId: targetRowId, vesselRowId: draggedStagingItem.rowId });
+    }
+    draggedStagingItem = null;
+  });
+
+  // Sự kiện bấm nút "Xác nhận Ghép Tàu - SO" trong Modal
+  document.getElementById("btnConfirmMatchVesselSo")?.addEventListener("click", function () {
+    const soRowId = document.getElementById("match_so_row_id").value;
+    const vesselRowId = document.getElementById("match_vessel_row_id").value;
+    const splitKl = document.getElementById("match_split_kl").value;
+
+    if (!soRowId || !vesselRowId) {
+      return alert("Vui lòng chọn đầy đủ Đơn hàng (SO) và Chuyến tàu cần ghép!");
+    }
+
+    const btn = this;
+    btn.disabled = true;
+
+    fetch("/tauscheduler/api/match-vessel-so", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+      body: JSON.stringify({
+        so_row_id: soRowId,
+        vessel_row_id: vesselRowId,
+        split_kl: splitKl
+      })
+    })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success) {
+        if (res.undo_action) pushUndoAction(res.undo_action);
+        bootstrap.Modal.getInstance(document.getElementById("modalMatchVesselSo"))?.hide();
+        loadData(document.getElementById("selectKyThang").value, res.highlight_row_id);
+      } else {
+        alert("Lỗi ghép Tàu - SO: " + res.message);
+      }
+    })
+    .catch(err => alert("Lỗi kết nối: " + err))
+    .finally(() => { btn.disabled = false; });
+  });
+
+  // Sự kiện bấm nút Tách SO khỏi Tàu (.btn-unassign-inline) trên dòng bảng chính
+  tbody.addEventListener("click", function (e) {
+    const btnUnassign = e.target.closest(".btn-unassign-inline");
+    if (!btnUnassign) return;
+    e.stopPropagation();
+
+    const rowId = btnUnassign.getAttribute("data-id");
+    if (!confirm("Bạn muốn tách SO này ra khỏi chuyến tàu và đưa về 'Giỏ SO chờ ghép tàu'?\n(Bấm Ctrl + Z nếu muốn hoàn tác)")) {
+      return;
+    }
+
+    fetch("/tauscheduler/api/unassign-vessel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+      body: JSON.stringify({ row_id: rowId, keep_vessel_slot: true })
+    })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success) {
+        if (res.undo_action) pushUndoAction(res.undo_action);
+        dockPanel?.classList.remove("d-none");
+        loadData(document.getElementById("selectKyThang").value, res.highlight_row_id);
+      } else {
+        alert("Lỗi tách SO: " + res.message);
+      }
+    })
+    .catch(err => alert("Lỗi kết nối: " + err));
+  });
+
+  // Các nút điều khiển Khay Giỏ Hàng
+  document.getElementById("btnToggleStagingDock")?.addEventListener("click", function () {
+    dockPanel?.classList.toggle("d-none");
+    if (!dockPanel?.classList.contains("d-none")) renderStagingDock();
+  });
+
+  document.getElementById("btnCloseStagingDock")?.addEventListener("click", function () {
+    dockPanel?.classList.add("d-none");
+  });
+
+  document.getElementById("tabBtnPendingSo")?.addEventListener("click", function () {
+    activeDockTab = "SO";
+    this.classList.replace("btn-outline-secondary", "btn-primary");
+    document.getElementById("tabBtnOpenVessels")?.classList.replace("btn-primary", "btn-outline-secondary");
+    renderStagingDock();
+  });
+
+  document.getElementById("tabBtnOpenVessels")?.addEventListener("click", function () {
+    activeDockTab = "VESSEL";
+    this.classList.replace("btn-outline-secondary", "btn-primary");
+    document.getElementById("tabBtnPendingSo")?.classList.replace("btn-primary", "btn-outline-secondary");
+    renderStagingDock();
+  });
+
+  inpFilterStaging?.addEventListener("input", debounce(renderStagingDock, 150));
+  chkHideUnassigned?.addEventListener("change", renderStagingDock);
+
+  // document.getElementById("btnQuickAddStaging")?.addEventListener("click", function () {
+  //   document.getElementById("formAddShip")?.reset();
+  //   new bootstrap.Modal(document.getElementById("modalAddVessel")).show();
+  // });
+});
+
+</script>
+{% endblock %}
