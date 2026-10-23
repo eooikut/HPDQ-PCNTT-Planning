@@ -1,0 +1,83 @@
+{# Nội dung trang Báo cáo ngày, tuần. Dùng trong bao_cao.html và trong bản demo trung gian (demo-ai-web/proxy_web.py). #}
+<div class="container-fluid py-3" id="bc-trang" data-chot="{{ '1' if ai_chot_bao_cao else '' }}">
+  <div class="bc-dau">
+    <h4><i class="fas fa-file-alt"></i> Báo cáo tự động</h4>
+    <div class="btn-group" role="group" aria-label="Loại báo cáo">
+      <input type="radio" class="btn-check" name="bc-loai" id="bc-ngay" value="ngay" checked>
+      <label class="btn btn-outline-primary btn-sm" for="bc-ngay">Ngày</label>
+      <input type="radio" class="btn-check" name="bc-loai" id="bc-tuan" value="tuan">
+      <label class="btn btn-outline-primary btn-sm" for="bc-tuan">Tuần</label>
+    </div>
+    <input type="date" id="bc-ngay-chon" class="form-control form-control-sm" style="width:auto" title="Ngày (báo cáo tuần lấy tuần chứa ngày này)">
+    <button type="button" class="btn btn-primary btn-sm" id="bc-xem"><i class="fas fa-eye"></i> Xem</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="bc-moi" title="Bỏ qua bản chốt, lấy số hiện tại"><i class="fas fa-sync-alt"></i> Lấy số mới</button>
+    {% if ai_chot_bao_cao %}
+    <button type="button" class="btn btn-outline-success btn-sm" id="bc-chot"><i class="fas fa-lock"></i> Chốt bản này</button>
+    {% endif %}
+    <button type="button" class="btn btn-outline-success btn-sm" id="bc-excel"><i class="fas fa-file-excel"></i> Tải Excel</button>
+    <button type="button" class="btn btn-outline-dark btn-sm" onclick="window.print()"><i class="fas fa-print"></i> In / PDF</button>
+  </div>
+  <div class="bc-in-dau"><strong>HÒA PHÁT DUNG QUẤT</strong></div>
+  <div id="bc-trang-thai" class="bc-trang-thai">Đang tải...</div>
+  <div id="bc-noi-dung"></div>
+</div>
+<script>
+// Chạy sau khi base.html nạp ai-chung.js ở cuối trang.
+document.addEventListener("DOMContentLoaded", function () {
+  "use strict";
+  var C = window.HPDQ_AI_CHUNG;
+  var bc = null;
+  var ngayEl = document.getElementById("bc-ngay-chon");
+  var ttEl = document.getElementById("bc-trang-thai");
+  var ndEl = document.getElementById("bc-noi-dung");
+
+  function loai() { return document.querySelector("input[name=bc-loai]:checked").value; }
+  function thamSo(moi) {
+    var q = new URLSearchParams({ loai: loai() });
+    if (ngayEl.value) q.set("ngay", ngayEl.value);
+    if (moi) q.set("moi", "1");
+    return q.toString();
+  }
+  function gioVN(iso) {
+    var d = new Date(Date.parse(iso) + 7 * 3600000).toISOString();
+    return d.slice(11, 16) + " ngày " + d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4);
+  }
+  function ve(j) {
+    bc = j;
+    document.title = j.tieu_de;
+    ttEl.innerHTML = "<strong>" + C.thoat(j.tieu_de) + "</strong> &middot; " +
+      (j.da_chot ? '<span class="chot"><i class="fas fa-lock"></i> Bản chốt lúc ' + gioVN(j.chot_luc) + "</span>" : "Số liệu hiện tại lúc " + gioVN(j.tao_luc) + " (chưa chốt)");
+    ndEl.innerHTML = "";
+    (j.muc || []).forEach(function (m) {
+      var k = document.createElement("section");
+      k.className = "bc-muc";
+      k.innerHTML = "<h5>" + C.thoat(m.tieu_de) + "</h5>" + (m.thoi_diem ? '<span class="ai-moc">Số liệu tính đến ' + C.thoat(m.thoi_diem) + "</span>" : "") + C.mdSangHtml(m.md);
+      ndEl.appendChild(k);
+    });
+  }
+  function loi(e) { ttEl.innerHTML = '<span class="ai-loi">' + C.thoat(e.message || e) + "</span>"; }
+  function xem(moi) {
+    ttEl.textContent = "Đang lấy số liệu...";
+    C.goi("/bao-cao?" + thamSo(moi))
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.loi || "Không tải được báo cáo."); return j; }); })
+      .then(ve)
+      .catch(loi);
+  }
+  document.getElementById("bc-xem").addEventListener("click", function () { xem(false); });
+  document.getElementById("bc-moi").addEventListener("click", function () { xem(true); });
+  document.querySelectorAll("input[name=bc-loai]").forEach(function (r) { r.addEventListener("change", function () { xem(false); }); });
+  var nutChot = document.getElementById("bc-chot");
+  if (nutChot) nutChot.addEventListener("click", function () {
+    if (!confirm("Chốt báo cáo này? Sau khi chốt, xem lại sẽ ra đúng số lúc chốt.")) return;
+    ttEl.textContent = "Đang chốt...";
+    C.goi("/bao-cao/chot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loai: loai(), ngay: ngayEl.value || undefined }) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.loi || "Không chốt được."); return j; }); })
+      .then(ve)
+      .catch(loi);
+  });
+  document.getElementById("bc-excel").addEventListener("click", function () {
+    C.layToken().then(function (tk) { window.location.href = tk.api + "/bao-cao/excel?" + thamSo(false) + "&t=" + encodeURIComponent(tk.token); }).catch(loi);
+  });
+  xem(false);
+});
+</script>

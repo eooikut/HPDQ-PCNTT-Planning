@@ -21,6 +21,9 @@
     href="{{ url_for('static', filename='image/icon-HP.webp') }}"
     type="image/webp"
 	/>
+    {% if ai_hoi_dap or ai_bao_cao %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ai-panel.css') }}" />
+    {% endif %}
 
     <style>
       .sidebar.collapsed [data-bs-toggle="collapse"] .fa-chevron-down {
@@ -245,6 +248,9 @@
       </a>
       {% endif %}
 	  <h6>CÔNG CỤ</h6>
+      {% if ai_bao_cao %}
+      <a href="{{ url_for('ai_bp.bao_cao') }}"> <i class="fas fa-file-alt"></i><span>Báo cáo ngày, tuần</span></a>
+      {% endif %}
       <a href="{{ url_for('tools.production_calc') }}"> <i class="fas fa-calculator"></i><span>Tính toán Sản xuất</span>
       </a>
       {% if 'manage_mtc' in session.get('permissions', []) or session.get('role') == 'admin' %}
@@ -452,5 +458,6 @@
         }
       });
     </script>
+    {% include "partials/ai_panel.html" %}
   </body>
 </html>

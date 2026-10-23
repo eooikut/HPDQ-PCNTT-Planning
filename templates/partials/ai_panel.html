@@ -1,0 +1,9 @@
+{# Trợ lý AI: nút nổi + khung chat do ai-panel.js tự dựng (chỉ hiện khi lấy được token).
+   Chỉ nạp khi đã cấu hình WEB_AI_SECRET + WEB_AI_API và người dùng có quyền. #}
+{% if ai_hoi_dap or ai_bao_cao %}
+<script>window.HPDQ_AI = { token: "{{ url_for('ai_bp.token') }}" };</script>
+<script src="{{ url_for('static', filename='js/ai-chung.js') }}"></script>
+{% endif %}
+{% if ai_hoi_dap %}
+<script src="{{ url_for('static', filename='js/ai-panel.js') }}"></script>
+{% endif %}

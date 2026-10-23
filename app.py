@@ -99,7 +99,9 @@ def create_app():
     from routes.phoivuong_bp import phoivuong_bp    
     from routes.ctd_bp import ctd_bp
     from routes.tauscheduler import tauscheduler_bp
+    from routes.ai_bp import ai_bp
     app.register_blueprint(tauscheduler_bp)
+    app.register_blueprint(ai_bp)
     app.register_blueprint(tools_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(upload_bp)
