@@ -55,11 +55,11 @@ document.addEventListener("DOMContentLoaded", function () {
       ndEl.appendChild(k);
     });
   }
-  function loi(e) { ttEl.innerHTML = '<span class="ai-loi">' + C.thoat(e.message || e) + "</span>"; }
+  function loi(e) { e = C.loiMang(e); ttEl.innerHTML = '<span class="ai-loi">' + C.thoat(e.message || e) + "</span>"; }
   function xem(moi) {
     ttEl.textContent = "Đang lấy số liệu...";
     C.goi("/bao-cao?" + thamSo(moi))
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.loi || "Không tải được báo cáo."); return j; }); })
+      .then(function (r) { return C.docJson(r, "Không tải được báo cáo"); })
       .then(ve)
       .catch(loi);
   }
@@ -71,7 +71,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!confirm("Chốt báo cáo này? Sau khi chốt, xem lại sẽ ra đúng số lúc chốt.")) return;
     ttEl.textContent = "Đang chốt...";
     C.goi("/bao-cao/chot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ loai: loai(), ngay: ngayEl.value || undefined }) })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.loi || "Không chốt được."); return j; }); })
+      .then(function (r) { return C.docJson(r, "Không chốt được"); })
       .then(ve)
       .catch(loi);
   });

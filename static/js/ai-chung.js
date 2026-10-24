@@ -32,6 +32,26 @@
     });
   }
 
+  /**
+   * Đọc JSON trả về của trợ lý. Lỗi không phải JSON (trang lỗi của nginx khi cấu hình sai hoặc mất kết nối tới máy chủ
+   * trợ lý) đổi thành câu dễ hiểu, không để lọt "Unexpected token '<'..." ra cho người dùng.
+   */
+  function docJson(r, macDinh) {
+    return r.json().catch(function () { return null; }).then(function (j) {
+      if (r.ok && j) return j;
+      if (j && j.loi) throw new Error(j.loi);
+      var m = r.status;
+      if (m === 502 || m === 503 || m === 504) throw new Error("Trợ lý AI tạm thời chưa kết nối được (mã " + m + "). Anh/chị thử lại sau ít phút.");
+      if (m === 403 || m === 404) throw new Error("Trợ lý AI chưa được cấu hình xong trên máy chủ web (mã " + m + "). Anh/chị báo quản trị web.");
+      throw new Error((macDinh || "Trợ lý chưa trả lời được") + " (mã " + m + ").");
+    });
+  }
+
+  /** Lỗi mạng của trình duyệt ("Failed to fetch") thành câu tiếng Việt. */
+  function loiMang(e) {
+    return e instanceof TypeError ? new Error("Mất kết nối tới trợ lý.") : e;
+  }
+
   function thoat(s) {
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;")
@@ -116,5 +136,5 @@
     return ra.join("");
   }
 
-  window.HPDQ_AI_CHUNG = { layToken: layToken, goi: goi, thoat: thoat, mdSangHtml: mdSangHtml };
+  window.HPDQ_AI_CHUNG = { layToken: layToken, goi: goi, docJson: docJson, loiMang: loiMang, thoat: thoat, mdSangHtml: mdSangHtml };
 })();

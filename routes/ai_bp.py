@@ -2,14 +2,14 @@
 Trợ lý AI trên web Planning: hỏi đáp bằng lời và báo cáo ngày, tuần.
 
 Phần AI chạy ở máy chủ MCP (module @trolyweb), dùng LLM nội bộ. Web chỉ làm hai việc:
-  1. /ai/token: kiểm phiên đăng nhập + quyền, ký token ngắn hạn (5 phút) để trình duyệt gọi thẳng trợ lý.
-     Câu hỏi không đi qua Flask, nên không giữ luồng waitress trong lúc AI trả lời.
+  1. /ai/token: kiểm phiên đăng nhập + quyền, ký token ngắn hạn (5 phút) để trình duyệt gọi trợ lý.
+     Câu hỏi đi qua nginx thẳng sang trợ lý (/troly-api/), không qua Flask, nên không giữ luồng waitress.
   2. /bao-cao: trang xem, chốt, tải báo cáo ngày, tuần.
 
 Cấu hình: tệp .env.ai ở thư mục gốc (chép từ .env.ai.example) hoặc biến môi trường của máy chạy web.
 KHÔNG ghi vào .env: repo này công khai và .env đang được commit.
   WEB_AI_SECRET  khoá ký token, giống WEB_AI_SECRET của dịch vụ trợ lý
-  WEB_AI_API     địa chỉ HTTPS của trợ lý, vd https://mcp.hoaphatdungquat.vn/web
+  WEB_AI_API     đường gọi trợ lý, mặc định /troly-api (nginx của web chuyển sang máy chủ trợ lý, cùng nguồn)
 Thiếu một trong hai thì trợ lý tự ẩn, web chạy như cũ. Hướng dẫn cài: docs/TRO-LY-AI.md.
 
 Quyền (bảng permissions + user_permissions, thêm bằng docs/tro-ly-ai-quyen.sql; admin có tất cả):

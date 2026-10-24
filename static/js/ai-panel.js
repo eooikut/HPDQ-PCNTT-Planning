@@ -401,7 +401,7 @@
 
     C.goi("/hoi-dap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
       .then(function (r) {
-        if (!r.ok) return r.json().then(function (j) { throw new Error(j.loi || "Trợ lý chưa trả lời được (" + r.status + ")."); });
+        if (!r.ok) return C.docJson(r);
         var docSse = r.body.getReader();
         var giai = new TextDecoder();
         var dem = "";
@@ -422,7 +422,7 @@
         }
         return doc1();
       })
-      .catch(function (err) { xuLy("loi", { text: err.message || "Mất kết nối tới trợ lý." }); })
+      .catch(function (err) { xuLy("loi", { text: C.loiMang(err).message || "Mất kết nối tới trợ lý." }); })
       .then(function () {
         if (!xong) xuLy("loi", { text: "Mất kết nối tới trợ lý giữa chừng. Anh/chị hỏi lại." });
         ketThucBuoc();
