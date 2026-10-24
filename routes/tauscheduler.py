@@ -222,7 +222,9 @@ def parse_eta(eta, default_year=None):
     ]
 
     eta_compact = re.sub(r"\s*-\s*", "-", eta_clean)
-    date_candidates = re.findall(r"\d{1,4}(?:[./-]\d{1,2}){1,3}(?:[./-]\d{2,4})?", eta_compact)
+    # Mỗi nhóm sau dấu phân cách thử năm 4 chữ số trước: bản cũ cắt "24-25.10.2026" thành "24-25.10.20" (mất năm) nên
+    # mọi ETA dạng khoảng ngày ra None, và "06-08.10.2026" bị đọc thành 06/08.
+    date_candidates = re.findall(r"\d{1,4}(?:[./-](?:\d{4}|\d{1,2})){1,3}(?:[./-]\d{2,4})?", eta_compact)
     if not date_candidates:
         return None
 
