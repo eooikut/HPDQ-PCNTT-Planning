@@ -6,12 +6,13 @@ Phần AI chạy ở máy chủ MCP (module @trolyweb), dùng LLM nội bộ. We
      Câu hỏi không đi qua Flask, nên không giữ luồng waitress trong lúc AI trả lời.
   2. /bao-cao: trang xem, chốt, tải báo cáo ngày, tuần.
 
-Cấu hình (biến môi trường, đặt trong .env của máy chạy web):
-  WEB_AI_SECRET  khoá ký token, giống WEB_AI_SECRET của trợ lý
-  WEB_AI_API     địa chỉ trợ lý, vd https://mcp.hoaphatdungquat.vn/web
-Thiếu một trong hai thì trợ lý tự ẩn.
+Cấu hình: tệp .env.ai ở thư mục gốc (chép từ .env.ai.example) hoặc biến môi trường của máy chạy web.
+KHÔNG ghi vào .env: repo này công khai và .env đang được commit.
+  WEB_AI_SECRET  khoá ký token, giống WEB_AI_SECRET của dịch vụ trợ lý
+  WEB_AI_API     địa chỉ HTTPS của trợ lý, vd https://mcp.hoaphatdungquat.vn/web
+Thiếu một trong hai thì trợ lý tự ẩn, web chạy như cũ. Hướng dẫn cài: docs/TRO-LY-AI.md.
 
-Quyền (bảng user_permissions; admin có tất cả):
+Quyền (bảng permissions + user_permissions, thêm bằng docs/tro-ly-ai-quyen.sql; admin có tất cả):
   ai_hoi_dap     dùng khung hỏi đáp
   xem_bao_cao    xem, tải báo cáo
   chot_bao_cao   chốt bản báo cáo
@@ -23,9 +24,13 @@ import json
 import os
 import time
 
+from dotenv import load_dotenv
 from flask import Blueprint, jsonify, render_template, session
 
 from auth.decorator import login_required
+
+# Biến môi trường của máy (nếu có) được ưu tiên hơn tệp.
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env.ai"))
 
 ai_bp = Blueprint("ai_bp", __name__)
 
