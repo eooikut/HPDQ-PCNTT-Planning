@@ -9,6 +9,11 @@ Nhánh `feat/tro-ly-ai`. Tài liệu cho người quản trị web Planning (má
 | **Hỏi đáp số liệu** bằng lời thường: đơn hàng, tàu, tồn kho, sản xuất, dừng sản xuất, bán hàng, chất lượng. Trả lời ngắn kèm bảng số gốc, liên kết tới trang đã lọc, câu hỏi gợi ý. Nút **Trang này** hỏi đúng bộ lọc đang chọn. | Nút nổi góc dưới bên phải, mọi trang | `ai_hoi_dap` |
 | **Báo cáo ngày, tuần**: số dựng sẵn (không dùng AI), tải Excel | Menu Công cụ > Báo cáo ngày, tuần (`/bao-cao`) | `xem_bao_cao` |
 | **Chốt báo cáo**: lưu bản đã chốt | Nút Chốt trên trang báo cáo | `chot_bao_cao` |
+| **Phân quyền trợ lý AI**: bật, tắt 3 quyền trên cho từng người hoặc hàng loạt, tìm, lọc; có hiệu lực trong 1 phút, không cần đăng nhập lại | Menu Kiểm soát > Phân quyền trợ lý AI (`/ai/phan-quyen`) | admin hoặc `manage_users` |
+
+Trong khung hỏi đáp: nút **Làm mới cuộc trò chuyện** (dưới ô nhập) xoá hội thoại để hỏi lại từ đầu; lúc trợ lý đang trả lời, nút gửi thành nút **dừng**.
+
+Trợ lý tự suy nghĩ chọn công cụ và gọi nhiều lượt như Claude dùng MCP Server HPDQ (tra tên khách rồi tra số, gọi song song, tự soát lại khi có số không khớp số liệu).
 
 Trợ lý chỉ báo số và phép so bằng số, không nhận xét, không đề xuất. Số năng lượng (điện, than, khí, hơi) chưa có.
 
@@ -34,7 +39,8 @@ Tệp thay đổi trong nhánh:
 | `routes/ai_bp.py` (mới) | `/ai/token`, `/bao-cao`, đọc cấu hình từ `.env.ai` |
 | `app.py` | đăng ký `ai_bp` (2 hàng) |
 | `templates/base.html` | nạp CSS, mục menu Báo cáo, include partial (chỉ khi có quyền) |
-| `templates/partials/ai_panel.html`, `templates/ai/*` (mới) | nạp script khung chat, trang báo cáo |
+| `templates/partials/ai_panel.html`, `templates/ai/*` (mới) | nạp script khung chat, trang báo cáo, trang phân quyền (`ai/phan_quyen.html`) |
+| `routes/tauscheduler.py`, `routes/idcuonbo.py`, `routes/khachhang.py` | sửa kèm, xem mục 7 |
 | `static/js/ai-chung.js`, `static/js/ai-panel.js`, `static/css/ai-panel.css` (mới) | khung chat, trang báo cáo. Không dùng thư viện ngoài |
 | `docs/nginx-tro-ly-ai.conf` (mới) | khối nginx `/troly-api/` |
 | `.env.ai.example`, `docs/tro-ly-ai-quyen.sql`, `docs/TRO-LY-AI.md` (mới) | cấu hình mẫu, script thêm quyền, tài liệu này |
@@ -76,9 +82,9 @@ Ra `401` là đúng (đã tới trợ lý, chỉ thiếu token). Ra `403`: máy 
    nginx -s reload
    ```
 
-4. **Thêm quyền**: chạy `docs/tro-ly-ai-quyen.sql` trên CSDL của web (thêm `ai_hoi_dap`, `xem_bao_cao`, `chot_bao_cao` vào bảng `permissions`; chạy lại nhiều lần không sao).
+4. **Thêm quyền**: tự động. Lần đầu admin mở trang Phân quyền trợ lý AI, trang tự thêm `ai_hoi_dap`, `xem_bao_cao`, `chot_bao_cao` vào bảng `permissions`. Muốn thêm trước bằng tay thì chạy `docs/tro-ly-ai-quyen.sql` (chạy lại nhiều lần không sao).
 
-5. **Cấp quyền**: trang Quản lý người dùng > sửa người dùng > tích các quyền trên. Tài khoản admin có sẵn mọi quyền. Người được cấp **đăng xuất rồi đăng nhập lại** (quyền nạp vào phiên lúc đăng nhập).
+5. **Cấp quyền**: menu Kiểm soát > **Phân quyền trợ lý AI**: tích ô theo từng người, hoặc chọn nhiều người rồi bấm "Cấp hỏi đáp và xem báo cáo". Bấm là lưu, có hiệu lực trong vòng 1 phút, người dùng **không phải đăng nhập lại**; mỗi lần đổi được ghi vào nhật ký thao tác (`audit_log`, hành động `ai_phan_quyen`). Tài khoản admin có sẵn mọi quyền. Trang Quản lý người dùng cũ vẫn cấp được (khi đó người dùng phải đăng nhập lại).
 
 6. **Khởi động lại web** (waitress lưu đệm template, phải khởi động lại mới thấy `base.html` mới).
 
@@ -97,6 +103,8 @@ Ra `401` là đúng (đã tới trợ lý, chỉ thiếu token). Ra `403`: máy 
 | 5 | Gõ "Tồn kho thép cuộn hiện tại?" | Thấy các bước chạy (Lấy số, Viết câu trả lời) và chữ hiện dần; sau 5-10 giây có câu trả lời, bảng số, mốc "Số liệu tính đến" |
 | 6 | Menu Công cụ > Báo cáo ngày, tuần | Có 4 mục kèm bảng; bấm tải Excel được tệp |
 | 7 | Đăng nhập tài khoản **không** có quyền | Không có nút trợ lý, không có mục Báo cáo; mở `/bao-cao` ra trang 403 |
+| 8 | Admin mở Phân quyền trợ lý AI, tích "Hỏi đáp AI" cho một tài khoản | Báo "Đã cấp ai_hoi_dap..."; trong 1 phút người đó tải lại trang là thấy nút trợ lý |
+| 9 | Tài khoản không có quyền Quản lý người dùng mở `/ai/phan-quyen` | Trang 403 |
 
 Ở bước 5, nếu chữ không hiện dần mà hiện cả đoạn một lần ở cuối: thiếu `proxy_buffering off` trong khối nginx.
 
@@ -108,6 +116,7 @@ Ra `401` là đúng (đã tới trợ lý, chỉ thiếu token). Ra `403`: máy 
 |---|---|---|
 | Không có nút trợ lý | Chưa có `.env.ai` (hoặc thiếu một giá trị), chưa cấp quyền `ai_hoi_dap`, chưa đăng nhập lại sau khi cấp, chưa khởi động lại web | Kiểm lần lượt mục 4 |
 | "Anh/chị chưa có quyền dùng trợ lý AI." | Tài khoản chưa có `ai_hoi_dap` hoặc `xem_bao_cao` | Mục 4 bước 5 |
+| "Anh/chị chưa có quyền dùng hỏi đáp AI..." hoặc "...xem báo cáo AI..." | Máy chủ trợ lý cũng kiểm quyền: tài khoản có một quyền mà dùng tính năng của quyền kia | Cấp đúng quyền ở trang Phân quyền trợ lý AI |
 | "Phiên đăng nhập đã hết. Anh/chị tải lại trang để đăng nhập." | Phiên web hết hạn | Tải lại trang, đăng nhập |
 | "Phiên trợ lý hết hạn hoặc không hợp lệ. Anh/chị tải lại trang." ở **mọi** câu hỏi | Khoá hai bên khác nhau, hoặc giờ hai máy lệch quá 5 phút | So `WEB_AI_SECRET` với nhóm AI P.CNTT; bật NTP |
 | "Trợ lý AI chưa được cấu hình xong trên máy chủ web (mã 404)" | Khối nginx chưa có hiệu lực, hoặc sai đường `WEB_AI_API` | Mục 4 bước 2, 3 |
@@ -120,9 +129,19 @@ Ra `401` là đúng (đã tới trợ lý, chỉ thiếu token). Ra `403`: máy 
 
 Khi báo lỗi, gửi kèm ảnh màn hình, giờ hỏi và tên đăng nhập.
 
-## 7. Bảo mật
+## 7. Sửa kèm trong nhánh
 
-- Token có hạn 5 phút, ký bằng HMAC-SHA256, chứa tên đăng nhập, vai trò và 3 quyền AI. Khoá không nằm trong mã, không gửi xuống trình duyệt.
+| Lỗi | Sửa | Sau khi cài |
+|---|---|---|
+| **Lịch tàu "0 chuyến"** (24/10/2026): ETA ghi dạng khoảng ngày (`24-25.10.2026`) đọc ra trống nên mọi tàu từ 24/10 biến mất khỏi dashboard, bảng điều hành; `06-08.10.2026` bị đọc thành 06/08 | `routes/tauscheduler.py` `parse_eta`: nhóm sau dấu phân cách thử năm 4 chữ số trước | **Nạp lại tệp lịch tàu** (Kế hoạch lịch tàu > Import Excel) để tính lại ngày cho các hàng đã nạp |
+| Check ID Cuộn lỗi ở batch dạng `EXP2260806` | `routes/idcuonbo.py`: ép Batch hai vế về nvarchar | Không |
+| Check Khách Hàng và Lịch Tàu hiện hai % khác nhau cho cùng SO nhỏ (dải 120-125 %) | `routes/khachhang.py`: ngưỡng 1.25 như `lichtau.py`, `dashboard.py` | Không |
+
+## 8. Bảo mật
+
+- Token có hạn 5 phút, ký bằng HMAC-SHA256, chứa tên đăng nhập, vai trò và 3 quyền AI (đọc từ CSDL, nhớ 60 giây). Khoá không nằm trong mã, không gửi xuống trình duyệt.
+- Máy chủ trợ lý kiểm từng quyền: hỏi đáp cần `ai_hoi_dap`, xem và tải báo cáo cần `xem_bao_cao`, chốt cần `chot_bao_cao` (không chỉ ẩn nút trên giao diện).
+- Trang Phân quyền trợ lý AI chỉ cho admin và người có `manage_users`; không đổi được quyền của admin và tài khoản đã khoá; mỗi lần đổi ghi `audit_log`.
 - Máy chủ trợ lý chỉ nhận yêu cầu từ máy web .24, chỉ đọc số (không ghi CSDL Planning), mỗi người một câu cùng lúc. Khoá LLM chỉ nằm ở máy chủ trợ lý.
 - Chữ từ máy chủ đều được thoát HTML trước khi hiển thị.
 - Tải Excel đưa token vào địa chỉ tải (`?t=`), hết hạn sau 5 phút.
