@@ -166,12 +166,15 @@ body.ai-dang-mo .ai-khung {
   gap: 8px;
   font-weight: 700;
   font-size: 14px;
-  letter-spacing: 1.5px;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
   color: #fff;
   text-shadow: 0 0 6px rgba(95, 220, 255, 0.35);
   white-space: nowrap;
+  overflow: hidden;
 }
+.ai-tieu-de__hang span { overflow: hidden; text-overflow: ellipsis; }
+.ai-dau .ai-nut-dau { flex-shrink: 0; }
 .ai-phu i { margin-right: 2px; }
 .ai-phu { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ai-phu {
@@ -523,7 +526,33 @@ body.ai-dang-mo .ai-khung {
 }
 .ai-gui:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 0 18px rgba(44, 193, 232, 0.65); }
 .ai-gui:disabled { opacity: 0.35; cursor: not-allowed; }
-.ai-luu-y { padding: 0 14px 10px; font-size: 10.5px; color: rgba(180, 220, 240, 0.45); flex-shrink: 0; }
+/* Đang trả lời: nút gửi thành nút dừng */
+.ai-gui--dung { background: linear-gradient(135deg, #ff8a7a, #d9534f); border-color: rgba(255, 140, 120, 0.7); color: #fff; box-shadow: 0 0 12px rgba(255, 110, 100, 0.45); }
+.ai-gui--dung:hover:not(:disabled) { box-shadow: 0 0 18px rgba(255, 110, 100, 0.7); }
+.ai-luu-y {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px 10px;
+  font-size: 10.5px;
+  color: rgba(180, 220, 240, 0.45);
+  flex-shrink: 0;
+}
+.ai-luu-y > span { flex: 1; min-width: 0; }
+/* Nút làm mới cuộc trò chuyện: có chữ, luôn thấy, không chen hàng tiêu đề */
+.ai-lam-moi {
+  flex-shrink: 0;
+  background: rgba(95, 220, 255, 0.08);
+  border: 1px solid rgba(95, 220, 255, 0.35);
+  color: var(--ai-xanh);
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ai-lam-moi:hover { background: rgba(95, 220, 255, 0.2); color: #fff; }
 
 /* ============ Điện thoại ============ */
 body.ai-dien-thoai .ai-khung {
@@ -537,10 +566,13 @@ body.ai-dien-thoai .ai-khung {
 body.ai-dien-thoai .ai-khung.lon { width: auto; }
 body.ai-dien-thoai #ai-phong-to,
 body.ai-dien-thoai #ai-ve-trang span,
-body.ai-dien-thoai .ai-phu { display: none; }
+body.ai-dien-thoai .ai-phu,
+body.ai-dien-thoai .ai-luu-y > span { display: none; }
+body.ai-dien-thoai .ai-luu-y { justify-content: flex-end; }
 @media (max-width: 768px) {
   .ai-khung { top: 0; left: 0; right: 0; bottom: 0; width: auto; height: auto; max-width: none; border-radius: 0; }
-  #ai-phong-to, #ai-ve-trang span, .ai-phu { display: none; }
+  #ai-phong-to, #ai-ve-trang span, .ai-phu, .ai-luu-y > span { display: none; }
+  .ai-luu-y { justify-content: flex-end; }
 }
 
 /* ============ Trang báo cáo (nền sáng của web) ============ */
