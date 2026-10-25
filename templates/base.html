@@ -240,6 +240,9 @@
       <a href="{{ url_for('user.list_users') }}" title="Quản lý người dùng">
         <i class="fas fa-users-cog"></i><span>Quản lý người dùng</span>
       </a>
+      <a href="{{ url_for('ai_bp.phan_quyen') }}" title="Phân quyền trợ lý AI">
+        <i class="fas fa-user-shield"></i><span>Phân quyền trợ lý AI</span>
+      </a>
       {% endif %}
 	  {% if 'upload_files' in session.get('permissions', []) or session.get('role') == 'admin' %}
       <h6>THAO TÁC</h6>
