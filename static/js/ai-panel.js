@@ -80,7 +80,7 @@
     '<div class="ai-ngu-canh" id="ai-ngu-canh" hidden></div>' +
     '<div class="ai-tin-ds" id="ai-tin" aria-live="polite"></div>' +
     '<div class="ai-nhap-khung">' +
-    '<textarea id="ai-nhap" class="ai-nhap" rows="1" maxlength="1000" autocomplete="off" placeholder="Hỏi về đơn hàng, tàu, tồn kho, sản xuất..."></textarea>' +
+    '<textarea id="ai-nhap" class="ai-nhap" rows="1" maxlength="4000" autocomplete="off" placeholder="Hỏi về đơn hàng, tàu, tồn kho, sản xuất..."></textarea>' +
     '<button type="button" id="ai-gui" class="ai-gui" title="Gửi (Enter)" aria-label="Gửi"><i class="fas fa-paper-plane"></i></button>' +
     "</div>" +
     '<div class="ai-luu-y"><span>Enter để gửi, Shift+Enter xuống dòng. Bảng là số gốc của hệ thống; câu chữ do AI viết đã đối chiếu với số gốc.</span>' +
@@ -219,9 +219,9 @@
     var buoi = gio < 11 ? "Chào buổi sáng" : gio < 13 ? "Chào buổi trưa" : gio < 18 ? "Chào buổi chiều" : "Chào buổi tối";
     var b = bongBot("ai-chao");
     b.innerHTML =
-      "<p><strong>" + buoi + " anh/chị.</strong> Tôi là trợ lý số liệu của web Planning: đơn hàng, tàu, tồn kho, sản xuất, dừng sản xuất, bán hàng, chất lượng.</p>" +
+      "<p><strong>" + buoi + " anh/chị.</strong> Em là trợ lý số liệu của web Planning: đơn hàng, tàu, tồn kho, sản xuất, dừng sản xuất, bán hàng, chất lượng.</p>" +
       (t ? "<p>Anh/chị đang xem <strong>" + C.thoat(t.ten) + "</strong>. Bấm <strong>Trang này</strong> để hỏi đúng bộ lọc đang chọn.</p>" : "") +
-      '<p class="ai-mo-nhat">Tôi chỉ báo số và phép so bằng số, không nhận xét. Anh/chị hỏi bằng lời thường, hoặc chọn một câu dưới đây.</p>';
+      '<p class="ai-mo-nhat">Anh/chị hỏi bằng lời thường, dán cả báo cáo để em đối chiếu với số hệ thống, hoặc chọn một câu dưới đây.</p>';
     var q = new URLSearchParams(Object.assign({ trang: t ? t.ma : "" }, t ? t.loc : {}));
     C.goi("/goi-y?" + q.toString())
       .then(function (r) { return r.json(); })
