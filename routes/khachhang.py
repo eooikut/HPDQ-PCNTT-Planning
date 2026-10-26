@@ -40,9 +40,13 @@ WITH Data_with_Process AS (
             WHEN s.[Quantity (KG)] > 0 THEN
                 ROUND(
                     CASE
-                        -- Nếu qty nhỏ và vượt 120%
-                        WHEN s.[Quantity (KG)] <= 100000 
-                            AND (ISNULL(t.[SL Mapping kho],0) + ISNULL(s.[Shipped Quantity (KG)],0)) > 1.2 * s.[Quantity (KG)] THEN
+                        -- Nếu qty nhỏ và vượt 125%
+                        -- 1.25 chứ không phải 1.2: lichtau.py:53 và dashboard.py:320
+                        -- đều dùng 1.25. Trước đây chỗ này để 1.2 nên cùng một SO nhỏ
+                        -- có tổng nằm trong dải 120-125% sẽ hiện hai % khác nhau ở
+                        -- màn Check Khách Hàng và màn Lịch Tàu.
+                        WHEN s.[Quantity (KG)] <= 100000
+                            AND (ISNULL(t.[SL Mapping kho],0) + ISNULL(s.[Shipped Quantity (KG)],0)) > 1.25 * s.[Quantity (KG)] THEN
                             CASE 
                                 WHEN ABS(ISNULL(s.[Shipped Quantity (KG)],0) - s.[Quantity (KG)]) 
                                     < ABS(ISNULL(t.[SL Mapping kho],0) - s.[Quantity (KG)]) 

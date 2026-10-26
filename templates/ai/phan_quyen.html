@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Phân quyền trợ lý AI{% endblock %}
+{% block content %}
+{# Trang phân quyền trợ lý AI (routes/ai_bp.py: /ai/phan-quyen). Bấm ô là lưu ngay; quyền có hiệu lực trong 1 phút,
+   người dùng không phải đăng nhập lại. Tài khoản admin luôn có mọi quyền. #}
+<div class="card shadow-sm" id="pq-trang">
+  <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
+    <h4 class="mb-0"><i class="fas fa-robot me-2"></i>Phân quyền trợ lý AI</h4>
+    {% if cau_hinh.khoa and cau_hinh.api %}
+    <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Trợ lý đã bật ({{ cau_hinh.api }})</span>
+    {% else %}
+    <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i>Trợ lý chưa cấu hình: thiếu {{ 'WEB_AI_SECRET' if not cau_hinh.khoa }}{{ ' và ' if not cau_hinh.khoa and not cau_hinh.api }}{{ 'WEB_AI_API' if not cau_hinh.api }} trong .env.ai</span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <div class="row g-2 mb-3 small text-muted">
+      {% for q in quyen_ai %}
+      <div class="col-md-4"><span class="badge bg-secondary me-1">{{ q }}</span>{{ mo_ta[q] }}</div>
+      {% endfor %}
+      <div class="col-12">Bấm ô là lưu ngay. Quyền có hiệu lực trong vòng 1 phút, người dùng không phải đăng nhập lại. Tài khoản admin luôn có mọi quyền.</div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+      <input type="search" id="pq-tim" class="form-control form-control-sm" style="max-width: 260px" placeholder="Tìm tài khoản, họ tên..." aria-label="Tìm người dùng">
+      <select id="pq-loc" class="form-select form-select-sm" style="max-width: 200px" aria-label="Lọc">
+        <option value="">Tất cả</option>
+        <option value="co">Đã có quyền AI</option>
+        <option value="chua">Chưa có quyền AI</option>
+      </select>
+      <span class="ms-auto small text-muted" id="pq-dem"></span>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-2" id="pq-hang-loat" hidden>
+      <span class="small fw-semibold" id="pq-so-chon"></span>
+      <button type="button" class="btn btn-sm btn-success" data-cap="1"><i class="fas fa-user-check me-1"></i>Cấp hỏi đáp và xem báo cáo</button>
+      <button type="button" class="btn btn-sm btn-outline-danger" data-cap="0"><i class="fas fa-user-slash me-1"></i>Thu hồi mọi quyền AI</button>
+    </div>
+
+    <div id="pq-bao" class="small mb-2" role="status" aria-live="polite"></div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover align-middle mb-0" id="pq-bang">
+        <thead class="table-dark">
+          <tr>
+            <th style="width: 36px"><input type="checkbox" class="form-check-input" id="pq-chon-het" aria-label="Chọn tất cả"></th>
+            <th>Tài khoản</th>
+            <th>Họ và tên</th>
+            <th>Đăng nhập gần nhất</th>
+            <th class="text-center">Hỏi đáp AI</th>
+            <th class="text-center">Xem báo cáo</th>
+            <th class="text-center">Chốt báo cáo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for n in nguoi_dung %}
+          <tr data-id="{{ n.id }}" data-tim="{{ (n.username ~ ' ' ~ n.full_name)|lower }}" data-admin="{{ '1' if n.admin else '' }}">
+            <td>{% if not n.admin %}<input type="checkbox" class="form-check-input pq-chon" aria-label="Chọn {{ n.username }}">{% endif %}</td>
+            <td>{{ n.username }}{% if n.admin %} <span class="badge bg-primary ms-1">admin</span>{% endif %}</td>
+            <td>{{ n.full_name }}</td>
+            <td class="small">{{ n.last_login or 'Chưa đăng nhập' }}</td>
+            {% for q in quyen_ai %}
+            <td class="text-center">
+              {% if n.admin %}
+              <i class="fas fa-check text-primary" title="Admin có mọi quyền"></i>
+              {% else %}
+              <input type="checkbox" class="form-check-input pq-quyen" data-quyen="{{ q }}" {{ 'checked' if q in n.quyen }} aria-label="{{ mo_ta[q] }} cho {{ n.username }}">
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var CSRF = (document.querySelector('meta[name="csrf-token"]') || {}).content || "";
+  var bang = document.getElementById("pq-bang");
+  var bao = document.getElementById("pq-bao");
+  var tim = document.getElementById("pq-tim");
+  var loc = document.getElementById("pq-loc");
+  var dem = document.getElementById("pq-dem");
+  var hangLoat = document.getElementById("pq-hang-loat");
+  var soChon = document.getElementById("pq-so-chon");
+  var chonHet = document.getElementById("pq-chon-het");
+  var hang = Array.prototype.slice.call(bang.querySelectorAll("tbody tr"));
+
+  function thongBao(chu, loi) {
+    bao.className = "small mb-2 " + (loi ? "text-danger" : "text-success");
+    bao.innerHTML = '<i class="fas ' + (loi ? "fa-exclamation-circle" : "fa-check-circle") + ' me-1"></i>';
+    bao.appendChild(document.createTextNode(chu));
+  }
+
+  function coQuyenAi(h) {
+    return h.dataset.admin === "1" || !!h.querySelector(".pq-quyen:checked");
+  }
+
+  function hienLoc() {
+    var q = tim.value.trim().toLowerCase();
+    var n = 0;
+    hang.forEach(function (h) {
+      var hien = (!q || h.dataset.tim.indexOf(q) >= 0) && (!loc.value || (loc.value === "co") === coQuyenAi(h));
+      h.hidden = !hien;
+      if (hien) n++;
+    });
+    dem.textContent = n + " trên " + hang.length + " tài khoản";
+    capNhatChon();
+  }
+
+  function dangChon() {
+    return hang.filter(function (h) { var c = h.querySelector(".pq-chon"); return !h.hidden && c && c.checked; });
+  }
+
+  function capNhatChon() {
+    var ds = dangChon();
+    hangLoat.hidden = !ds.length;
+    soChon.textContent = "Đã chọn " + ds.length + " tài khoản:";
+  }
+
+  /** Lưu quyền; lỗi thì trả ô về trạng thái cũ. */
+  function luu(ids, quyen, oThay) {
+    oThay.forEach(function (o) { o.disabled = true; });
+    return fetch("{{ url_for('ai_bp.luu_phan_quyen') }}", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": CSRF, Accept: "application/json" },
+      body: JSON.stringify({ user_ids: ids, quyen: quyen }),
+    })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (!r.ok || !j.ok) throw new Error(j.loi || "Không lưu được (mã " + r.status + "). Anh/chị tải lại trang rồi thử lại.");
+          return j;
+        });
+      })
+      .finally(function () { oThay.forEach(function (o) { o.disabled = false; }); });
+  }
+
+  bang.addEventListener("change", function (e) {
+    var o = e.target;
+    if (o.classList.contains("pq-quyen")) {
+      var h = o.closest("tr");
+      var q = {};
+      q[o.dataset.quyen] = o.checked;
+      luu([Number(h.dataset.id)], q, [o])
+        .then(function () { thongBao((o.checked ? "Đã cấp " : "Đã thu hồi ") + o.dataset.quyen + " cho " + h.children[1].textContent.trim() + "."); })
+        .catch(function (err) { o.checked = !o.checked; thongBao(err.message, true); });
+    } else if (o.classList.contains("pq-chon")) capNhatChon();
+  });
+
+  chonHet.addEventListener("change", function () {
+    hang.forEach(function (h) { var c = h.querySelector(".pq-chon"); if (c && !h.hidden) c.checked = chonHet.checked; });
+    capNhatChon();
+  });
+
+  hangLoat.addEventListener("click", function (e) {
+    var nut = e.target.closest("button[data-cap]");
+    if (!nut) return;
+    var ds = dangChon();
+    if (!ds.length) return;
+    var cap = nut.dataset.cap === "1";
+    var quyen = cap ? { ai_hoi_dap: true, xem_bao_cao: true } : { ai_hoi_dap: false, xem_bao_cao: false, chot_bao_cao: false };
+    if (!cap && !confirm("Thu hồi mọi quyền trợ lý AI của " + ds.length + " tài khoản?")) return;
+    var o = ds.reduce(function (a, h) { return a.concat(Array.prototype.slice.call(h.querySelectorAll(".pq-quyen"))); }, []);
+    luu(ds.map(function (h) { return Number(h.dataset.id); }), quyen, o.concat([nut]))
+      .then(function (j) {
+        ds.forEach(function (h) {
+          h.querySelectorAll(".pq-quyen").forEach(function (c) { if (c.dataset.quyen in quyen) c.checked = quyen[c.dataset.quyen]; });
+          h.querySelector(".pq-chon").checked = false;
+        });
+        chonHet.checked = false;
+        thongBao((cap ? "Đã cấp hỏi đáp và xem báo cáo cho " : "Đã thu hồi quyền AI của ") + j.so_nguoi + " tài khoản.");
+        hienLoc();
+      })
+      .catch(function (err) { thongBao(err.message, true); });
+  });
+
+  tim.addEventListener("input", hienLoc);
+  loc.addEventListener("change", hienLoc);
+  hienLoc();
+})();
+</script>
+{% endblock %}

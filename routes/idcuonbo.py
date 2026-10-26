@@ -44,7 +44,10 @@ SELECT DISTINCT
     s.[Ngày sản xuất],
     s.Ca,
     s.[Order],
-    s.Batch,
+    -- sanluong.[Batch] là nvarchar, kho.[Batch] là float. UNION ALL ép theo
+    -- độ ưu tiên kiểu (float > nvarchar) nên vỡ ở 32.578 dòng có batch dạng
+    -- 'EXP2260806'. Ép cả hai vế về nvarchar để giữ nguyên dữ liệu.
+    CAST(s.Batch AS NVARCHAR(50)) AS Batch,
     s.[Mác thép],
     '' AS [Customer N],
     CASE WHEN s.[Tp loại 2] = 1 THEN 1 ELSE 0 END AS TpLoai2,
@@ -78,7 +81,8 @@ SELECT
     k.[Ngày sản xuất],
     k.Ca,
     k.[Order],
-    k.Batch,
+    -- Qua bigint trước để tránh float in ra dạng khoa học (2.12512e+09).
+    CONVERT(NVARCHAR(50), TRY_CONVERT(BIGINT, k.Batch)) AS Batch,
     k.[Mác thép],
     K.[Customer N],
     CASE WHEN k.[Tp loại 2] = 'X' THEN 1 ELSE 0 END AS TpLoai2,

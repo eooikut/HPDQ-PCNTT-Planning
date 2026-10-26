@@ -73,7 +73,7 @@
     '<div class="ai-tieu-de"><div class="ai-tieu-de__hang"><span>Trợ lý Planning</span></div>' +
     '<div class="ai-phu" title="Bản thử nghiệm, AI chạy trên máy chủ nội bộ"><i class="fas fa-shield-alt"></i> AI nội bộ</div></div>' +
     '<button type="button" class="ai-nut-dau" id="ai-ve-trang" hidden title="Hỏi về trang đang xem, đúng bộ lọc đang chọn"><i class="fas fa-crosshairs"></i><span> Trang này</span></button>' +
-    '<button type="button" class="ai-nut-dau" id="ai-moi" title="Cuộc hỏi mới" aria-label="Cuộc hỏi mới"><i class="fas fa-plus"></i></button>' +
+    '<button type="button" class="ai-nut-dau" id="ai-moi" title="Làm mới cuộc trò chuyện: xoá hội thoại, hỏi lại từ đầu" aria-label="Làm mới cuộc trò chuyện"><i class="fas fa-redo-alt"></i></button>' +
     '<button type="button" class="ai-nut-dau" id="ai-phong-to" title="Phóng to"><i class="fas fa-expand-alt"></i></button>' +
     '<button type="button" class="ai-nut-dau" id="ai-dong" title="Đóng (Esc)" aria-label="Đóng"><i class="fas fa-times"></i></button>' +
     "</div>" +
@@ -83,12 +83,14 @@
     '<textarea id="ai-nhap" class="ai-nhap" rows="1" maxlength="1000" autocomplete="off" placeholder="Hỏi về đơn hàng, tàu, tồn kho, sản xuất..."></textarea>' +
     '<button type="button" id="ai-gui" class="ai-gui" title="Gửi (Enter)" aria-label="Gửi"><i class="fas fa-paper-plane"></i></button>' +
     "</div>" +
-    '<div class="ai-luu-y">Enter để gửi, Shift+Enter xuống dòng. Bảng là số gốc của hệ thống; câu chữ do AI viết đã đối chiếu với số gốc.</div>';
+    '<div class="ai-luu-y"><span>Enter để gửi, Shift+Enter xuống dòng. Bảng là số gốc của hệ thống; câu chữ do AI viết đã đối chiếu với số gốc.</span>' +
+    '<button type="button" id="ai-lam-moi" class="ai-lam-moi" title="Xoá hội thoại, hỏi lại từ đầu"><i class="fas fa-redo-alt"></i> Làm mới cuộc trò chuyện</button></div>';
 
   var tin, nhap, nutGui, nutTrang, nutPhongTo, nguCanh;
   var lichSu = []; // 3 lượt gần nhất gửi kèm câu hỏi để AI hiểu câu hỏi tiếp
   var hoiThoai = []; // toàn bộ để vẽ lại khi chuyển trang
   var dangHoi = false;
+  var dangDung = null; // AbortController của câu đang trả lời (nút dừng)
   var daChao = false;
 
   function cuonXuong() {
@@ -147,8 +149,25 @@
     ghi(KHOA_HT, JSON.stringify({ ht: hoiThoai, ls: lichSu }));
   }
 
+  /* Nút gửi đổi thành nút dừng trong lúc trợ lý trả lời. */
+  function datNutDung(bat) {
+    nutGui.classList.toggle("ai-gui--dung", bat);
+    nutGui.title = bat ? "Dừng trả lời" : "Gửi (Enter)";
+    nutGui.setAttribute("aria-label", bat ? "Dừng trả lời" : "Gửi");
+    nutGui.innerHTML = bat ? '<i class="fas fa-stop"></i>' : '<i class="fas fa-paper-plane"></i>';
+  }
+
+  function dung() {
+    if (dangDung) dangDung.abort();
+  }
+
   function cuocMoi() {
-    if (dangHoi) return;
+    // Đang trả lời thì dừng câu đó, đợi dừng hẳn rồi mới xoá hội thoại.
+    if (dangHoi) {
+      dung();
+      setTimeout(cuocMoi, 60);
+      return;
+    }
     hoiThoai = [];
     lichSu = [];
     luu();
@@ -300,7 +319,8 @@
     var cauHoi = body.cau_hoi || "";
     if (!cauHoi && !body.ve_trang) return;
     dangHoi = true;
-    nutGui.disabled = true;
+    dangDung = window.AbortController ? new AbortController() : null;
+    datNutDung(true);
     xoaGoiY();
     var t = hienNguCanh();
     if (t) {
@@ -363,6 +383,10 @@
         // Chờ lượt: ghi vào bước đang chạy, không thêm bước mới.
         if (d.buoc === "cho" && dangChay.length) dangChay[dangChay.length - 1].chu.textContent += " (chờ lượt " + d.text.replace(/\D+/g, "") + ")";
         else themBuoc(chu);
+      } else if (e === "xoa_chu") {
+        // Trợ lý soát lại số và viết lại: bỏ bản đang hiện.
+        dongChu = "";
+        o.van.innerHTML = "";
       } else if (e === "cong_cu") {
         // Chữ model viết trước khi gọi công cụ ("để em kiểm tra...") bỏ đi; nhiều công cụ chạy song song.
         dongChu = "";
@@ -399,7 +423,7 @@
       }
     }
 
-    C.goi("/hoi-dap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    C.goi("/hoi-dap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: dangDung && dangDung.signal })
       .then(function (r) {
         if (!r.ok) return C.docJson(r);
         var docSse = r.body.getReader();
@@ -422,12 +446,24 @@
         }
         return doc1();
       })
-      .catch(function (err) { xuLy("loi", { text: C.loiMang(err).message || "Mất kết nối tới trợ lý." }); })
+      .catch(function (err) {
+        if (err && err.name === "AbortError") {
+          // Người hỏi bấm dừng: giữ phần chữ đã hiện, không lưu vào hội thoại.
+          ketThucBuoc();
+          var b = bat();
+          b.bong.classList.remove("ai-dang-chay");
+          b.van.innerHTML = (dongChu ? C.mdSangHtml(catGoiY(dongChu)) : "") + '<div class="ai-ghi-chu"><i class="fas fa-stop-circle"></i> Đã dừng trả lời.</div>';
+          xong = true;
+          return;
+        }
+        xuLy("loi", { text: C.loiMang(err).message || "Mất kết nối tới trợ lý." });
+      })
       .then(function () {
         if (!xong) xuLy("loi", { text: "Mất kết nối tới trợ lý giữa chừng. Anh/chị hỏi lại." });
         ketThucBuoc();
         dangHoi = false;
-        nutGui.disabled = false;
+        dangDung = null;
+        datNutDung(false);
         nhap.focus();
         cuonXuong();
       });
@@ -479,12 +515,13 @@
     fab.addEventListener("click", mo);
     document.getElementById("ai-dong").addEventListener("click", dong);
     document.getElementById("ai-moi").addEventListener("click", cuocMoi);
+    document.getElementById("ai-lam-moi").addEventListener("click", cuocMoi);
     nutPhongTo.addEventListener("click", function () {
       var lon = khung.classList.toggle("lon");
       nutPhongTo.innerHTML = lon ? '<i class="fas fa-compress-alt"></i>' : '<i class="fas fa-expand-alt"></i>';
       nutPhongTo.title = lon ? "Thu nhỏ" : "Phóng to";
     });
-    nutGui.addEventListener("click", gui);
+    nutGui.addEventListener("click", function () { if (dangHoi) dung(); else gui(); });
     nutTrang.addEventListener("click", function () { hoi({ ve_trang: true, cau_hoi: "" }); });
     nhap.addEventListener("input", tuGian);
     nhap.addEventListener("keydown", function (e) {
